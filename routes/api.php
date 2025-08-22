@@ -1,0 +1,89 @@
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\BusinessController;
+use App\Http\Controllers\Api\OfferingController;
+use App\Http\Controllers\Api\UserController;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "api" middleware group. Make something great!
+|
+*/
+
+// Public routes (no authentication required)
+Route::prefix('v1')->group(function () {
+    // Authentication routes
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+
+    // Home screen data (public access)
+    Route::get('/home', [HomeController::class, 'index']);
+    Route::get('/featured-sections', [HomeController::class, 'featuredSections']);
+    Route::post('/banners/{banner}/click', [HomeController::class, 'trackBannerClick']);
+    Route::get('/statistics', [HomeController::class, 'statistics']);
+    Route::get('/trending', [HomeController::class, 'trending']);
+
+    // Public category routes
+    Route::prefix('categories')->group(function () {
+        Route::get('/', [CategoryController::class, 'index']);
+        Route::get('/main', [CategoryController::class, 'mainCategories']);
+        Route::get('/featured', [CategoryController::class, 'featuredCategories']);
+        Route::get('/popular', [CategoryController::class, 'popularCategories']);
+        Route::get('/{category}', [CategoryController::class, 'show']);
+        Route::get('/{category}/subcategories', [CategoryController::class, 'subcategories']);
+        Route::get('/{category}/businesses', [CategoryController::class, 'businesses']);
+    });
+
+    // Public business routes
+    Route::prefix('businesses')->group(function () {
+        Route::get('/', [BusinessController::class, 'index']);
+        Route::get('/search', [BusinessController::class, 'search']);
+        Route::get('/nearby', [BusinessController::class, 'nearby']);
+        Route::get('/featured', [BusinessController::class, 'featured']);
+        Route::get('/{business}', [BusinessController::class, 'show']);
+        Route::get('/{business}/offerings', [BusinessController::class, 'offerings']);
+        Route::get('/{business}/reviews', [BusinessController::class, 'reviews']);
+        Route::get('/{business}/offers', [BusinessController::class, 'offers']);
+    });
+
+    // Public offering routes (products/services/menu items)
+    Route::prefix('businesses/{business}/offerings')->group(function () {
+        Route::get('/', [OfferingController::class, 'index']);
+        Route::get('/{offering}', [OfferingController::class, 'show']);
+        Route::get('/{offering}/reviews', [OfferingController::class, 'reviews']);
+    });
+});
+
+// Protected routes (authentication required)
+Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
+    // User management
+    Route::prefix('auth')->group(function () {
+        Route::get('/user', [AuthController::class, 'user']);
+        Route::put('/profile', [AuthController::class, 'updateProfile']);
+        Route::post('/logout', [AuthController::class, 'logout']);
+    });
+
+    // User-specific features (require login)
+    Route::prefix('user')->group(function () {
+        // Favorites management
+        Route::get('/favorites', [UserController::class, 'favorites']);
+        Route::post('/favorites', [UserController::class, 'addFavorite']);
+        Route::delete('/favorites/{favorite}', [UserController::class, 'removeFavorite']);
+        
+        // User reviews
+        Route::get('/reviews', [UserController::class, 'reviews']);
+        
+        // User points and rewards
+        Route::get('/points', [UserController::class, 'points']);
+    });
+});
