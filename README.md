@@ -1,66 +1,269 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 5SRT Business Discovery Platform
 
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+    <img src="https://img.shields.io/badge/Laravel-10.x-red?style=for-the-badge&logo=laravel" alt="Laravel">
+    <img src="https://img.shields.io/badge/PHP-8.1%2B-blue?style=for-the-badge&logo=php" alt="PHP">
+    <img src="https://img.shields.io/badge/Filament-3.x-orange?style=for-the-badge" alt="Filament">
+    <img src="https://img.shields.io/badge/MySQL-8.0-blue?style=for-the-badge&logo=mysql" alt="MySQL">
 </p>
 
-## About Laravel
+<p align="center">
+    A comprehensive business discovery platform that connects users with local businesses, services, and offerings. Built with Laravel and featuring a modern admin panel powered by Filament.
+</p>
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🚀 Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 🏢 Business Management
+- **Business Registration & Profiles**: Complete business information management
+- **Category-based Organization**: Hierarchical categorization system
+- **Location-based Services**: Geographic discovery with radius-based search
+- **Business Verification**: Admin-controlled verification system
+- **Multi-media Support**: Image galleries, logos, and cover photos
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 🔍 Advanced Search & Discovery
+- **Universal Search API**: Search businesses and offerings simultaneously
+- **Intelligent Autocomplete**: Real-time search suggestions
+- **Location-based Filtering**: GPS-powered nearby business discovery
+- **Advanced Filtering**: Rating, price, features, and availability filters
+- **Popular Searches**: Trending search terms analytics
 
-## Learning Laravel
+### 📊 Analytics & Insights
+- **Trending Data**: Business and category trending analysis
+- **Search Analytics**: Comprehensive search behavior tracking
+- **View Tracking**: Business and offering view analytics
+- **Performance Metrics**: Discovery scores and engagement tracking
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 👥 User Management
+- **Role-based Access Control**: Super-admin, admin, moderator, business-owner, user roles
+- **Approval Workflows**: Business owner changes require admin approval
+- **User Authentication**: Sanctum-powered API authentication
+- **Profile Management**: Complete user profile system
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 🛠 Admin Panel (Filament)
+- **Business Management**: Full CRUD operations with role-based access
+- **User Administration**: User management with role assignments
+- **Analytics Dashboard**: Comprehensive analytics and reporting
+- **Content Moderation**: Review and approval systems
+- **System Configuration**: Categories, permissions, and settings
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 📱 Mobile-Friendly API
+- **RESTful API**: Clean, optimized API responses
+- **Location Services**: GPS integration for mobile apps
+- **Optimized Responses**: Minimal data transfer for mobile performance
+- **Authentication**: Token-based authentication with Sanctum
 
-## Laravel Sponsors
+## 🛠 Technology Stack
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- **Backend Framework**: Laravel 10.x
+- **Admin Panel**: Filament 3.x
+- **Authentication**: Laravel Sanctum
+- **Permissions**: Spatie Laravel Permission
+- **Database**: MySQL 8.0+
+- **PHP Version**: 8.1+
 
-### Premium Partners
+## 📋 Prerequisites
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+- PHP 8.1 or higher
+- Composer
+- MySQL 8.0 or higher
+- Node.js & NPM (for assets compilation)
 
-## Contributing
+## 🚀 Installation
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Naimur404/5str-backend.git
+   cd 5str-backend
+   ```
 
-## Code of Conduct
+2. **Install PHP dependencies**
+   ```bash
+   composer install
+   ```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+3. **Environment setup**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-## Security Vulnerabilities
+4. **Configure your `.env` file**
+   ```env
+   APP_NAME="5SRT Business Discovery"
+   APP_URL=http://localhost:8000
+   
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=5srt_backend
+   DB_USERNAME=your_username
+   DB_PASSWORD=your_password
+   ```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+5. **Database setup**
+   ```bash
+   php artisan migrate:fresh --seed
+   ```
 
-## License
+6. **Install frontend dependencies and compile assets**
+   ```bash
+   npm install
+   npm run build
+   ```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+7. **Start the development server**
+   ```bash
+   php artisan serve
+   ```
+
+## 🗄 Database Seeding
+
+The project includes comprehensive seeders for development and testing:
+
+```bash
+# Full database reset with sample data
+php artisan migrate:fresh --seed
+
+# Generate trending data
+php artisan analytics:generate-test-data --count=50
+```
+
+### Default Admin Account
+- **Email**: admin@5srt.com
+- **Password**: password
+
+## 📚 API Documentation
+
+### Base URL
+```
+http://localhost:8000/api/v1
+```
+
+### Key Endpoints
+
+#### Authentication
+- `POST /register` - User registration
+- `POST /login` - User login
+- `GET /auth/user` - Get authenticated user
+- `POST /auth/logout` - Logout
+
+#### Universal Search
+- `GET /search` - Universal search for businesses and offerings
+- `GET /search/suggestions` - Search autocomplete suggestions
+- `GET /search/popular` - Popular search terms
+
+#### Business Discovery
+- `GET /home` - Home screen data with featured content
+- `GET /businesses` - Business listings with filtering
+- `GET /businesses/{id}` - Business details
+- `GET /categories` - Category listings
+- `GET /trending` - Trending businesses and data
+
+### Example API Calls
+
+```bash
+# Universal search
+curl "http://localhost:8000/api/v1/search?q=restaurant&latitude=23.7465&longitude=90.3754"
+
+# Home screen data
+curl "http://localhost:8000/api/v1/home?latitude=23.7465&longitude=90.3754"
+
+# Business details
+curl "http://localhost:8000/api/v1/businesses/1"
+```
+
+For complete API documentation, see [SEARCH_API_DOCUMENTATION.md](./SEARCH_API_DOCUMENTATION.md)
+
+## 🎛 Admin Panel
+
+Access the admin panel at: `http://localhost:8000/admin`
+
+### Features
+- **Dashboard**: Analytics overview and key metrics
+- **Business Management**: CRUD operations with approval workflows
+- **User Management**: Role-based user administration
+- **Content Moderation**: Review and approval systems
+- **Analytics**: Comprehensive reporting and insights
+- **System Settings**: Configuration and permissions
+
+### Role-based Access
+- **Super Admin**: Full system access
+- **Admin**: Business and user management
+- **Moderator**: Content moderation and analytics
+- **Business Owner**: Own business management only
+
+## 🔧 Development
+
+### Running Tests
+```bash
+php artisan test
+```
+
+### Code Style
+```bash
+./vendor/bin/pint
+```
+
+### Generate Documentation
+```bash
+php artisan route:list
+php artisan model:show Business
+```
+
+## 🌟 Key Features Explained
+
+### Universal Search System
+The platform features a sophisticated search system that can simultaneously search businesses and their offerings:
+- Real-time autocomplete suggestions
+- Location-based filtering with radius support
+- Advanced filtering by ratings, features, price ranges
+- Intelligent relevance scoring
+- Analytics tracking for search behavior
+
+### Role-based Access Control
+Comprehensive permission system using Spatie Laravel Permission:
+- Hierarchical role structure
+- Granular permissions for each resource
+- Business owner isolation (can only manage their own businesses)
+- Approval workflows for business changes
+
+### Analytics & Trending
+Advanced analytics system tracking:
+- Business discovery patterns
+- Search behavior and trends
+- Geographic usage patterns
+- Performance metrics and engagement
+
+### Mobile-Optimized API
+Clean, efficient API designed for mobile applications:
+- Minimal response payloads
+- Location-aware services
+- Token-based authentication
+- Comprehensive error handling
+
+## 📝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## 🤝 Support
+
+For support, email support@5srt.com or open an issue on GitHub.
+
+## 🔗 Related Projects
+
+- [5SRT Mobile App](https://github.com/Naimur404/5srt-mobile) - React Native mobile application
+- [5SRT Frontend](https://github.com/Naimur404/5srt-frontend) - Web frontend application
+
+---
+
+<p align="center">
+    Built with ❤️ by the 5SRT Team
+</p>

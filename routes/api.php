@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\BusinessController;
 use App\Http\Controllers\Api\OfferingController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\UserController;
 
 /*
@@ -32,6 +33,13 @@ Route::prefix('v1')->group(function () {
     Route::post('/banners/{banner}/click', [HomeController::class, 'trackBannerClick']);
     Route::get('/statistics', [HomeController::class, 'statistics']);
     Route::get('/trending', [HomeController::class, 'trending']);
+
+    // Universal search routes (public access)
+    Route::prefix('search')->group(function () {
+        Route::get('/', [SearchController::class, 'search']);
+        Route::get('/suggestions', [SearchController::class, 'suggestions']);
+        Route::get('/popular', [SearchController::class, 'popular']);
+    });
 
     // Public category routes
     Route::prefix('categories')->group(function () {

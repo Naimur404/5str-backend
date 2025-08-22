@@ -208,6 +208,33 @@ class AnalyticsService
     }
 
     /**
+     * Get popular search terms
+     */
+    public function getPopularSearchTerms(int $limit = 20, ?int $categoryId = null): array
+    {
+        $query = SearchLog::query()
+            ->whereNotNull('search_term')
+            ->where('created_at', '>=', now()->subDays(30)) // Last 30 days
+            ->selectRaw('search_term, COUNT(*) as search_count')
+            ->groupBy('search_term');
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        return $query->orderBy('search_count', 'desc')
+            ->limit($limit)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'search_term' => $item->search_term,
+                    'search_count' => $item->search_count
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
      * Get start date for time period
      */
     private function getStartDate(string $timePeriod, string $date): string
