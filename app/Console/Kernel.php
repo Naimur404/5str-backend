@@ -12,7 +12,21 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Calculate trending data automatically
+        $schedule->command('analytics:calculate-trending daily')
+                 ->hourly()
+                 ->withoutOverlapping()
+                 ->runInBackground();
+
+        $schedule->command('analytics:calculate-trending weekly')
+                 ->weeklyOn(1, '02:00') // Every Monday at 2 AM
+                 ->withoutOverlapping()
+                 ->runInBackground();
+
+        $schedule->command('analytics:calculate-trending monthly')
+                 ->monthlyOn(1, '03:00') // First day of month at 3 AM
+                 ->withoutOverlapping()
+                 ->runInBackground();
     }
 
     /**
