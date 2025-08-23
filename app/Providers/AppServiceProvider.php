@@ -5,8 +5,10 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use App\Models\Business;
 use App\Models\Offer;
+use App\Models\Review;
 use App\Observers\BusinessObserver;
 use App\Observers\OfferObserver;
+use App\Observers\ReviewObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,5 +27,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Business::observe(BusinessObserver::class);
         Offer::observe(OfferObserver::class);
+        Review::observe(ReviewObserver::class);
     }
 }

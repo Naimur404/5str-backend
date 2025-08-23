@@ -106,11 +106,6 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Business::class, 'owner_user_id');
     }
 
-    public function notifications()
-    {
-        return $this->hasMany(Notification::class);
-    }
-
     /**
      * Check if user can access Filament admin panel
      */
