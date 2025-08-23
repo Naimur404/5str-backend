@@ -33,9 +33,7 @@ class OfferController extends Controller
                 
                 if ($userUsage) {
                     $hasUsed = true;
-                    $usageCount = UserOfferUsage::where('user_id', $user->id)
-                        ->where('offer_id', $offerId)
-                        ->count();
+                    $usageCount = $userUsage->usage_count;
                 }
             }
 
@@ -220,25 +218,30 @@ class OfferController extends Controller
             }
 
             // Check if user has already used this offer (if single use)
-            if ($offer->usage_limit === 1) {
-                $existingUsage = UserOfferUsage::where('user_id', $user->id)
-                    ->where('offer_id', $offerId)
-                    ->exists();
+            $existingUsage = UserOfferUsage::where('user_id', $user->id)
+                ->where('offer_id', $offerId)
+                ->first();
 
-                if ($existingUsage) {
+            if ($existingUsage) {
+                // If offer allows multiple uses, increment the usage count
+                if ($offer->usage_limit === null || $existingUsage->usage_count < $offer->usage_limit) {
+                    $existingUsage->increment('usage_count');
+                    $existingUsage->update(['used_at' => now()]);
+                } else {
                     return response()->json([
                         'success' => false,
-                        'message' => 'You have already used this offer'
+                        'message' => 'You have reached the usage limit for this offer'
                     ], 400);
                 }
+            } else {
+                // Create new usage record
+                UserOfferUsage::create([
+                    'user_id' => $user->id,
+                    'offer_id' => $offerId,
+                    'used_at' => now(),
+                    'usage_count' => 1,
+                ]);
             }
-
-            // Record the usage
-            UserOfferUsage::create([
-                'user_id' => $user->id,
-                'offer_id' => $offerId,
-                'used_at' => now(),
-            ]);
 
             // Increment current usage count
             $offer->increment('current_usage');

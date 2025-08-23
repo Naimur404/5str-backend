@@ -9,11 +9,16 @@ class UserOfferUsage extends Model
 {
     use HasFactory;
 
+    /**
+     * The table associated with the model.
+     */
+    protected $table = 'user_offer_usage';
+
     protected $fillable = [
         'user_id',
         'offer_id',
-        'amount_spent',
         'used_at',
+        'usage_count',
     ];
 
     protected $hidden = [
@@ -22,8 +27,8 @@ class UserOfferUsage extends Model
     ];
 
     protected $casts = [
-        'amount_spent' => 'decimal:2',
         'used_at' => 'datetime',
+        'usage_count' => 'integer',
     ];
 
     /**
