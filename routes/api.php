@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\BusinessController;
 use App\Http\Controllers\Api\OfferingController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\ReviewController;
 
 /*
 |--------------------------------------------------------------------------
@@ -93,5 +94,13 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         
         // User points and rewards
         Route::get('/points', [UserController::class, 'points']);
+    });
+
+    // Review management (require login)
+    Route::prefix('reviews')->group(function () {
+        Route::post('/', [ReviewController::class, 'store']);
+        Route::get('/{review}', [ReviewController::class, 'show']);
+        Route::put('/{review}', [ReviewController::class, 'update']);
+        Route::delete('/{review}', [ReviewController::class, 'destroy']);
     });
 });

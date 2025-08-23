@@ -712,6 +712,216 @@ Authorization: Bearer {your-token}
 }
 ```
 
+## 📝 Review Management Endpoints (Protected)
+
+### Submit a Review
+**POST** `/api/v1/reviews`
+
+**Headers:**
+```
+Authorization: Bearer {your-token}
+Content-Type: multipart/form-data
+```
+
+**Request Payload:**
+```json
+{
+    "reviewable_type": "business",
+    "reviewable_id": 2,
+    "overall_rating": 4,
+    "service_rating": 4,
+    "quality_rating": 5,
+    "value_rating": 3,
+    "title": "Great food and service!",
+    "review_text": "Had an amazing dining experience here. The biryani was exceptional and the service was prompt. Definitely recommend this place for authentic Bengali cuisine.",
+    "pros": ["Delicious food", "Quick service", "Clean environment"],
+    "cons": ["Slightly expensive", "Limited parking"],
+    "visit_date": "2025-08-20",
+    "amount_spent": 1250.00,
+    "party_size": 4,
+    "is_recommended": true,
+    "is_verified_visit": true,
+    "images": ["file1.jpg", "file2.jpg"]
+}
+```
+
+**Success Response (201):**
+```json
+{
+    "success": true,
+    "message": "Review submitted successfully. It will be visible after admin approval.",
+    "data": {
+        "review": {
+            "id": 15,
+            "overall_rating": 4,
+            "service_rating": 4,
+            "quality_rating": 5,
+            "value_rating": 3,
+            "title": "Great food and service!",
+            "review_text": "Had an amazing dining experience here...",
+            "pros": ["Delicious food", "Quick service", "Clean environment"],
+            "cons": ["Slightly expensive", "Limited parking"],
+            "visit_date": "2025-08-20",
+            "amount_spent": "1250.00",
+            "party_size": 4,
+            "is_recommended": true,
+            "is_verified_visit": true,
+            "status": "pending",
+            "images": [
+                {
+                    "id": 1,
+                    "image_url": "/storage/review-images/image1.jpg"
+                }
+            ],
+            "created_at": "2025-08-23T10:30:00.000000Z"
+        }
+    }
+}
+```
+
+### Get Review Details
+**GET** `/api/v1/reviews/{id}`
+
+**Headers:**
+```
+Authorization: Bearer {your-token}
+```
+
+**Success Response (200):**
+```json
+{
+    "success": true,
+    "data": {
+        "review": {
+            "id": 15,
+            "overall_rating": 4,
+            "service_rating": 4,
+            "quality_rating": 5,
+            "value_rating": 3,
+            "title": "Great food and service!",
+            "review_text": "Had an amazing dining experience here...",
+            "pros": ["Delicious food", "Quick service"],
+            "cons": ["Slightly expensive"],
+            "visit_date": "2025-08-20",
+            "amount_spent": "1250.00",
+            "party_size": 4,
+            "is_recommended": true,
+            "is_verified_visit": true,
+            "helpful_count": 5,
+            "not_helpful_count": 1,
+            "status": "approved",
+            "images": [
+                {
+                    "id": 1,
+                    "image_url": "/storage/review-images/image1.jpg",
+                    "original_filename": "restaurant_photo.jpg"
+                }
+            ],
+            "reviewable": {
+                "type": "business",
+                "id": 2,
+                "business_name": "Star Kabab & Restaurant",
+                "slug": "star-kabab-restaurant",
+                "category_name": "Restaurants",
+                "logo_image": "/storage/business-logos/logo.jpg"
+            },
+            "created_at": "2025-08-23T10:30:00.000000Z",
+            "updated_at": "2025-08-23T11:00:00.000000Z"
+        }
+    }
+}
+```
+
+### Update a Review
+**PUT** `/api/v1/reviews/{id}`
+
+**Headers:**
+```
+Authorization: Bearer {your-token}
+```
+
+**Request Payload:**
+```json
+{
+    "overall_rating": 5,
+    "service_rating": 5,
+    "quality_rating": 5,
+    "value_rating": 4,
+    "title": "Updated: Excellent experience!",
+    "review_text": "After my second visit, I'm even more impressed. The consistency in quality is remarkable...",
+    "pros": ["Exceptional food", "Outstanding service", "Great ambiance"],
+    "cons": ["Could be slightly cheaper"],
+    "visit_date": "2025-08-22",
+    "amount_spent": 1500.00,
+    "party_size": 2,
+    "is_recommended": true,
+    "is_verified_visit": true
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "success": true,
+    "message": "Review updated successfully. It will be re-reviewed for approval.",
+    "data": {
+        "review": {
+            "id": 15,
+            "overall_rating": 5,
+            "title": "Updated: Excellent experience!",
+            "review_text": "After my second visit, I'm even more impressed...",
+            "status": "pending",
+            "updated_at": "2025-08-23T12:00:00.000000Z"
+        }
+    }
+}
+```
+
+### Delete a Review
+**DELETE** `/api/v1/reviews/{id}`
+
+**Headers:**
+```
+Authorization: Bearer {your-token}
+```
+
+**Success Response (200):**
+```json
+{
+    "success": true,
+    "message": "Review deleted successfully"
+}
+```
+
+### Review Validation Rules
+- `reviewable_type`: Required, must be 'business' or 'offering'
+- `reviewable_id`: Required, valid business or offering ID
+- `overall_rating`: Required, integer 1-5
+- `service_rating`, `quality_rating`, `value_rating`: Optional, integer 1-5
+- `title`: Optional, max 255 characters
+- `review_text`: Required, 10-2000 characters
+- `pros`: Optional array, max 5 items, each max 100 characters
+- `cons`: Optional array, max 5 items, each max 100 characters
+- `visit_date`: Optional, valid date, not in future
+- `amount_spent`: Optional, numeric, 0-999999.99
+- `party_size`: Optional, integer 1-20
+- `images`: Optional, max 5 images, each max 5MB (jpeg,png,jpg,webp)
+
+### Review Status Flow
+1. **Pending**: Newly submitted reviews await admin approval
+2. **Approved**: Reviews visible to public, user earns points
+3. **Rejected**: Reviews not displayed, user notified
+4. **Edit Limitation**: Only pending/rejected reviews can be edited
+
+### Points System
+Users earn points for approved reviews based on:
+- Base points: 10 for any approved review
+- Detailed review (100+ chars): +5 points
+- Multiple rating categories: +2 points each
+- Pros provided: +3 points
+- Cons provided: +3 points
+- Verified visit: +5 points
+
 ## ❌ Error Responses
 
 All endpoints return consistent error responses:
