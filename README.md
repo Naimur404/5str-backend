@@ -237,15 +237,35 @@ Authorization: Bearer {your-token}
 {
     "success": true,
     "data": {
-        "id": 123,
-        "name": "John Doe",
-        "email": "john@example.com",
-        "phone": "+1234567890",
-        "city": "Dhaka",
-        "current_latitude": "23.7465",
-        "current_longitude": "90.3754",
-        "roles": ["user"],
-        "created_at": "2025-08-23T10:30:00.000000Z"
+        "user": {
+            "id": 123,
+            "name": "John Doe",
+            "email": "john@example.com",
+            "phone": "+1234567890",
+            "city": "Dhaka",
+            "profile_image": "/storage/profiles/avatar.jpg",
+            "current_latitude": "23.7465",
+            "current_longitude": "90.3754",
+            "trust_level": 3,
+            "total_points": 485,
+            "total_favorites": 12,
+            "total_reviews": 8,
+            "user_level": {
+                "level": 3,
+                "level_name": "Active Explorer",
+                "level_description": "Engaged user discovering local businesses",
+                "total_score": 95.5,
+                "progress_to_next_level": 65.2,
+                "points_contribution": 48.5,
+                "activity_contribution": 28.0,
+                "trust_contribution": 18.0,
+                "next_level_threshold": 120
+            },
+            "is_active": true,
+            "roles": ["user"],
+            "email_verified_at": "2025-08-23T10:30:00.000000Z",
+            "created_at": "2025-08-23T10:30:00.000000Z"
+        }
     }
 }
 ```
@@ -921,6 +941,29 @@ Users earn points for approved reviews based on:
 - Pros provided: +3 points
 - Cons provided: +3 points
 - Verified visit: +5 points
+
+## 🏆 User Level System
+
+The platform features a comprehensive user level system that tracks user engagement and contributions:
+
+### Level Calculation
+User levels are calculated based on three main factors:
+- **Points Contribution (max 100)**: Based on total points earned from reviews and activities
+- **Activity Contribution (max 50)**: Reviews (5 points each) + Favorites (2 points each)
+- **Trust Contribution (max 30)**: Based on user trust level (1-5 scale)
+
+### User Levels
+1. **New Explorer (0-39 points)**: Just starting the discovery journey
+2. **Rising Contributor (40-79 points)**: Growing presence in the community
+3. **Active Explorer (80-119 points)**: Engaged user discovering local businesses
+4. **Seasoned Reviewer (120-149 points)**: Experienced user with valuable insights
+5. **Expert Explorer (150+ points)**: Master of discovery with exceptional contributions
+
+### Level Benefits
+- Visual recognition in the app
+- Progress tracking with detailed breakdown
+- Contribution analytics
+- Enhanced profile status
 
 ## ❌ Error Responses
 

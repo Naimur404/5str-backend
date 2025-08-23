@@ -153,6 +153,13 @@ class AuthController extends Controller
     {
         $user = $request->user();
         
+        // Count user's favorites and reviews
+        $totalFavorites = $user->favorites()->count();
+        $totalReviews = $user->reviews()->count();
+        
+        // Calculate user level based on points and activities
+        $userLevel = $this->calculateUserLevel($user);
+        
         return response()->json([
             'success' => true,
             'data' => [
@@ -167,6 +174,9 @@ class AuthController extends Controller
                     'current_longitude' => $user->current_longitude,
                     'trust_level' => $user->trust_level,
                     'total_points' => $user->total_points,
+                    'total_favorites' => $totalFavorites,
+                    'total_reviews' => $totalReviews,
+                    'user_level' => $userLevel,
                     'is_active' => $user->is_active,
                     'role' => $user->roles->first()?->name ?? 'user',
                     'email_verified_at' => $user->email_verified_at
@@ -246,5 +256,71 @@ class AuthController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Calculate user level based on points, reviews, and activity
+     */
+    private function calculateUserLevel($user)
+    {
+        $points = $user->total_points ?? 0;
+        $reviewsCount = $user->reviews()->count();
+        $favoritesCount = $user->favorites()->count();
+        $trustLevel = $user->trust_level ?? 1;
+        
+        // Calculate base score from points
+        $pointsScore = min(100, ($points / 1000) * 100); // 1000 points = 100 score
+        
+        // Calculate activity score
+        $activityScore = min(50, ($reviewsCount * 5) + ($favoritesCount * 2)); // Reviews worth more
+        
+        // Calculate trust score
+        $trustScore = ($trustLevel / 5) * 30; // Trust level 1-5, max 30 points
+        
+        // Total score out of 180
+        $totalScore = $pointsScore + $activityScore + $trustScore;
+        
+        // Determine level and level name
+        if ($totalScore >= 150) {
+            $level = 5;
+            $levelName = 'Expert Explorer';
+            $levelDescription = 'Master of discovery with exceptional contributions';
+        } elseif ($totalScore >= 120) {
+            $level = 4;
+            $levelName = 'Seasoned Reviewer';
+            $levelDescription = 'Experienced user with valuable insights';
+        } elseif ($totalScore >= 80) {
+            $level = 3;
+            $levelName = 'Active Explorer';
+            $levelDescription = 'Engaged user discovering local businesses';
+        } elseif ($totalScore >= 40) {
+            $level = 2;
+            $levelName = 'Rising Contributor';
+            $levelDescription = 'Growing presence in the community';
+        } else {
+            $level = 1;
+            $levelName = 'New Explorer';
+            $levelDescription = 'Just starting the discovery journey';
+        }
+        
+        // Calculate progress to next level
+        $nextLevelThresholds = [0, 40, 80, 120, 150, 180];
+        $currentThreshold = $nextLevelThresholds[$level - 1] ?? 0;
+        $nextThreshold = $nextLevelThresholds[$level] ?? 180;
+        $progressToNext = $nextThreshold > $currentThreshold 
+            ? (($totalScore - $currentThreshold) / ($nextThreshold - $currentThreshold)) * 100 
+            : 100;
+        
+        return [
+            'level' => $level,
+            'level_name' => $levelName,
+            'level_description' => $levelDescription,
+            'total_score' => round($totalScore, 2),
+            'progress_to_next_level' => round($progressToNext, 2),
+            'points_contribution' => round($pointsScore, 2),
+            'activity_contribution' => round($activityScore, 2),
+            'trust_contribution' => round($trustScore, 2),
+            'next_level_threshold' => $level < 5 ? $nextThreshold : null,
+        ];
     }
 }
