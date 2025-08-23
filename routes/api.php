@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\BusinessController;
 use App\Http\Controllers\Api\OfferingController;
+use App\Http\Controllers\Api\OfferController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ReviewController;
@@ -71,6 +72,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/{offering}', [OfferingController::class, 'show']);
         Route::get('/{offering}/reviews', [OfferingController::class, 'reviews']);
     });
+
+    // Public offer routes (with optional authentication for usage tracking)
+    Route::prefix('offers')->group(function () {
+        Route::get('/', [OfferController::class, 'index']);
+        Route::get('/{offer}', [OfferController::class, 'show']);
+    });
 });
 
 // Protected routes (authentication required)
@@ -102,5 +109,10 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('/{review}', [ReviewController::class, 'show']);
         Route::put('/{review}', [ReviewController::class, 'update']);
         Route::delete('/{review}', [ReviewController::class, 'destroy']);
+    });
+
+    // Offer usage (require login)
+    Route::prefix('offers')->group(function () {
+        Route::post('/{offer}/use', [OfferController::class, 'useOffer']);
     });
 });
