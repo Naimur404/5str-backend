@@ -5,10 +5,46 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessOffering;
 use App\Models\Review;
+use App\Models\Favorite;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class OfferingController extends Controller
 {
+    /**
+     * Check if the given offering is in user's favorites
+     */
+    private function checkIsOfferingFavorite($offeringId, Request $request)
+    {
+        // Try to authenticate the user if token is provided
+        if ($request->hasHeader('Authorization')) {
+            try {
+                $authHeader = $request->header('Authorization');
+                if (strpos($authHeader, 'Bearer ') === 0) {
+                    $token = substr($authHeader, 7);
+                    
+                    // Find the token and its associated user
+                    $accessToken = PersonalAccessToken::findToken($token);
+                    if ($accessToken && $accessToken->tokenable) {
+                        $user = $accessToken->tokenable;
+                        
+                        return Favorite::where('user_id', $user->id)
+                            ->where('favoritable_type', 'App\\Models\\BusinessOffering')
+                            ->where('favoritable_id', $offeringId)
+                            ->exists();
+                    }
+                }
+            } catch (\Exception $e) {
+                // Token invalid or expired, continue as guest
+                Log::debug('Auth failed in offering favorite check: ' . $e->getMessage());
+            }
+        }
+        
+        return false;
+    }
+
     /**
      * Get business offerings (products/services/menu)
      */
@@ -56,7 +92,7 @@ class OfferingController extends Controller
 
             $offerings = $query->with(['category:id,name,slug'])
                 ->get()
-                ->map(function($offering) {
+                ->map(function($offering) use ($request) {
                     return [
                         'id' => $offering->id,
                         'name' => $offering->name,
@@ -72,6 +108,7 @@ class OfferingController extends Controller
                         'is_featured' => $offering->is_featured,
                         'average_rating' => $offering->average_rating,
                         'total_reviews' => $offering->total_reviews,
+                        'is_favorite' => $this->checkIsOfferingFavorite($offering->id, $request),
                         'category' => $offering->category ? [
                             'id' => $offering->category->id,
                             'name' => $offering->category->name,
@@ -124,6 +161,7 @@ class OfferingController extends Controller
                 'is_featured' => $offering->is_featured,
                 'average_rating' => $offering->average_rating,
                 'total_reviews' => $offering->total_reviews,
+                'is_favorite' => $this->checkIsOfferingFavorite($offering->id, $request),
                 'business' => [
                     'id' => $offering->business->id,
                     'business_name' => $offering->business->business_name,

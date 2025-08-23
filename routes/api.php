@@ -53,7 +53,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/{category}/businesses', [CategoryController::class, 'businesses']);
     });
 
-    // Public business routes
+    // Public business routes (with optional authentication for favorites)
     Route::prefix('businesses')->group(function () {
         Route::get('/', [BusinessController::class, 'index']);
         Route::get('/search', [BusinessController::class, 'search']);
@@ -65,7 +65,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/{business}/offers', [BusinessController::class, 'offers']);
     });
 
-    // Public offering routes (products/services/menu items)
+    // Public offering routes (with optional authentication for favorites)
     Route::prefix('businesses/{business}/offerings')->group(function () {
         Route::get('/', [OfferingController::class, 'index']);
         Route::get('/{offering}', [OfferingController::class, 'show']);

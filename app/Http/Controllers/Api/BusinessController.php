@@ -8,9 +8,12 @@ use App\Models\BusinessOffering;
 use App\Models\Review;
 use App\Models\Offer;
 use App\Models\SearchLog;
+use App\Models\Favorite;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\PersonalAccessToken;
+use Illuminate\Support\Facades\Auth;
 
 class BusinessController extends Controller
 {
@@ -20,6 +23,71 @@ class BusinessController extends Controller
     {
         $this->analyticsService = $analyticsService;
     }
+
+    /**
+     * Check if the given business is in user's favorites
+     */
+    private function checkIsFavorite($businessId, Request $request)
+    {
+        // Try to authenticate the user if token is provided
+        if ($request->hasHeader('Authorization')) {
+            try {
+                $authHeader = $request->header('Authorization');
+                if (strpos($authHeader, 'Bearer ') === 0) {
+                    $token = substr($authHeader, 7);
+                    
+                    // Find the token and its associated user
+                    $accessToken = PersonalAccessToken::findToken($token);
+                    if ($accessToken && $accessToken->tokenable) {
+                        $user = $accessToken->tokenable;
+                        
+                        return Favorite::where('user_id', $user->id)
+                            ->where('favoritable_type', 'App\\Models\\Business')
+                            ->where('favoritable_id', $businessId)
+                            ->exists();
+                    }
+                }
+            } catch (\Exception $e) {
+                // Token invalid or expired, continue as guest
+                Log::debug('Auth failed in business favorite check: ' . $e->getMessage());
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if the given offering is in user's favorites
+     */
+    private function checkIsOfferingFavorite($offeringId, Request $request)
+    {
+        // Try to authenticate the user if token is provided
+        if ($request->hasHeader('Authorization')) {
+            try {
+                $authHeader = $request->header('Authorization');
+                if (strpos($authHeader, 'Bearer ') === 0) {
+                    $token = substr($authHeader, 7);
+                    
+                    // Find the token and its associated user
+                    $accessToken = PersonalAccessToken::findToken($token);
+                    if ($accessToken && $accessToken->tokenable) {
+                        $user = $accessToken->tokenable;
+                        
+                        return Favorite::where('user_id', $user->id)
+                            ->where('favoritable_type', 'App\\Models\\BusinessOffering')
+                            ->where('favoritable_id', $offeringId)
+                            ->exists();
+                    }
+                }
+            } catch (\Exception $e) {
+                // Token invalid or expired, continue as guest
+                Log::debug('Auth failed in offering favorite check: ' . $e->getMessage());
+            }
+        }
+        
+        return false;
+    }
+
     /**
      * Get all businesses with filtering and pagination
      */
@@ -279,9 +347,16 @@ class BusinessController extends Controller
                 $business->updateDiscoveryScore($request->latitude, $request->longitude);
             }
 
+            // Check if business is in user's favorites
+            $isFavorite = $this->checkIsFavorite($businessId, $request);
+
+            // Convert business to array and add is_favorite flag
+            $businessData = $business->toArray();
+            $businessData['is_favorite'] = $isFavorite;
+
             return response()->json([
                 'success' => true,
-                'data' => $business
+                'data' => $businessData
             ]);
 
         } catch (\Exception $e) {
@@ -323,11 +398,18 @@ class BusinessController extends Controller
                 ->orderBy('name')
                 ->get();
 
+            // Add is_favorite flag to each offering
+            $offeringsWithFavorites = $offerings->map(function($offering) use ($request) {
+                $offeringData = $offering->toArray();
+                $offeringData['is_favorite'] = $this->checkIsOfferingFavorite($offering->id, $request);
+                return $offeringData;
+            });
+
             return response()->json([
                 'success' => true,
                 'data' => [
                     'business' => $business->only(['id', 'business_name']),
-                    'offerings' => $offerings
+                    'offerings' => $offeringsWithFavorites
                 ]
             ]);
 

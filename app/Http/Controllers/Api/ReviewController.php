@@ -7,6 +7,7 @@ use App\Models\Review;
 use App\Models\Business;
 use App\Models\BusinessOffering;
 use App\Models\ReviewImage;
+use App\Models\Favorite;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +16,17 @@ use Illuminate\Validation\Rule;
 
 class ReviewController extends Controller
 {
+    /**
+     * Check if the given item is in user's favorites
+     */
+    private function checkIsFavorite($userId, $favoritable_type, $favoritable_id)
+    {
+        return Favorite::where('user_id', $userId)
+            ->where('favoritable_type', $favoritable_type)
+            ->where('favoritable_id', $favoritable_id)
+            ->exists();
+    }
+
     /**
      * Submit a new review for a business or offering
      */
@@ -115,6 +127,10 @@ class ReviewController extends Controller
 
             DB::commit();
 
+            // Check if the reviewed item is in user's favorites
+            $favoriteType = $request->reviewable_type === 'business' ? 'App\\Models\\Business' : 'App\\Models\\BusinessOffering';
+            $isFavorite = $this->checkIsFavorite($user->id, $favoriteType, $request->reviewable_id);
+
             // Load the created review with relationships
             $review->load(['reviewable', 'images']);
 
@@ -138,6 +154,7 @@ class ReviewController extends Controller
                         'is_recommended' => $review->is_recommended,
                         'is_verified_visit' => $review->is_verified_visit,
                         'status' => $review->status,
+                        'is_favorite' => $isFavorite,
                         'images' => $uploadedImages,
                         'created_at' => $review->created_at->format('Y-m-d H:i:s'),
                     ]
@@ -224,6 +241,9 @@ class ReviewController extends Controller
                 'status' => 'pending', // Reset to pending after edit
             ]);
 
+            // Check if the reviewed item is in user's favorites
+            $isFavorite = $this->checkIsFavorite($user->id, $review->reviewable_type, $review->reviewable_id);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Review updated successfully. It will be re-reviewed for approval.',
@@ -244,6 +264,7 @@ class ReviewController extends Controller
                         'is_recommended' => $review->is_recommended,
                         'is_verified_visit' => $review->is_verified_visit,
                         'status' => $review->status,
+                        'is_favorite' => $isFavorite,
                         'updated_at' => $review->updated_at->format('Y-m-d H:i:s'),
                     ]
                 ]
@@ -311,6 +332,101 @@ class ReviewController extends Controller
     }
 
     /**
+     * Submit a new review for a specific business
+     */
+    public function storeBusinessReview(Request $request, $businessId)
+    {
+        try {
+            $request->validate([
+                'overall_rating' => 'required|integer|min:1|max:5',
+                'service_rating' => 'nullable|integer|min:1|max:5',
+                'quality_rating' => 'nullable|integer|min:1|max:5',
+                'value_rating' => 'nullable|integer|min:1|max:5',
+                'title' => 'nullable|string|max:255',
+                'review_text' => 'required|string|min:10|max:2000',
+                'pros' => 'nullable|array|max:5',
+                'pros.*' => 'string|max:100',
+                'cons' => 'nullable|array|max:5',
+                'cons.*' => 'string|max:100',
+                'visit_date' => 'nullable|date|before_or_equal:today',
+                'amount_spent' => 'nullable|numeric|min:0|max:999999.99',
+                'party_size' => 'nullable|integer|min:1|max:20',
+                'is_recommended' => 'nullable|boolean',
+                'is_verified_visit' => 'nullable|boolean',
+                'images' => 'nullable|array|max:5',
+                'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120', // 5MB max per image
+            ]);
+
+            // Verify business exists
+            $business = Business::findOrFail($businessId);
+            
+            // Set the reviewable data and call the main store method
+            $request->merge([
+                'reviewable_type' => 'business',
+                'reviewable_id' => $businessId
+            ]);
+
+            return $this->store($request);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit business review',
+                'error' => config('app.debug') ? $e->getMessage() : 'Something went wrong'
+            ], 500);
+        }
+    }
+
+    /**
+     * Submit a new review for a specific offering
+     */
+    public function storeOfferingReview(Request $request, $businessId, $offeringId)
+    {
+        try {
+            $request->validate([
+                'overall_rating' => 'required|integer|min:1|max:5',
+                'service_rating' => 'nullable|integer|min:1|max:5',
+                'quality_rating' => 'nullable|integer|min:1|max:5',
+                'value_rating' => 'nullable|integer|min:1|max:5',
+                'title' => 'nullable|string|max:255',
+                'review_text' => 'required|string|min:10|max:2000',
+                'pros' => 'nullable|array|max:5',
+                'pros.*' => 'string|max:100',
+                'cons' => 'nullable|array|max:5',
+                'cons.*' => 'string|max:100',
+                'visit_date' => 'nullable|date|before_or_equal:today',
+                'amount_spent' => 'nullable|numeric|min:0|max:999999.99',
+                'party_size' => 'nullable|integer|min:1|max:20',
+                'is_recommended' => 'nullable|boolean',
+                'is_verified_visit' => 'nullable|boolean',
+                'images' => 'nullable|array|max:5',
+                'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120', // 5MB max per image
+            ]);
+
+            // Verify business and offering exist and are related
+            $business = Business::findOrFail($businessId);
+            $offering = BusinessOffering::where('id', $offeringId)
+                ->where('business_id', $businessId)
+                ->firstOrFail();
+            
+            // Set the reviewable data and call the main store method
+            $request->merge([
+                'reviewable_type' => 'offering',
+                'reviewable_id' => $offeringId
+            ]);
+
+            return $this->store($request);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit offering review',
+                'error' => config('app.debug') ? $e->getMessage() : 'Something went wrong'
+            ], 500);
+        }
+    }
+
+    /**
      * Get a specific review details
      */
     public function show($reviewId)
@@ -361,6 +477,9 @@ class ReviewController extends Controller
                 ];
             });
 
+            // Check if the reviewed item is in user's favorites
+            $isFavorite = $this->checkIsFavorite($user->id, $review->reviewable_type, $review->reviewable_id);
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -382,6 +501,7 @@ class ReviewController extends Controller
                         'helpful_count' => $review->helpful_count,
                         'not_helpful_count' => $review->not_helpful_count,
                         'status' => $review->status,
+                        'is_favorite' => $isFavorite,
                         'images' => $images,
                         'reviewable' => $reviewableData,
                         'created_at' => $review->created_at->format('Y-m-d H:i:s'),
