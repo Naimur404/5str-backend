@@ -141,6 +141,7 @@ class RoleResource extends Resource
                         ->requiresConfirmation(),
                 ]),
             ])
+            ->defaultSort('id', 'desc')
             ->emptyStateHeading('No roles yet')
             ->emptyStateDescription('Create your first role to get started with role-based access control.');
     }

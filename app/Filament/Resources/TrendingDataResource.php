@@ -148,7 +148,7 @@ class TrendingDataResource extends Resource
                     // Removed bulk delete - analytics data should be preserved
                 ]),
             ])
-            ->defaultSort('trend_score', 'desc')
+            ->defaultSort('id', 'desc')
             ->emptyStateHeading('No trending data yet')
             ->emptyStateDescription('Trending data will be calculated automatically based on user activity.');
     }

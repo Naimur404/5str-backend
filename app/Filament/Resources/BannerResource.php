@@ -161,7 +161,7 @@ class BannerResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('sort_order');
+            ->defaultSort('id', 'desc');
     }
 
     public static function getPages(): array

@@ -133,7 +133,7 @@ class ViewResource extends Resource
                     // Removed bulk delete - analytics data should be preserved
                 ]),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('id', 'desc')
             ->emptyStateHeading('No views yet')
             ->emptyStateDescription('View logs will appear here as users browse content.');
     }

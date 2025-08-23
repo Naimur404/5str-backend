@@ -118,7 +118,7 @@ class BusinessImageResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('business_id', 'asc')
+            ->defaultSort('id', 'desc')
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),
             ]);

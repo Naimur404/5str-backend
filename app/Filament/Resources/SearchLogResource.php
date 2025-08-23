@@ -123,7 +123,7 @@ class SearchLogResource extends Resource
                     // Removed bulk delete - analytics data should be preserved
                 ]),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('id', 'desc')
             ->emptyStateHeading('No search logs yet')
             ->emptyStateDescription('Search logs will appear here as users search for businesses.');
     }

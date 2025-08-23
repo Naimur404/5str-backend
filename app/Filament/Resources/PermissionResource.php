@@ -137,6 +137,7 @@ class PermissionResource extends Resource
                         ->requiresConfirmation(),
                 ]),
             ])
+            ->defaultSort('id', 'desc')
             ->emptyStateHeading('No permissions yet')
             ->emptyStateDescription('Create your first permission to get started with granular access control.');
     }

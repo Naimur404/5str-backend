@@ -124,6 +124,7 @@ class OfferingVariantResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
+            ->defaultSort('id', 'desc')
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),
             ]);

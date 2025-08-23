@@ -488,7 +488,7 @@ class BusinessResource extends Resource
                         ->visible(fn () => Auth::user()?->hasAnyRole(['super-admin', 'admin'])),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('id', 'desc');
     }
 
     public static function getRelations(): array

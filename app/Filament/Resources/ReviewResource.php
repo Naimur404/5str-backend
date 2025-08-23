@@ -293,7 +293,8 @@ class ReviewResource extends Resource
                     Tables\Actions\DeleteBulkAction::make()
                         ->visible(fn () => Auth::user()?->hasAnyRole(['super-admin', 'admin', 'moderator'])),
                 ]),
-            ]);
+            ])
+            ->defaultSort('id', 'desc');
     }
 
     public static function getPages(): array
