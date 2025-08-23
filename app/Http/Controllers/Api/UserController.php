@@ -66,6 +66,7 @@ class UserController extends Controller
                         'offering' => [
                             'id' => $item->id,
                             'name' => $item->name,
+                            'business_id' => $item->business_id,
                             'offering_type' => $item->offering_type,
                             'price_range' => $item->price_range,
                             'average_rating' => $item->average_rating,
