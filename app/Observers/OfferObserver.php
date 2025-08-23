@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Offer;
 use App\Models\User;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Auth;
 
 class OfferObserver
 {
@@ -13,8 +14,7 @@ class OfferObserver
      */
     public function created(Offer $offer): void
     {
-        // Only send notification to business owner when offer is created
-        // Admins don't need to be notified for every offer creation
+        // Send notification to business owner when offer is created
         if ($offer->business && $offer->business->owner_user_id) {
             $owner = User::find($offer->business->owner_user_id);
             if ($owner) {
@@ -24,6 +24,20 @@ class OfferObserver
                     ->icon('heroicon-o-gift')
                     ->color('success')
                     ->sendToDatabase($owner);
+            }
+        }
+
+        // Also notify the admin who created the offer (if they're different from business owner)
+        $currentUser = Auth::user();
+        if ($currentUser && $currentUser->hasAnyRole(['admin', 'super-admin', 'moderator'])) {
+            // Don't send duplicate notification if admin is also the business owner
+            if (!$offer->business || $currentUser->id !== $offer->business->owner_user_id) {
+                Notification::make()
+                    ->title('Offer Created Successfully')
+                    ->body("You have successfully created the offer '{$offer->title}' for {$offer->business->business_name}.")
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->sendToDatabase($currentUser);
             }
         }
     }
