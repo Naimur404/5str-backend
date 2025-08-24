@@ -9,6 +9,7 @@ use App\Models\Review;
 use App\Models\Offer;
 use App\Models\SearchLog;
 use App\Models\Favorite;
+use App\Models\ReviewHelpfulVote;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -86,6 +87,54 @@ class BusinessController extends Controller
         }
         
         return false;
+    }
+
+    /**
+     * Get authenticated user from optional token
+     */
+    private function getOptionalAuthUser(Request $request)
+    {
+        if ($request->hasHeader('Authorization')) {
+            try {
+                $authHeader = $request->header('Authorization');
+                if (strpos($authHeader, 'Bearer ') === 0) {
+                    $token = substr($authHeader, 7);
+                    
+                    // Find the token and its associated user
+                    $accessToken = PersonalAccessToken::findToken($token);
+                    if ($accessToken && $accessToken->tokenable) {
+                        return $accessToken->tokenable;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Token invalid or expired, continue as guest
+                Log::debug('Auth failed in optional auth: ' . $e->getMessage());
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Get user vote status for a review
+     */
+    private function getUserVoteStatus($reviewId, $user)
+    {
+        if (!$user) {
+            return [
+                'has_voted' => false,
+                'user_vote' => null
+            ];
+        }
+
+        $vote = ReviewHelpfulVote::where('review_id', $reviewId)
+            ->where('user_id', $user->id)
+            ->first();
+
+        return [
+            'has_voted' => $vote !== null,
+            'user_vote' => $vote ? $vote->is_helpful : null
+        ];
     }
 
     /**
@@ -430,6 +479,9 @@ class BusinessController extends Controller
         try {
             $business = Business::active()->findOrFail($businessId);
             
+            // Get authenticated user (if any)
+            $user = $this->getOptionalAuthUser($request);
+            
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
 
@@ -456,8 +508,10 @@ class BusinessController extends Controller
 
             $reviews = $query->paginate($limit, ['*'], 'page', $page);
 
-            // Map reviews to lightweight format
-            $reviewsData = $reviews->getCollection()->map(function($review) {
+            // Map reviews to lightweight format with vote status
+            $reviewsData = $reviews->getCollection()->map(function($review) use ($user) {
+                $voteStatus = $this->getUserVoteStatus($review->id, $user);
+                
                 return [
                     'id' => $review->id,
                     'overall_rating' => $review->overall_rating,
@@ -473,6 +527,10 @@ class BusinessController extends Controller
                     'is_verified_visit' => $review->is_verified_visit,
                     'helpful_count' => $review->helpful_count,
                     'not_helpful_count' => $review->not_helpful_count,
+                    'user_vote_status' => [
+                        'has_voted' => $voteStatus['has_voted'],
+                        'user_vote' => $voteStatus['user_vote'] // true = helpful, false = not helpful, null = no vote
+                    ],
                     'user' => [
                         'id' => $review->user->id,
                         'name' => $review->user->name,

@@ -109,6 +109,11 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('/{review}', [ReviewController::class, 'show']);
         Route::put('/{review}', [ReviewController::class, 'update']);
         Route::delete('/{review}', [ReviewController::class, 'destroy']);
+        
+        // Review voting system
+        Route::post('/{review}/vote', [ReviewController::class, 'voteHelpful']);
+        Route::delete('/{review}/vote', [ReviewController::class, 'removeVote']);
+        Route::get('/{review}/vote-status', [ReviewController::class, 'getVoteStatus']);
     });
 
     // Offer usage (require login)

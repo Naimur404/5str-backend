@@ -8,10 +8,12 @@ use App\Models\Business;
 use App\Models\BusinessOffering;
 use App\Models\ReviewImage;
 use App\Models\Favorite;
+use App\Models\ReviewHelpfulVote;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class ReviewController extends Controller
@@ -514,6 +516,233 @@ class ReviewController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch review',
+                'error' => config('app.debug') ? $e->getMessage() : 'Something went wrong'
+            ], 500);
+        }
+    }
+
+    /**
+     * Vote on review helpfulness
+     */
+    public function voteHelpful(Request $request, $reviewId)
+    {
+        try {
+            $request->validate([
+                'is_helpful' => 'required|boolean'
+            ]);
+
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentication required'
+                ], 401);
+            }
+
+            $review = Review::findOrFail($reviewId);
+
+            // Check if user is trying to vote on their own review
+            if ($review->user_id === $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot vote on your own review'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Debug: Log initial state
+            $initialHelpfulCount = ReviewHelpfulVote::where('review_id', $reviewId)
+                ->where('is_helpful', true)
+                ->count();
+            
+            Log::info("Initial helpful count for review {$reviewId}: {$initialHelpfulCount}");
+
+            // Check if user has already voted on this review
+            $existingVote = ReviewHelpfulVote::where('review_id', $reviewId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            $message = '';
+            if ($existingVote) {
+                // Update existing vote if different
+                if ($existingVote->is_helpful !== $request->is_helpful) {
+                    $existingVote->update(['is_helpful' => $request->is_helpful]);
+                    $message = 'Vote updated successfully';
+                    Log::info("Updated vote for user {$user->id} on review {$reviewId}");
+                } else {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'You have already voted this way on this review'
+                    ], 400);
+                }
+            } else {
+                // Create new vote
+                ReviewHelpfulVote::create([
+                    'review_id' => $reviewId,
+                    'user_id' => $user->id,
+                    'is_helpful' => $request->is_helpful
+                ]);
+                $message = 'Vote recorded successfully';
+                Log::info("Created new vote for user {$user->id} on review {$reviewId}");
+            }
+
+            // Recalculate helpful counts
+            $helpfulCount = ReviewHelpfulVote::where('review_id', $reviewId)
+                ->where('is_helpful', true)
+                ->count();
+            
+            $notHelpfulCount = ReviewHelpfulVote::where('review_id', $reviewId)
+                ->where('is_helpful', false)
+                ->count();
+
+            Log::info("Recalculated counts for review {$reviewId}: helpful={$helpfulCount}, not_helpful={$notHelpfulCount}");
+
+            // Update review helpful counts
+            $review->update([
+                'helpful_count' => $helpfulCount,
+                'not_helpful_count' => $notHelpfulCount
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => [
+                    'review_id' => $reviewId,
+                    'user_vote' => $request->is_helpful,
+                    'helpful_count' => $helpfulCount,
+                    'not_helpful_count' => $notHelpfulCount,
+                    'total_votes' => $helpfulCount + $notHelpfulCount,
+                    'debug' => [
+                        'initial_count' => $initialHelpfulCount,
+                        'final_count' => $helpfulCount,
+                        'user_id' => $user->id,
+                        'had_existing_vote' => $existingVote !== null
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record vote',
+                'error' => config('app.debug') ? $e->getMessage() : 'Something went wrong'
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove vote from review
+     */
+    public function removeVote(Request $request, $reviewId)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentication required'
+                ], 401);
+            }
+
+            $review = Review::findOrFail($reviewId);
+
+            $existingVote = ReviewHelpfulVote::where('review_id', $reviewId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (!$existingVote) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No vote found to remove'
+                ], 404);
+            }
+
+            DB::beginTransaction();
+
+            // Remove the vote
+            $existingVote->delete();
+
+            // Recalculate helpful counts
+            $helpfulCount = ReviewHelpfulVote::where('review_id', $reviewId)
+                ->where('is_helpful', true)
+                ->count();
+            
+            $notHelpfulCount = ReviewHelpfulVote::where('review_id', $reviewId)
+                ->where('is_helpful', false)
+                ->count();
+
+            // Update review helpful counts
+            $review->update([
+                'helpful_count' => $helpfulCount,
+                'not_helpful_count' => $notHelpfulCount
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vote removed successfully',
+                'data' => [
+                    'review_id' => $reviewId,
+                    'helpful_count' => $helpfulCount,
+                    'not_helpful_count' => $notHelpfulCount,
+                    'total_votes' => $helpfulCount + $notHelpfulCount
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to remove vote',
+                'error' => config('app.debug') ? $e->getMessage() : 'Something went wrong'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user's vote status for a review
+     */
+    public function getVoteStatus(Request $request, $reviewId)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentication required'
+                ], 401);
+            }
+
+            $review = Review::findOrFail($reviewId);
+
+            $userVote = ReviewHelpfulVote::where('review_id', $reviewId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'review_id' => $reviewId,
+                    'has_voted' => $userVote !== null,
+                    'user_vote' => $userVote ? $userVote->is_helpful : null,
+                    'helpful_count' => $review->helpful_count,
+                    'not_helpful_count' => $review->not_helpful_count,
+                    'total_votes' => $review->helpful_count + $review->not_helpful_count
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get vote status',
                 'error' => config('app.debug') ? $e->getMessage() : 'Something went wrong'
             ], 500);
         }
