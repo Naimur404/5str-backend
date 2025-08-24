@@ -8,6 +8,8 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -169,7 +171,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'phone' => $user->phone,
                     'city' => $user->city,
-                    'profile_image' => $user->profile_image,
+                    'profile_image' => $user->profile_image ? Storage::url($user->profile_image) : null,
                     'current_latitude' => $user->current_latitude,
                     'current_longitude' => $user->current_longitude,
                     'trust_level' => $user->trust_level,
@@ -211,7 +213,7 @@ class AuthController extends Controller
             'city' => 'sometimes|string',
             'current_latitude' => 'sometimes|numeric|between:-90,90',
             'current_longitude' => 'sometimes|numeric|between:-180,180',
-            'profile_image' => 'sometimes|string',
+            'profile_image' => 'sometimes|string', // Base64 string
         ]);
 
         if ($validator->fails()) {
@@ -223,10 +225,23 @@ class AuthController extends Controller
         }
 
         try {
-            $user->update($request->only([
-                'name', 'phone', 'city', 'current_latitude', 
-                'current_longitude', 'profile_image'
-            ]));
+            $updateData = $request->only([
+                'name', 'phone', 'city', 'current_latitude', 'current_longitude'
+            ]);
+
+            // Handle base64 image upload
+            if ($request->has('profile_image') && !empty($request->profile_image)) {
+                $profileImagePath = $this->handleBase64ImageUpload($request->profile_image, $user->id);
+                if ($profileImagePath) {
+                    // Delete old profile image if exists
+                    if ($user->profile_image && Storage::disk('public')->exists($user->profile_image)) {
+                        Storage::disk('public')->delete($user->profile_image);
+                    }
+                    $updateData['profile_image'] = $profileImagePath;
+                }
+            }
+
+            $user->update($updateData);
 
             return response()->json([
                 'success' => true,
@@ -238,7 +253,7 @@ class AuthController extends Controller
                         'email' => $user->email,
                         'phone' => $user->phone,
                         'city' => $user->city,
-                        'profile_image' => $user->profile_image,
+                        'profile_image' => $user->profile_image ? Storage::url($user->profile_image) : null,
                         'current_latitude' => $user->current_latitude,
                         'current_longitude' => $user->current_longitude,
                         'trust_level' => $user->trust_level,
@@ -255,6 +270,58 @@ class AuthController extends Controller
                 'message' => 'Profile update failed',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Handle base64 image upload
+     */
+    private function handleBase64ImageUpload(string $base64String, int $userId): ?string
+    {
+        try {
+            // Check if the string contains data URL prefix
+            if (preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
+                $imageType = $matches[1]; // jpg, png, gif, etc.
+                $base64String = substr($base64String, strpos($base64String, ',') + 1);
+            } else {
+                // Assume it's a plain base64 string, default to jpg
+                $imageType = 'jpg';
+            }
+
+            // Validate image type
+            if (!in_array($imageType, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                throw new \Exception('Invalid image type');
+            }
+
+            // Decode base64
+            $imageData = base64_decode($base64String);
+            
+            if ($imageData === false) {
+                throw new \Exception('Invalid base64 data');
+            }
+
+            // Validate image size (max 5MB)
+            if (strlen($imageData) > 5 * 1024 * 1024) {
+                throw new \Exception('Image size too large (max 5MB)');
+            }
+
+            // Generate unique filename
+            $filename = 'profile_' . $userId . '_' . time() . '.' . $imageType;
+            $filePath = 'profile-images/' . $filename;
+
+            // Save to storage
+            $saved = Storage::disk('public')->put($filePath, $imageData);
+            
+            if (!$saved) {
+                throw new \Exception('Failed to save image');
+            }
+
+            return $filePath;
+
+        } catch (\Exception $e) {
+            // Log error and return null
+            Log::error('Profile image upload failed: ' . $e->getMessage());
+            return null;
         }
     }
 
