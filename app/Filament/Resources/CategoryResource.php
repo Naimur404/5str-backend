@@ -148,7 +148,29 @@ class CategoryResource extends Resource
                     ->label('Add Subcategory')
                     ->icon('heroicon-o-plus')
                     ->color('info')
-                    ->url(fn ($record) => CategoryResource::getUrl('create', ['parent_id' => $record->id]))
+                    ->form([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('slug')
+                            ->maxLength(255),
+                        Forms\Components\Textarea::make('description')
+                            ->maxLength(1000),
+                        Forms\Components\FileUpload::make('icon_image')
+                            ->image()
+                            ->directory('categories'),
+                        Forms\Components\ColorPicker::make('color_code'),
+                        Forms\Components\Toggle::make('is_active')
+                            ->default(true),
+                        Forms\Components\Toggle::make('is_featured')
+                            ->default(false),
+                    ])
+                    ->action(function (array $data, $record) {
+                        $data['parent_id'] = $record->id;
+                        $data['level'] = $record->level + 1;
+                        $data['slug'] = $data['slug'] ?: Str::slug($data['name']);
+                        Category::create($data);
+                    })
                     ->visible(fn ($record) => $record->parent_id === null),
             ])
             ->bulkActions([
