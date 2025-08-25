@@ -35,6 +35,13 @@ Route::prefix('v1')->group(function () {
     Route::post('/banners/{banner}/click', [HomeController::class, 'trackBannerClick']);
     Route::get('/statistics', [HomeController::class, 'statistics']);
     Route::get('/trending', [HomeController::class, 'trending']);
+    
+    // Home section "View All" endpoints
+    Route::get('/home/top-services', [HomeController::class, 'topServices']);
+    Route::get('/home/popular-nearby', [HomeController::class, 'popularNearby']);
+    Route::get('/home/dynamic-sections/{section}', [HomeController::class, 'dynamicSections']);
+    Route::get('/home/featured-businesses', [HomeController::class, 'featuredBusinesses']);
+    Route::get('/home/special-offers', [HomeController::class, 'specialOffers']);
 
     // Universal search routes (public access)
     Route::prefix('search')->group(function () {

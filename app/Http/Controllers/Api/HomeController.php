@@ -701,4 +701,429 @@ class HomeController extends Controller
         // Default fallback
         return 'Bangladesh';
     }
+
+    /**
+     * Get all top services (categories)
+     */
+    public function topServices(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 20);
+            $limit = $request->input('limit', 50);
+
+            $query = Category::active();
+
+            if ($latitude && $longitude) {
+                // Get categories that have businesses in the area
+                $query->whereHas('businesses', function ($q) use ($latitude, $longitude, $radiusKm) {
+                    $q->active()->nearby($latitude, $longitude, $radiusKm);
+                })
+                ->withCount(['businesses' => function ($q) use ($latitude, $longitude, $radiusKm) {
+                    $q->active()->nearby($latitude, $longitude, $radiusKm);
+                }])
+                ->orderBy('businesses_count', 'desc');
+            } else {
+                // Fallback to featured categories
+                $query->featured()->orderBy('sort_order');
+            }
+
+            $services = $query->take($limit)->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'services' => $services,
+                    'location' => [
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'radius_km' => $radiusKm
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch top services',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all popular businesses nearby
+     */
+    public function popularNearby(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 20);
+            $limit = $request->input('limit', 50);
+
+            if (!$latitude || !$longitude) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Latitude and longitude are required'
+                ], 422);
+            }
+
+            $businesses = Business::active()
+                ->nearbyWithDistance($latitude, $longitude, $radiusKm)
+                ->withRating(3.0)
+                ->with([
+                    'category:id,name,slug,icon_image,color_code',
+                    'subcategory:id,name,slug',
+                    'logoImage:id,business_id,image_url'
+                ])
+                ->orderBy('overall_rating', 'desc')
+                ->paginate($limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'businesses' => $businesses->items(),
+                    'pagination' => [
+                        'current_page' => $businesses->currentPage(),
+                        'last_page' => $businesses->lastPage(),
+                        'per_page' => $businesses->perPage(),
+                        'total' => $businesses->total(),
+                        'has_more' => $businesses->hasMorePages()
+                    ],
+                    'location' => [
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'radius_km' => $radiusKm
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch popular nearby businesses',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all top restaurants
+     */
+    public function topRestaurants(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 20);
+            $limit = $request->input('limit', 50);
+
+            $query = Business::active()
+                ->whereHas('category', function ($q) {
+                    $q->where('name', 'LIKE', '%restaurant%')
+                      ->orWhere('name', 'LIKE', '%food%')
+                      ->orWhere('name', 'LIKE', '%cafe%')
+                      ->orWhere('name', 'LIKE', '%pizza%')
+                      ->orWhere('name', 'LIKE', '%burger%');
+                })
+                ->with([
+                    'category:id,name,slug,icon_image,color_code',
+                    'subcategory:id,name,slug',
+                    'logoImage:id,business_id,image_url'
+                ]);
+
+            if ($latitude && $longitude) {
+                $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
+            }
+
+            $restaurants = $query->orderBy('overall_rating', 'desc')
+                ->paginate($limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'restaurants' => $restaurants->items(),
+                    'pagination' => [
+                        'current_page' => $restaurants->currentPage(),
+                        'last_page' => $restaurants->lastPage(),
+                        'per_page' => $restaurants->perPage(),
+                        'total' => $restaurants->total(),
+                        'has_more' => $restaurants->hasMorePages()
+                    ],
+                    'location' => [
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'radius_km' => $radiusKm
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch top restaurants',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all top shopping businesses
+     */
+    public function topShopping(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 20);
+            $limit = $request->input('limit', 50);
+
+            $query = Business::active()
+                ->whereHas('category', function ($q) {
+                    $q->where('name', 'LIKE', '%shopping%')
+                      ->orWhere('name', 'LIKE', '%shop%')
+                      ->orWhere('name', 'LIKE', '%store%')
+                      ->orWhere('name', 'LIKE', '%clothing%')
+                      ->orWhere('name', 'LIKE', '%fashion%')
+                      ->orWhere('name', 'LIKE', '%retail%');
+                })
+                ->with([
+                    'category:id,name,slug,icon_image,color_code',
+                    'subcategory:id,name,slug',
+                    'logoImage:id,business_id,image_url'
+                ]);
+
+            if ($latitude && $longitude) {
+                $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
+            }
+
+            $shopping = $query->orderBy('overall_rating', 'desc')
+                ->paginate($limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'shopping' => $shopping->items(),
+                    'pagination' => [
+                        'current_page' => $shopping->currentPage(),
+                        'last_page' => $shopping->lastPage(),
+                        'per_page' => $shopping->perPage(),
+                        'total' => $shopping->total(),
+                        'has_more' => $shopping->hasMorePages()
+                    ],
+                    'location' => [
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'radius_km' => $radiusKm
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch top shopping businesses',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all featured businesses
+     */
+    public function featuredBusinesses(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 50);
+            $limit = $request->input('limit', 50);
+
+            $query = Business::active()->featured()
+                ->with([
+                    'category:id,name,slug,icon_image,color_code',
+                    'subcategory:id,name,slug',
+                    'logoImage:id,business_id,image_url'
+                ]);
+
+            if ($latitude && $longitude) {
+                $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
+            }
+
+            $businesses = $query->orderBy('overall_rating', 'desc')
+                ->paginate($limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'businesses' => $businesses->items(),
+                    'pagination' => [
+                        'current_page' => $businesses->currentPage(),
+                        'last_page' => $businesses->lastPage(),
+                        'per_page' => $businesses->perPage(),
+                        'total' => $businesses->total(),
+                        'has_more' => $businesses->hasMorePages()
+                    ],
+                    'location' => [
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'radius_km' => $radiusKm
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch featured businesses',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all special offers
+     */
+    public function specialOffers(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 50);
+            $limit = $request->input('limit', 50);
+
+            $query = Offer::whereHas('business', function ($q) use ($latitude, $longitude, $radiusKm) {
+                $q->active();
+                if ($latitude && $longitude) {
+                    $q->nearby($latitude, $longitude, $radiusKm);
+                }
+            })
+            ->where('is_active', true)
+            ->where('valid_from', '<=', now())
+            ->where('valid_to', '>=', now())
+            ->with(['business' => function($q) {
+                $q->select(['id', 'business_name', 'slug', 'landmark', 'overall_rating', 'price_range', 'category_id', 'subcategory_id', 'latitude', 'longitude'])
+                  ->with([
+                      'category:id,name,slug,icon_image,color_code',
+                      'subcategory:id,name,slug',
+                      'logoImage:id,business_id,image_url'
+                  ]);
+            }]);
+
+            $offers = $query->orderBy('created_at', 'desc')
+                ->paginate($limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'offers' => $offers->items(),
+                    'pagination' => [
+                        'current_page' => $offers->currentPage(),
+                        'last_page' => $offers->lastPage(),
+                        'per_page' => $offers->perPage(),
+                        'total' => $offers->total(),
+                        'has_more' => $offers->hasMorePages()
+                    ],
+                    'location' => [
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'radius_km' => $radiusKm
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch special offers',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get dynamic sections (top-restaurants, top-shopping, etc.)
+     */
+    public function dynamicSections(Request $request, $section)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 20);
+            $limit = $request->input('limit', 50);
+
+            // Define section configurations
+            $sectionConfigs = [
+                'top-restaurants' => [
+                    'title' => 'Top Restaurants',
+                    'keywords' => ['restaurant', 'food', 'cafe', 'pizza', 'burger', 'dining', 'fast food', 'chinese', 'indian']
+                ],
+                'top-shopping' => [
+                    'title' => 'Top Shopping',
+                    'keywords' => ['shopping', 'shop', 'store', 'clothing', 'fashion', 'retail', 'boutique', 'mall', 'market']
+                ]
+            ];
+
+            // Check if section is supported
+            if (!isset($sectionConfigs[$section])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Section not supported. Available sections: ' . implode(', ', array_keys($sectionConfigs))
+                ], 422);
+            }
+
+            $config = $sectionConfigs[$section];
+            
+            $query = Business::active()
+                ->whereHas('category', function ($q) use ($config) {
+                    $q->where(function($subQuery) use ($config) {
+                        foreach ($config['keywords'] as $keyword) {
+                            $subQuery->orWhere('name', 'LIKE', "%{$keyword}%");
+                        }
+                    });
+                })
+                ->with([
+                    'category:id,name,slug,icon_image,color_code',
+                    'subcategory:id,name,slug',
+                    'logoImage:id,business_id,image_url'
+                ]);
+
+            if ($latitude && $longitude) {
+                $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
+            }
+
+            $businesses = $query->orderBy('overall_rating', 'desc')
+                ->paginate($limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'section' => $section,
+                    'title' => $config['title'],
+                    'businesses' => $businesses->items(),
+                    'pagination' => [
+                        'current_page' => $businesses->currentPage(),
+                        'last_page' => $businesses->lastPage(),
+                        'per_page' => $businesses->perPage(),
+                        'total' => $businesses->total(),
+                        'has_more' => $businesses->hasMorePages()
+                    ],
+                    'location' => [
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'radius_km' => $radiusKm
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch section data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
