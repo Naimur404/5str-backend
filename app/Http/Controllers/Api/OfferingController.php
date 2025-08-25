@@ -7,6 +7,7 @@ use App\Models\BusinessOffering;
 use App\Models\Review;
 use App\Models\Favorite;
 use App\Models\ReviewHelpfulVote;
+use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +15,12 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class OfferingController extends Controller
 {
+    protected $analyticsService;
+
+    public function __construct(AnalyticsService $analyticsService)
+    {
+        $this->analyticsService = $analyticsService;
+    }
     /**
      * Check if the given offering is in user's favorites
      */
@@ -194,6 +201,14 @@ class OfferingController extends Controller
                 ->available()
                 ->with(['category:id,name,slug', 'business:id,business_name,slug'])
                 ->firstOrFail();
+
+            // Track offering view for analytics
+            try {
+                $this->analyticsService->logView($offering, $request);
+                Log::info("Offering view tracked for offering ID: {$offeringId}");
+            } catch (\Exception $e) {
+                Log::error("Failed to track offering view: " . $e->getMessage());
+            }
 
             $data = [
                 'id' => $offering->id,

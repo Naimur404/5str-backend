@@ -162,6 +162,42 @@ class AnalyticsService
     }
 
     /**
+     * Calculate trending data for offerings
+     */
+    public function calculateOfferingTrending(string $timePeriod = 'daily', ?string $date = null): void
+    {
+        $date = $date ?: now()->format('Y-m-d');
+        $startDate = $this->getStartDate($timePeriod, $date);
+        
+        // Get offering view counts
+        $offeringViews = View::query()
+            ->where('viewable_type', 'App\\Models\\BusinessOffering')
+            ->where('created_at', '>=', $startDate)
+            ->selectRaw('viewable_id, COUNT(*) as view_count')
+            ->groupBy('viewable_id')
+            ->get();
+
+        // Calculate and store trending data for offerings
+        foreach ($offeringViews as $view) {
+            $offering = \App\Models\BusinessOffering::find($view->viewable_id);
+            if ($offering && $offering->business) {
+                $trendScore = $this->calculateTrendScore(0, $view->view_count); // Offerings don't have direct searches
+                
+                TrendingData::updateOrCreate([
+                    'item_type' => 'offering',
+                    'item_id' => $view->viewable_id,
+                    'time_period' => $timePeriod,
+                    'date_period' => $date,
+                    'location_area' => $offering->business->area,
+                ], [
+                    'item_name' => $offering->name,
+                    'trend_score' => $trendScore,
+                ]);
+            }
+        }
+    }
+
+    /**
      * Calculate trending data for search terms
      */
     public function calculateSearchTermTrending(string $timePeriod = 'daily', ?string $date = null): void
@@ -193,6 +229,17 @@ class AnalyticsService
                 'trend_score' => $trendScore,
             ]);
         }
+    }
+
+    /**
+     * Run all trending calculations
+     */
+    public function calculateAllTrending(string $timePeriod = 'daily', ?string $date = null): void
+    {
+        $this->calculateBusinessTrending($timePeriod, $date);
+        $this->calculateCategoryTrending($timePeriod, $date);
+        $this->calculateOfferingTrending($timePeriod, $date);
+        $this->calculateSearchTermTrending($timePeriod, $date);
     }
 
     /**

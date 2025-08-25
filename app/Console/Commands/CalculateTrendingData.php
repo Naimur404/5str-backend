@@ -34,19 +34,17 @@ class CalculateTrendingData extends Command
         $this->info("Calculating {$period} trending data for {$date}...");
 
         try {
-            // Calculate business trending
-            $this->line('Calculating business trending data...');
-            $this->analyticsService->calculateBusinessTrending($period, $date);
+            // Calculate all trending data at once
+            $this->line('Calculating all trending data...');
+            $this->analyticsService->calculateAllTrending($period, $date);
 
-            // Calculate category trending
-            $this->line('Calculating category trending data...');
-            $this->analyticsService->calculateCategoryTrending($period, $date);
-
-            // Calculate search term trending
-            $this->line('Calculating search term trending data...');
-            $this->analyticsService->calculateSearchTermTrending($period, $date);
-
-            $this->info('Trending data calculation completed successfully!');
+            $this->info('All trending data calculation completed successfully!');
+            $this->line('Calculated:');
+            $this->line('- Business trending data');
+            $this->line('- Category trending data');
+            $this->line('- Offering trending data');
+            $this->line('- Search term trending data');
+            
             return Command::SUCCESS;
 
         } catch (\Exception $e) {

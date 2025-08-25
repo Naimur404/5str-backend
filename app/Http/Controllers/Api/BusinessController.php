@@ -391,6 +391,14 @@ class BusinessController extends Controller
                 ])
                 ->findOrFail($businessId);
 
+            // Track business view for analytics
+            try {
+                $this->analyticsService->logView($business, $request);
+                Log::info("Business view tracked for business ID: {$businessId}");
+            } catch (\Exception $e) {
+                Log::error("Failed to track business view: " . $e->getMessage());
+            }
+
             // Update discovery score if user location is provided
             if ($request->has('latitude') && $request->has('longitude')) {
                 $business->updateDiscoveryScore($request->latitude, $request->longitude);

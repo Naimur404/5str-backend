@@ -319,6 +319,44 @@ class HomeController extends Controller
                     ];
                 });
 
+            // Get trending offerings
+            $trendingOfferings = TrendingData::where('item_type', 'offering')
+                ->where('time_period', 'daily')
+                ->where('date_period', now()->format('Y-m-d'))
+                ->where('location_area', $userArea)
+                ->orderBy('trend_score', 'desc')
+                ->with(['business' => function($query) {
+                    $query->select(['id', 'business_name', 'slug', 'area']);
+                }])
+                ->take(5)
+                ->get()
+                ->map(function($trend) {
+                    // Try to get the offering details
+                    $offering = \App\Models\BusinessOffering::find($trend->item_id);
+                    return [
+                        'trend_score' => $trend->trend_score,
+                        'offering' => $offering ? [
+                            'id' => $offering->id,
+                            'name' => $offering->name,
+                            'offering_type' => $offering->offering_type,
+                            'price' => $offering->price,
+                            'business' => $trend->business ? [
+                                'id' => $trend->business->id,
+                                'business_name' => $trend->business->business_name,
+                                'slug' => $trend->business->slug,
+                                'area' => $trend->business->area,
+                            ] : null
+                        ] : [
+                            'name' => $trend->item_name,
+                            'id' => $trend->item_id
+                        ]
+                    ];
+                })
+                ->filter(function($item) {
+                    return $item['offering'] !== null;
+                })
+                ->values();
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -331,6 +369,7 @@ class HomeController extends Controller
                     'trending' => [
                         'businesses' => $trendingBusinesses,
                         'categories' => $trendingCategories,
+                        'offerings' => $trendingOfferings,
                         'search_terms' => $trendingSearchTerms,
                         'area' => $userArea,
                         'date' => now()->format('Y-m-d')
@@ -446,7 +485,7 @@ class HomeController extends Controller
         try {
             $area = $request->input('area', 'Dhanmondi');
             $period = $request->input('period', 'daily'); // daily, weekly, monthly
-            $type = $request->input('type'); // business, category, search_term (optional filter)
+            $type = $request->input('type'); // business, category, search_term, offering (optional filter)
             
             $query = TrendingData::where('time_period', $period)
                 ->where('location_area', $area);
@@ -488,6 +527,18 @@ class HomeController extends Controller
                             'icon_image' => $trend->category->icon_image,
                             'type' => 'category'
                         ];
+                    } elseif ($trend->item_type === 'offering') {
+                        $offering = \App\Models\BusinessOffering::find($trend->item_id);
+                        if ($offering) {
+                            $item = [
+                                'id' => $offering->id,
+                                'name' => $offering->name,
+                                'offering_type' => $offering->offering_type,
+                                'price' => $offering->price,
+                                'business_name' => $offering->business->business_name ?? 'Unknown',
+                                'type' => 'offering'
+                            ];
+                        }
                     } elseif ($trend->item_type === 'search_term') {
                         $item = [
                             'name' => $trend->item_name,

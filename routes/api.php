@@ -61,6 +61,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/nearby', [BusinessController::class, 'nearby']);
         Route::get('/featured', [BusinessController::class, 'featured']);
         Route::get('/{business}', [BusinessController::class, 'show']);
+        Route::post('/{business}/track-click', [BusinessController::class, 'trackClick']);
         Route::get('/{business}/offerings', [BusinessController::class, 'offerings']);
         Route::get('/{business}/reviews', [BusinessController::class, 'reviews']);
         Route::get('/{business}/offers', [BusinessController::class, 'offers']);
