@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
@@ -49,9 +49,17 @@ class AuthController extends Controller
             ]);
 
             // Assign default user role
-            $userRole = Role::where('name', 'user')->first();
-            if ($userRole) {
-                $user->assignRole('user');
+            try {
+                $userRole = Role::where('name', 'user')->first();
+                if ($userRole) {
+                    $user->assignRole('user');
+                    Log::info("User role assigned to user ID: {$user->id}");
+                } else {
+                    Log::warning("User role 'user' not found in database");
+                }
+            } catch (\Exception $e) {
+                Log::error("Failed to assign user role: " . $e->getMessage());
+                // Continue without role assignment - user can still function
             }
 
             $token = $user->createToken('auth_token')->plainTextToken;
