@@ -12,9 +12,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // Calculate trending data automatically
+        // Calculate trending data automatically - EVERY MINUTE for real-time analytics
         $schedule->command('analytics:calculate-trending daily')
-                 ->hourly()
+                 ->everyMinute()
                  ->withoutOverlapping()
                  ->runInBackground();
 
