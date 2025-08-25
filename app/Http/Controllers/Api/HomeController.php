@@ -1056,11 +1056,11 @@ class HomeController extends Controller
 
             // Define section configurations
             $sectionConfigs = [
-                'top-restaurants' => [
+                'restaurants' => [
                     'title' => 'Top Restaurants',
                     'keywords' => ['restaurant', 'food', 'cafe', 'pizza', 'burger', 'dining', 'fast food', 'chinese', 'indian']
                 ],
-                'top-shopping' => [
+                'shopping' => [
                     'title' => 'Top Shopping',
                     'keywords' => ['shopping', 'shop', 'store', 'clothing', 'fashion', 'retail', 'boutique', 'mall', 'market']
                 ]
