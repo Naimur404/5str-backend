@@ -41,7 +41,8 @@ class CategoryController extends Controller
             $categories = $query->with($with)
                 ->orderBy('sort_order')
                 ->orderBy('name')
-                ->get();
+                ->orderBy('total_businesses', 'desc')
+                ->take(10);
 
             return response()->json([
                 'success' => true,
