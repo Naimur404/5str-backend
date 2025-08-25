@@ -36,6 +36,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/statistics', [HomeController::class, 'statistics']);
     Route::get('/trending', [HomeController::class, 'trending']);
     Route::get('/today-trending', [HomeController::class, 'todayTrending']);
+    Route::get('/top-rated', [HomeController::class, 'topRated']);
+    Route::get('/open-now', [HomeController::class, 'openNow']);
     
     // Home section "View All" endpoints
     Route::get('/home/top-services', [HomeController::class, 'topServices']);

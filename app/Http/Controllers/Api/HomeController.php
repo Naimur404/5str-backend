@@ -1308,4 +1308,291 @@ class HomeController extends Controller
 
         return round($earthRadius * $c, 2);
     }
+
+    /**
+     * Get top-rated businesses with optional category filtering
+     */
+    public function topRated(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 50);
+            $limit = $request->input('limit', 50);
+            $categoryId = $request->input('category_id');
+            $minRating = $request->input('min_rating', 4.0);
+
+            $query = Business::active()
+                ->where('overall_rating', '>=', $minRating)
+                ->with([
+                    'category:id,name,slug,icon_image,color_code',
+                    'subcategory:id,name,slug',
+                    'logoImage:id,business_id,image_url',
+                    'coverImage:id,business_id,image_url'
+                ]);
+
+            // Filter by category if provided
+            if ($categoryId) {
+                $query->where(function($q) use ($categoryId) {
+                    $q->where('category_id', $categoryId)
+                      ->orWhere('subcategory_id', $categoryId);
+                });
+            }
+
+            // Add location filtering if coordinates provided
+            if ($latitude && $longitude) {
+                $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
+            }
+
+            $businesses = $query->orderBy('overall_rating', 'desc')
+                ->orderBy('total_reviews', 'desc')
+                ->paginate($limit);
+
+            // Transform the data to include images
+            $transformedBusinesses = $businesses->getCollection()->map(function($business) use ($latitude, $longitude) {
+                $businessData = [
+                    'id' => $business->id,
+                    'business_name' => $business->business_name,
+                    'slug' => $business->slug,
+                    'landmark' => $business->landmark,
+                    'overall_rating' => $business->overall_rating,
+                    'total_reviews' => $business->total_reviews,
+                    'price_range' => $business->price_range,
+                    'category_name' => $business->category->name ?? null,
+                    'subcategory_name' => $business->subcategory->name ?? null,
+                    'images' => [
+                        'logo' => $business->logoImage->image_url ?? null,
+                        'cover' => $business->coverImage->image_url ?? null,
+                    ]
+                ];
+
+                // Add distance if coordinates provided
+                if ($latitude && $longitude && isset($business->distance)) {
+                    $businessData['distance'] = $business->distance;
+                }
+
+                return $businessData;
+            });
+
+            $businesses->setCollection($transformedBusinesses);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'businesses' => $businesses->items(),
+                    'pagination' => [
+                        'current_page' => $businesses->currentPage(),
+                        'last_page' => $businesses->lastPage(),
+                        'per_page' => $businesses->perPage(),
+                        'total' => $businesses->total(),
+                        'has_more' => $businesses->hasMorePages()
+                    ],
+                    'filters' => [
+                        'category_id' => $categoryId,
+                        'min_rating' => $minRating,
+                        'location' => $latitude && $longitude ? [
+                            'latitude' => $latitude,
+                            'longitude' => $longitude,
+                            'radius_km' => $radiusKm
+                        ] : null
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch top-rated businesses',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get businesses that are currently open with optional category filtering
+     */
+    public function openNow(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 50);
+            $limit = $request->input('limit', 50);
+            $categoryId = $request->input('category_id');
+            $minRating = $request->input('min_rating', 3.0);
+
+            // Get current day and time
+            $currentDay = strtolower(now()->format('l')); // monday, tuesday, etc.
+            $currentTime = now()->format('H:i:s');
+
+            $query = Business::active()
+                ->where('overall_rating', '>=', $minRating)
+                ->with([
+                    'category:id,name,slug,icon_image,color_code',
+                    'subcategory:id,name,slug',
+                    'logoImage:id,business_id,image_url',
+                    'coverImage:id,business_id,image_url'
+                ]);
+
+            // Filter by category if provided
+            if ($categoryId) {
+                $query->where(function($q) use ($categoryId) {
+                    $q->where('category_id', $categoryId)
+                      ->orWhere('subcategory_id', $categoryId);
+                });
+            }
+
+            // Add location filtering if coordinates provided
+            if ($latitude && $longitude) {
+                $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
+            }
+
+            // Filter for businesses that are currently open
+            // This assumes opening_hours is stored as JSON with day-wise hours
+            $query->where(function($q) use ($currentDay, $currentTime) {
+                $q->whereNotNull('opening_hours')
+                  ->where(function($subQ) use ($currentDay, $currentTime) {
+                      // Check if opening_hours contains today's schedule
+                      $subQ->whereRaw("JSON_EXTRACT(opening_hours, '$.{$currentDay}') IS NOT NULL")
+                           ->whereRaw("JSON_EXTRACT(opening_hours, '$.{$currentDay}.is_open') = true")
+                           ->whereRaw("TIME(JSON_UNQUOTE(JSON_EXTRACT(opening_hours, '$.{$currentDay}.open_time'))) <= ?", [$currentTime])
+                           ->whereRaw("TIME(JSON_UNQUOTE(JSON_EXTRACT(opening_hours, '$.{$currentDay}.close_time'))) >= ?", [$currentTime]);
+                  })
+                  // Or if it's a 24/7 business
+                  ->orWhereRaw("JSON_EXTRACT(opening_hours, '$.{$currentDay}.is_24_hours') = true")
+                  // Or fallback for businesses without detailed opening hours but marked as open
+                  ->orWhere('is_active', true);
+            });
+
+            $businesses = $query->orderBy('overall_rating', 'desc')
+                ->orderBy('total_reviews', 'desc')
+                ->paginate($limit);
+
+            // Transform the data to include images and opening status
+            $transformedBusinesses = $businesses->getCollection()->map(function($business) use ($latitude, $longitude, $currentDay, $currentTime) {
+                $businessData = [
+                    'id' => $business->id,
+                    'business_name' => $business->business_name,
+                    'slug' => $business->slug,
+                    'landmark' => $business->landmark,
+                    'overall_rating' => $business->overall_rating,
+                    'total_reviews' => $business->total_reviews,
+                    'price_range' => $business->price_range,
+                    'category_name' => $business->category->name ?? null,
+                    'subcategory_name' => $business->subcategory->name ?? null,
+                    'images' => [
+                        'logo' => $business->logoImage->image_url ?? null,
+                        'cover' => $business->coverImage->image_url ?? null,
+                    ],
+                    'opening_status' => $this->getOpeningStatus($business, $currentDay, $currentTime)
+                ];
+
+                // Add distance if coordinates provided
+                if ($latitude && $longitude && isset($business->distance)) {
+                    $businessData['distance'] = $business->distance;
+                }
+
+                return $businessData;
+            });
+
+            $businesses->setCollection($transformedBusinesses);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'businesses' => $businesses->items(),
+                    'pagination' => [
+                        'current_page' => $businesses->currentPage(),
+                        'last_page' => $businesses->lastPage(),
+                        'per_page' => $businesses->perPage(),
+                        'total' => $businesses->total(),
+                        'has_more' => $businesses->hasMorePages()
+                    ],
+                    'filters' => [
+                        'category_id' => $categoryId,
+                        'min_rating' => $minRating,
+                        'current_time' => now()->format('Y-m-d H:i:s'),
+                        'current_day' => $currentDay,
+                        'location' => $latitude && $longitude ? [
+                            'latitude' => $latitude,
+                            'longitude' => $longitude,
+                            'radius_km' => $radiusKm
+                        ] : null
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch open businesses',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get opening status for a business
+     */
+    private function getOpeningStatus($business, $currentDay, $currentTime)
+    {
+        if (!$business->opening_hours) {
+            return [
+                'is_open' => true, // Assume open if no hours specified
+                'status' => 'Hours not specified',
+                'next_change' => null
+            ];
+        }
+
+        // Handle both string and array formats for opening_hours
+        $openingHours = $business->opening_hours;
+        if (is_string($openingHours)) {
+            $openingHours = json_decode($openingHours, true);
+        }
+        
+        if (!$openingHours || !isset($openingHours[$currentDay])) {
+            return [
+                'is_open' => false,
+                'status' => 'Closed today',
+                'next_change' => null
+            ];
+        }
+
+        $todayHours = $openingHours[$currentDay];
+
+        // Check if closed today
+        if (!($todayHours['is_open'] ?? true)) {
+            return [
+                'is_open' => false,
+                'status' => 'Closed today',
+                'next_change' => null
+            ];
+        }
+
+        // Check if 24 hours
+        if ($todayHours['is_24_hours'] ?? false) {
+            return [
+                'is_open' => true,
+                'status' => 'Open 24 hours',
+                'next_change' => null
+            ];
+        }
+
+        $openTime = $todayHours['open_time'] ?? '09:00:00';
+        $closeTime = $todayHours['close_time'] ?? '22:00:00';
+
+        if ($currentTime >= $openTime && $currentTime <= $closeTime) {
+            return [
+                'is_open' => true,
+                'status' => "Open until {$closeTime}",
+                'next_change' => $closeTime
+            ];
+        } else {
+            return [
+                'is_open' => false,
+                'status' => "Opens at {$openTime}",
+                'next_change' => $openTime
+            ];
+        }
+    }
 }
