@@ -39,17 +39,17 @@ class CategoryController extends Controller
             }
 
             $categories = $query->with($with)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->orderBy('total_businesses', 'desc')
+                ->orderBy('total_businesses', 'desc') // highest first
+                ->orderBy('sort_order')              // then sort_order
+                ->orderBy('name')                    // then name
                 ->take(10)
                 ->get();
+
 
             return response()->json([
                 'success' => true,
                 'data' => $categories
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -75,7 +75,6 @@ class CategoryController extends Controller
                 'success' => true,
                 'data' => $categories
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -101,7 +100,6 @@ class CategoryController extends Controller
                 'success' => true,
                 'data' => $categories
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -127,7 +125,6 @@ class CategoryController extends Controller
                 'success' => true,
                 'data' => $categories
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -151,7 +148,6 @@ class CategoryController extends Controller
                 'success' => true,
                 'data' => $category
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -168,7 +164,7 @@ class CategoryController extends Controller
     {
         try {
             $category = Category::active()->findOrFail($categoryId);
-            
+
             $subcategories = Category::active()
                 ->where('parent_id', $category->id)
                 ->orderBy('sort_order')
@@ -182,7 +178,6 @@ class CategoryController extends Controller
                     'subcategories' => $subcategories
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -199,7 +194,7 @@ class CategoryController extends Controller
     {
         try {
             $category = Category::active()->findOrFail($categoryId);
-            
+
             $latitude = $request->input('latitude');
             $longitude = $request->input('longitude');
             $radiusKm = $request->input('radius', 20);
@@ -263,7 +258,6 @@ class CategoryController extends Controller
                     ]
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
