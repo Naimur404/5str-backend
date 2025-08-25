@@ -42,7 +42,8 @@ class CategoryController extends Controller
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->orderBy('total_businesses', 'desc')
-                ->take(10);
+                ->take(10)
+                ->get();
 
             return response()->json([
                 'success' => true,
