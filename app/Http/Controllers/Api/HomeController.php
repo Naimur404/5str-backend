@@ -1126,4 +1126,186 @@ class HomeController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get today's trending offerings and businesses combined
+     */
+    public function todayTrending(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $area = $request->input('area');
+            $businessLimit = $request->input('business_limit', 10);
+            $offeringLimit = $request->input('offering_limit', 10);
+            
+            // Determine user area if not provided
+            if (!$area) {
+                $area = $this->determineUserArea($latitude, $longitude);
+            }
+
+            $today = now()->format('Y-m-d');
+
+            // Get trending businesses for today
+            $trendingBusinesses = TrendingData::where('item_type', 'business')
+                ->where('time_period', 'daily')
+                ->where('date_period', $today)
+                ->where('location_area', $area)
+                ->orderBy('trend_score', 'desc')
+                ->with(['business' => function($query) use ($latitude, $longitude) {
+                    $query->select(['id', 'business_name', 'slug', 'landmark', 'overall_rating', 'price_range', 'category_id', 'subcategory_id', 'latitude', 'longitude'])
+                          ->with([
+                              'category:id,name,slug,icon_image,color_code',
+                              'subcategory:id,name,slug',
+                              'logoImage:id,business_id,image_url',
+                              'coverImage:id,business_id,image_url',
+                              'galleryImages:id,business_id,image_url'
+                          ]);
+                }])
+                ->take($businessLimit)
+                ->get()
+                ->map(function($trend) use ($latitude, $longitude) {
+                    if (!$trend->business) return null;
+                    
+                    $business = $trend->business;
+                    $businessData = [
+                        'id' => $business->id,
+                        'business_name' => $business->business_name,
+                        'slug' => $business->slug,
+                        'landmark' => $business->landmark,
+                        'overall_rating' => $business->overall_rating,
+                        'price_range' => $business->price_range,
+                        'category_name' => $business->category->name ?? null,
+                        'subcategory_name' => $business->subcategory->name ?? null,
+                        'images' => [
+                            'logo' => $business->logoImage->image_url ?? null,
+                            'cover' => $business->coverImage->image_url ?? null,
+                            'gallery' => $business->galleryImages->pluck('image_url')->toArray()
+                        ],
+                        'trend_score' => $trend->trend_score,
+                        'trend_rank' => $trend->id
+                    ];
+
+                    // Calculate distance if coordinates provided
+                    if ($latitude && $longitude && $business->latitude && $business->longitude) {
+                        $businessData['distance'] = $this->calculateDistance(
+                            $latitude, $longitude, 
+                            $business->latitude, $business->longitude
+                        );
+                    }
+
+                    return $businessData;
+                })
+                ->filter()
+                ->values();
+
+            // Get trending offerings for today
+            $trendingOfferings = TrendingData::where('item_type', 'offering')
+                ->where('time_period', 'daily')
+                ->where('date_period', $today)
+                ->where('location_area', $area)
+                ->orderBy('trend_score', 'desc')
+                ->take($offeringLimit)
+                ->get()
+                ->map(function($trend) use ($latitude, $longitude) {
+                    // Get the offering details with images
+                    $offering = \App\Models\BusinessOffering::select(['id', 'name', 'offering_type', 'price', 'description', 'image_url', 'business_id'])
+                        ->with(['business' => function($query) {
+                            $query->select(['id', 'business_name', 'slug', 'area', 'latitude', 'longitude'])
+                                  ->with([
+                                      'category:id,name,slug', 
+                                      'logoImage:id,business_id,image_url',
+                                      'coverImage:id,business_id,image_url'
+                                  ]);
+                        }])
+                        ->find($trend->item_id);
+                    
+                    if (!$offering || !$offering->business) return null;
+
+                    $offeringData = [
+                        'id' => $offering->id,
+                        'name' => $offering->name,
+                        'offering_type' => $offering->offering_type,
+                        'price' => $offering->price,
+                        'description' => $offering->description,
+                        'image_url' => $offering->image_url,
+                        'trend_score' => $trend->trend_score,
+                        'trend_rank' => $trend->id,
+                        'business' => [
+                            'id' => $offering->business->id,
+                            'business_name' => $offering->business->business_name,
+                            'slug' => $offering->business->slug,
+                            'area' => $offering->business->area,
+                            'category_name' => $offering->business->category->name ?? null,
+                            'images' => [
+                                'logo' => $offering->business->logoImage->image_url ?? null,
+                                'cover' => $offering->business->coverImage->image_url ?? null,
+                            ]
+                        ]
+                    ];
+
+                    // Calculate distance if coordinates provided
+                    if ($latitude && $longitude && $offering->business->latitude && $offering->business->longitude) {
+                        $offeringData['business']['distance'] = $this->calculateDistance(
+                            $latitude, $longitude, 
+                            $offering->business->latitude, $offering->business->longitude
+                        );
+                    }
+
+                    return $offeringData;
+                })
+                ->filter()
+                ->values();
+
+            // Get summary stats
+            $totalTrendingItems = TrendingData::where('time_period', 'daily')
+                ->where('date_period', $today)
+                ->where('location_area', $area)
+                ->count();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'trending_businesses' => $trendingBusinesses,
+                    'trending_offerings' => $trendingOfferings,
+                    'summary' => [
+                        'date' => $today,
+                        'area' => $area,
+                        'total_trending_items' => $totalTrendingItems,
+                        'businesses_count' => $trendingBusinesses->count(),
+                        'offerings_count' => $trendingOfferings->count(),
+                        'location_provided' => $latitude && $longitude ? true : false
+                    ],
+                    'location' => [
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'determined_area' => $area
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch today\'s trending data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Calculate distance between two coordinates in kilometers
+     */
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371; // Earth's radius in kilometers
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat/2) * sin($dLat/2) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon/2) * sin($dLon/2);
+        $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+
+        return round($earthRadius * $c, 2);
+    }
 }

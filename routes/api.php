@@ -35,6 +35,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/banners/{banner}/click', [HomeController::class, 'trackBannerClick']);
     Route::get('/statistics', [HomeController::class, 'statistics']);
     Route::get('/trending', [HomeController::class, 'trending']);
+    Route::get('/today-trending', [HomeController::class, 'todayTrending']);
     
     // Home section "View All" endpoints
     Route::get('/home/top-services', [HomeController::class, 'topServices']);
