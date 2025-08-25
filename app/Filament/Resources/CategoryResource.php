@@ -74,16 +74,26 @@ class CategoryResource extends Resource
                     
                 Forms\Components\Section::make('Visual & Display')
                     ->schema([
-                        Forms\Components\FileUpload::make('icon_url')
+                        Forms\Components\FileUpload::make('icon_image')
                             ->label('Category Icon')
                             ->image()
+                            ->disk('public')
                             ->directory('category-icons')
-                            ->imageEditor(),
-                        Forms\Components\FileUpload::make('image_url')
-                            ->label('Category Image')
+                            ->visibility('public')
+                            ->imageEditor()
+                            ->maxSize(2048)
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                            ->columnSpanFull(),
+                        Forms\Components\FileUpload::make('banner_image')
+                            ->label('Category Banner Image')
                             ->image()
+                            ->disk('public')
                             ->directory('category-images')
-                            ->imageEditor(),
+                            ->visibility('public')
+                            ->imageEditor()
+                            ->maxSize(2048)
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                            ->columnSpanFull(),
                         Forms\Components\ColorPicker::make('color_code')
                             ->label('Theme Color'),
                         Forms\Components\TextInput::make('sort_order')
@@ -101,8 +111,9 @@ class CategoryResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\ImageColumn::make('icon_url')
+                Tables\Columns\ImageColumn::make('icon_image')
                     ->label('Icon')
+                    ->disk('public')
                     ->size(40)
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
