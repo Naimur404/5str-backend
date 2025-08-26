@@ -11,6 +11,7 @@ use App\Models\Offer;
 use App\Models\Review;
 use App\Models\TrendingData;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class HomeController extends Controller
 {
@@ -18,6 +19,7 @@ class HomeController extends Controller
      * Get home screen data (Public access)
      * Includes: banners, featured sections, top categories, nearby businesses, offers
      * Area is automatically determined from lat/lng coordinates
+     * Implements smart business placement - each business appears in only ONE section
      */
     public function index(Request $request)
     {
@@ -29,6 +31,9 @@ class HomeController extends Controller
             // Determine user area from coordinates or use default
             $userArea = $this->determineUserArea($latitude, $longitude);
 
+            // Track this API call for analytics
+            $this->trackUserInteraction('home_view', null, $userArea, $latitude, $longitude);
+
             // Get active banners
             $banners = Banner::where('is_active', true)
                 ->where('start_date', '<=', now())
@@ -36,343 +41,59 @@ class HomeController extends Controller
                 ->orderBy('sort_order')
                 ->get();
 
-            // Get top services (main categories) - dynamic based on location
-            $topServices = [];
-            if ($latitude && $longitude) {
-                // Get categories that actually have businesses in the area
-                $topServices = Category::active()
-                    ->whereHas('businesses', function ($query) use ($latitude, $longitude, $radiusKm) {
-                        $query->active()->nearby($latitude, $longitude, $radiusKm);
-                    })
-                    ->withCount(['businesses' => function ($query) use ($latitude, $longitude, $radiusKm) {
-                        $query->active()->nearby($latitude, $longitude, $radiusKm);
-                    }])
-                    ->orderBy('businesses_count', 'desc')
-                    ->take(8)
-                    ->get()
-                    ->map(function($category) {
-                        return [
-                            'id' => $category->id,
-                            'name' => $category->name,
-                            'slug' => $category->slug,
-                            'icon_image' => $category->icon_image,
-                            'color_code' => $category->color_code,
-                            'business_count' => $category->businesses_count
-                        ];
-                    });
-            } else {
-                // Fallback to featured categories if no location
-                $topServices = Category::active()
-                    ->featured()
-                    ->level(1)
-                    ->orderBy('sort_order')
-                    ->take(8)
-                    ->get();
-            }
+            // Initialize arrays to track used businesses
+            $usedBusinessIds = [];
+            $sectionData = [];
 
-                        // Get popular services nearby (if location provided)
+            // Get all potential businesses for analysis
+            $allBusinesses = $this->getAllPotentialBusinesses($latitude, $longitude, $radiusKm);
+
+            // 1. PRIORITY 1: Get trending businesses (highest priority)
+            $trendingBusinesses = $this->getTrendingBusinessesForHome($userArea, $allBusinesses, $usedBusinessIds);
+            $sectionData['trending_businesses'] = $trendingBusinesses;
+
+            // 2. PRIORITY 2: Get featured businesses (excluding already used)
+            $featuredBusinesses = $this->getFeaturedBusinessesForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
+            $sectionData['featured_businesses'] = $featuredBusinesses;
+
+            // 3. PRIORITY 3: Get popular nearby (excluding already used)
             $popularNearby = [];
             if ($latitude && $longitude) {
-                $popularNearby = Business::active()
-                    ->nearbyWithDistance($latitude, $longitude, $radiusKm)
-                    ->withRating(3.5)
-                    ->with([
-                        'category:id,name,slug,icon_image,color_code',
-                        'subcategory:id,name,slug',
-                        'logoImage:id,business_id,image_url'
-                    ])
-                    ->take(10)
-                    ->get()
-                    ->map(function($business) {
-                        return [
-                            'id' => $business->id,
-                            'business_name' => $business->business_name,
-                            'slug' => $business->slug,
-                            'landmark' => $business->landmark,
-                            'overall_rating' => $business->overall_rating,
-                            'price_range' => $business->price_range,
-                            'distance' => $business->distance ?? null,
-                            'category_name' => $business->category->name ?? null,
-                            'subcategory_name' => $business->subcategory->name ?? null,
-                            'logo_image' => $business->logoImage->image_url ?? null,
-                        ];
-                    });
+                $popularNearby = $this->getPopularNearbyForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
             }
+            $sectionData['popular_nearby'] = $popularNearby;
 
-            // Get dynamic top categories nearby (based on what's actually available)
+            // 4. PRIORITY 4: Get dynamic sections by category (excluding already used)
             $dynamicSections = [];
             if ($latitude && $longitude) {
-                $nearbyBusinesses = Business::active()
-                    ->nearbyWithDistance($latitude, $longitude, $radiusKm)
-                    ->withRating(3.0)
-                    ->with(['category:id,name,slug', 'subcategory:id,name,slug', 'logoImage:id,business_id,image_url'])
-                    ->get();
-
-                // Group by category and create dynamic sections
-                $categorizedBusinesses = $nearbyBusinesses->groupBy('category.name');
-                
-                foreach ($categorizedBusinesses as $categoryName => $businesses) {
-                    if ($businesses->count() >= 1) { // Only show categories with at least 1 business
-                        $dynamicSections[] = [
-                            'section_name' => "Top {$categoryName}",
-                            'section_slug' => strtolower(str_replace(' ', '_', $categoryName)),
-                            'count' => $businesses->count(),
-                            'businesses' => $businesses->sortByDesc('overall_rating')->take(6)->map(function($business) {
-                                return [
-                                    'id' => $business->id,
-                                    'business_name' => $business->business_name,
-                                    'slug' => $business->slug,
-                                    'landmark' => $business->landmark,
-                                    'overall_rating' => $business->overall_rating,
-                                    'price_range' => $business->price_range,
-                                    'category_name' => $business->category->name ?? null,
-                                    'subcategory_name' => $business->subcategory->name ?? null,
-                                    'logo_image' => $business->logoImage->image_url ?? null,
-                                ];
-                            })->values()
-                        ];
-                    }
-                }
-
-                // Sort sections by business count (most popular first)
-                usort($dynamicSections, function($a, $b) {
-                    return $b['count'] <=> $a['count'];
-                });
+                $dynamicSections = $this->getDynamicSectionsForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
             }
+            $sectionData['dynamic_sections'] = $dynamicSections;
 
-            // Get special offers - prioritize location-based offers
-            $specialOffers = Offer::whereHas('business', function ($query) use ($latitude, $longitude, $radiusKm) {
-                $query->active();
-                if ($latitude && $longitude) {
-                    $query->nearby($latitude, $longitude, $radiusKm);
-                }
-            })
-                ->where('is_active', true)
-                ->where('valid_from', '<=', now())
-                ->where('valid_to', '>=', now())
-                ->with(['business' => function($query) use ($latitude, $longitude) {
-                    $query->select(['id', 'business_name', 'slug', 'landmark', 'overall_rating', 'price_range', 'category_id', 'subcategory_id', 'latitude', 'longitude'])
-                          ->with([
-                              'category:id,name,slug,icon_image,color_code',
-                              'subcategory:id,name,slug',
-                              'logoImage:id,business_id,image_url'
-                          ]);
-                }])
-                ->orderBy('created_at', 'desc')
-                ->take(8)
-                ->get()
-                ->map(function($offer) {
-                    return [
-                        'id' => $offer->id,
-                        'title' => $offer->title,
-                        'description' => $offer->description,
-                        'offer_type' => $offer->offer_type,
-                        'discount_percentage' => $offer->discount_percentage,
-                        'valid_to' => $offer->valid_to,
-                        'business' => $offer->business ? [
-                            'id' => $offer->business->id,
-                            'business_name' => $offer->business->business_name,
-                            'slug' => $offer->business->slug,
-                            'landmark' => $offer->business->landmark,
-                            'overall_rating' => $offer->business->overall_rating,
-                            'price_range' => $offer->business->price_range,
-                            'category_name' => $offer->business->category->name ?? null,
-                            'subcategory_name' => $offer->business->subcategory->name ?? null,
-                            'logo_image' => $offer->business->logoImage->image_url ?? null,
-                        ] : null
-                    ];
-                })
-                ->filter(function($offer) {
-                    return $offer['business'] !== null;
-                });
+            // 5. Get top services (categories) - dynamic based on location and user behavior
+            $topServices = $this->getTopServicesForHome($latitude, $longitude, $radiusKm, $userArea);
 
-            // Get featured businesses - prioritize nearby if location provided
-            $featuredBusinesses = Business::active()
-                ->when($latitude && $longitude, function ($query) use ($latitude, $longitude, $radiusKm) {
-                    // If location provided, get nearby featured businesses first
-                    $query->nearby($latitude, $longitude, $radiusKm)->featured();
-                }, function ($query) {
-                    // Otherwise get general featured businesses
-                    $query->featured();
-                })
-                ->with([
-                    'category:id,name,slug,icon_image,color_code',
-                    'subcategory:id,name,slug',
-                    'logoImage:id,business_id,image_url'
-                ])
-                ->orderBy('overall_rating', 'desc')
-                ->take(6)
-                ->get()
-                ->map(function($business) {
-                    return [
-                        'id' => $business->id,
-                        'business_name' => $business->business_name,
-                        'slug' => $business->slug,
-                        'landmark' => $business->landmark,
-                        'overall_rating' => $business->overall_rating,
-                        'price_range' => $business->price_range,
-                        'category_name' => $business->category->name ?? null,
-                        'subcategory_name' => $business->subcategory->name ?? null,
-                        'logo_image' => $business->logoImage->image_url ?? null,
-                        'distance' => $business->distance ?? null,
-                    ];
-                });
+            // 6. Get special offers
+            $specialOffers = $this->getSpecialOffersForHome($latitude, $longitude, $radiusKm, $usedBusinessIds);
 
-            // Get dynamic top categories nearby (based on what's actually available)
-            $topCategoriesNearby = [];
-            if ($latitude && $longitude) {
-                $topCategoriesNearby = Business::active()
-                    ->nearbyWithDistance($latitude, $longitude, $radiusKm)
-                    ->with(['category'])
-                    ->get()
-                    ->groupBy('category.name')
-                    ->map(function($businesses, $categoryName) {
-                        return [
-                            'category_name' => $categoryName,
-                            'count' => $businesses->count(),
-                            'avg_rating' => round($businesses->avg('overall_rating'), 1),
-                            'businesses' => $businesses->sortByDesc('overall_rating')->take(3)->values()
-                        ];
-                    })
-                    ->sortByDesc('count')
-                    ->take(5)
-                    ->values();
-            }
-
-            // Get trending businesses and categories - based on determined area
-            $trendingBusinesses = TrendingData::where('item_type', 'business')
-                ->where('time_period', 'daily')
-                ->where('date_period', now()->format('Y-m-d'))
-                ->where('location_area', $userArea)
-                ->orderBy('trend_score', 'desc')
-                ->with(['business' => function($query) use ($latitude, $longitude, $radiusKm) {
-                    $query->select(['id', 'business_name', 'slug', 'landmark', 'overall_rating', 'price_range', 'category_id', 'latitude', 'longitude'])
-                          ->with([
-                              'category:id,name,slug,icon_image,color_code',
-                              'logoImage:id,business_id,image_url'
-                          ]);
-                    // If coordinates provided, prioritize nearby businesses
-                    if ($latitude && $longitude) {
-                        $query->nearby($latitude, $longitude, $radiusKm);
-                    }
-                }])
-                ->take(6)
-                ->get()
-                ->map(function($trend) {
-                    return [
-                        'trend_score' => $trend->trend_score,
-                        'business' => $trend->business ? [
-                            'id' => $trend->business->id,
-                            'business_name' => $trend->business->business_name,
-                            'slug' => $trend->business->slug,
-                            'landmark' => $trend->business->landmark,
-                            'overall_rating' => $trend->business->overall_rating,
-                            'price_range' => $trend->business->price_range,
-                            'category_name' => $trend->business->category->name ?? null,
-                            'logo_image' => $trend->business->logoImage->image_url ?? null,
-                        ] : null
-                    ];
-                })
-                ->filter(function($item) {
-                    return $item['business'] !== null;
-                })
-                ->values();
-
-            $trendingCategories = TrendingData::where('item_type', 'category')
-                ->where('time_period', 'daily')
-                ->where('date_period', now()->format('Y-m-d'))
-                ->where('location_area', $userArea)
-                ->orderBy('trend_score', 'desc')
-                ->with(['category' => function($query) {
-                    $query->select(['id', 'name', 'slug', 'icon_image', 'color_code']);
-                }])
-                ->take(5)
-                ->get()
-                ->map(function($trend) {
-                    return [
-                        'trend_score' => $trend->trend_score,
-                        'category' => $trend->category ? [
-                            'id' => $trend->category->id,
-                            'name' => $trend->category->name,
-                            'slug' => $trend->category->slug,
-                            'icon_image' => $trend->category->icon_image,
-                            'color_code' => $trend->category->color_code,
-                        ] : null
-                    ];
-                })
-                ->filter(function($item) {
-                    return $item['category'] !== null;
-                })
-                ->values();
-
-            $trendingSearchTerms = TrendingData::where('item_type', 'search_term')
-                ->where('time_period', 'daily')
-                ->where('date_period', now()->format('Y-m-d'))
-                ->where('location_area', $userArea)
-                ->orderBy('trend_score', 'desc')
-                ->take(5)
-                ->get()
-                ->map(function($trend) {
-                    return [
-                        'search_term' => $trend->item_name,
-                        'trend_score' => $trend->trend_score,
-                    ];
-                });
-
-            // Get trending offerings
-            $trendingOfferings = TrendingData::where('item_type', 'offering')
-                ->where('time_period', 'daily')
-                ->where('date_period', now()->format('Y-m-d'))
-                ->where('location_area', $userArea)
-                ->orderBy('trend_score', 'desc')
-                ->with(['business' => function($query) {
-                    $query->select(['id', 'business_name', 'slug', 'area']);
-                }])
-                ->take(5)
-                ->get()
-                ->map(function($trend) {
-                    // Try to get the offering details
-                    $offering = \App\Models\BusinessOffering::find($trend->item_id);
-                    return [
-                        'trend_score' => $trend->trend_score,
-                        'offering' => $offering ? [
-                            'id' => $offering->id,
-                            'name' => $offering->name,
-                            'offering_type' => $offering->offering_type,
-                            'price' => $offering->price,
-                            'business' => $trend->business ? [
-                                'id' => $trend->business->id,
-                                'business_name' => $trend->business->business_name,
-                                'slug' => $trend->business->slug,
-                                'area' => $trend->business->area,
-                            ] : null
-                        ] : [
-                            'name' => $trend->item_name,
-                            'id' => $trend->item_id
-                        ]
-                    ];
-                })
-                ->filter(function($item) {
-                    return $item['offering'] !== null;
-                })
-                ->values();
+            // Track section performance for future optimization
+            $this->trackSectionPerformance($sectionData, $userArea);
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'banners' => $banners,
                     'top_services' => $topServices,
-                    'popular_nearby' => $popularNearby,
-                    'dynamic_sections' => $dynamicSections,
+                    'trending_businesses' => $sectionData['trending_businesses'],
+                    'featured_businesses' => $sectionData['featured_businesses'],
+                    'popular_nearby' => $sectionData['popular_nearby'],
+                    'dynamic_sections' => $sectionData['dynamic_sections'],
                     'special_offers' => $specialOffers,
-                    'featured_businesses' => $featuredBusinesses,
-                    'trending' => [
-                        'businesses' => $trendingBusinesses,
-                        'categories' => $trendingCategories,
-                        'offerings' => $trendingOfferings,
-                        'search_terms' => $trendingSearchTerms,
-                        'area' => $userArea,
-                        'date' => now()->format('Y-m-d')
+                    'analytics' => [
+                        'total_businesses_shown' => count($usedBusinessIds),
+                        'unique_business_placement' => true,
+                        'location_based' => $latitude && $longitude ? true : false,
+                        'trending_data_driven' => true
                     ],
                     'user_location' => [
                         'latitude' => $latitude,
@@ -1310,6 +1031,340 @@ class HomeController extends Controller
     }
 
     /**
+     * Get all potential businesses for intelligent placement analysis
+     */
+    private function getAllPotentialBusinesses($latitude, $longitude, $radiusKm)
+    {
+        $query = Business::active()
+            ->with([
+                'category:id,name,slug,icon_image,color_code',
+                'subcategory:id,name,slug',
+                'logoImage:id,business_id,image_url',
+                'coverImage:id,business_id,image_url'
+            ]);
+
+        if ($latitude && $longitude) {
+            $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Get trending businesses with highest priority
+     */
+    private function getTrendingBusinessesForHome($userArea, $allBusinesses, &$usedBusinessIds)
+    {
+        $today = now()->format('Y-m-d');
+        
+        $trendingData = TrendingData::where('item_type', 'business')
+            ->where('time_period', 'daily')
+            ->where('date_period', $today)
+            ->where('location_area', $userArea)
+            ->orderBy('trend_score', 'desc')
+            ->take(6)
+            ->get();
+
+        $trendingBusinesses = [];
+        
+        foreach ($trendingData as $trend) {
+            $business = $allBusinesses->where('id', $trend->item_id)->first();
+            
+            if ($business && !in_array($business->id, $usedBusinessIds)) {
+                $trendingBusinesses[] = [
+                    'id' => $business->id,
+                    'business_name' => $business->business_name,
+                    'slug' => $business->slug,
+                    'landmark' => $business->landmark,
+                    'overall_rating' => $business->overall_rating,
+                    'price_range' => $business->price_range,
+                    'category_name' => $business->category->name ?? null,
+                    'subcategory_name' => $business->subcategory->name ?? null,
+                    'images' => [
+                        'logo' => $business->logoImage->image_url ?? null,
+                        'cover' => $business->coverImage->image_url ?? null,
+                    ],
+                    'distance' => $business->distance ?? null,
+                    'trend_score' => $trend->trend_score,
+                    'section_priority' => 'trending'
+                ];
+                
+                $usedBusinessIds[] = $business->id;
+            }
+        }
+
+        return $trendingBusinesses;
+    }
+
+    /**
+     * Get featured businesses (excluding already used)
+     */
+    private function getFeaturedBusinessesForHome($latitude, $longitude, $radiusKm, $allBusinesses, &$usedBusinessIds)
+    {
+        $availableBusinesses = $allBusinesses->whereNotIn('id', $usedBusinessIds)
+            ->where('is_featured', true);
+
+        $featuredBusinesses = [];
+        
+        foreach ($availableBusinesses->sortByDesc('overall_rating')->take(6) as $business) {
+            $featuredBusinesses[] = [
+                'id' => $business->id,
+                'business_name' => $business->business_name,
+                'slug' => $business->slug,
+                'landmark' => $business->landmark,
+                'overall_rating' => $business->overall_rating,
+                'price_range' => $business->price_range,
+                'category_name' => $business->category->name ?? null,
+                'subcategory_name' => $business->subcategory->name ?? null,
+                'images' => [
+                    'logo' => $business->logoImage->image_url ?? null,
+                    'cover' => $business->coverImage->image_url ?? null,
+                ],
+                'distance' => $business->distance ?? null,
+                'section_priority' => 'featured'
+            ];
+            
+            $usedBusinessIds[] = $business->id;
+        }
+
+        return $featuredBusinesses;
+    }
+
+    /**
+     * Get popular nearby businesses (excluding already used)
+     */
+    private function getPopularNearbyForHome($latitude, $longitude, $radiusKm, $allBusinesses, &$usedBusinessIds)
+    {
+        $availableBusinesses = $allBusinesses->whereNotIn('id', $usedBusinessIds)
+            ->where('overall_rating', '>=', 3.5);
+
+        $popularNearby = [];
+        
+        foreach ($availableBusinesses->sortByDesc('overall_rating')->take(8) as $business) {
+            $popularNearby[] = [
+                'id' => $business->id,
+                'business_name' => $business->business_name,
+                'slug' => $business->slug,
+                'landmark' => $business->landmark,
+                'overall_rating' => $business->overall_rating,
+                'price_range' => $business->price_range,
+                'category_name' => $business->category->name ?? null,
+                'subcategory_name' => $business->subcategory->name ?? null,
+                'images' => [
+                    'logo' => $business->logoImage->image_url ?? null,
+                    'cover' => $business->coverImage->image_url ?? null,
+                ],
+                'distance' => $business->distance ?? null,
+                'section_priority' => 'popular_nearby'
+            ];
+            
+            $usedBusinessIds[] = $business->id;
+        }
+
+        return $popularNearby;
+    }
+
+    /**
+     * Get dynamic sections by category (excluding already used)
+     */
+    private function getDynamicSectionsForHome($latitude, $longitude, $radiusKm, $allBusinesses, &$usedBusinessIds)
+    {
+        $availableBusinesses = $allBusinesses->whereNotIn('id', $usedBusinessIds);
+        $categorizedBusinesses = $availableBusinesses->groupBy('category.name');
+        
+        $dynamicSections = [];
+        
+        foreach ($categorizedBusinesses as $categoryName => $businesses) {
+            if ($businesses->count() >= 2 && $categoryName) { // Only show categories with at least 2 businesses
+                $sectionBusinesses = [];
+                
+                foreach ($businesses->sortByDesc('overall_rating')->take(4) as $business) {
+                    $sectionBusinesses[] = [
+                        'id' => $business->id,
+                        'business_name' => $business->business_name,
+                        'slug' => $business->slug,
+                        'landmark' => $business->landmark,
+                        'overall_rating' => $business->overall_rating,
+                        'price_range' => $business->price_range,
+                        'category_name' => $business->category->name ?? null,
+                        'subcategory_name' => $business->subcategory->name ?? null,
+                        'images' => [
+                            'logo' => $business->logoImage->image_url ?? null,
+                            'cover' => $business->coverImage->image_url ?? null,
+                        ],
+                        'distance' => $business->distance ?? null,
+                        'section_priority' => 'dynamic_' . strtolower(str_replace(' ', '_', $categoryName))
+                    ];
+                    
+                    $usedBusinessIds[] = $business->id;
+                }
+                
+                if (!empty($sectionBusinesses)) {
+                    $dynamicSections[] = [
+                        'section_name' => "Top {$categoryName}",
+                        'section_slug' => strtolower(str_replace(' ', '_', $categoryName)),
+                        'category_name' => $categoryName,
+                        'count' => count($sectionBusinesses),
+                        'businesses' => $sectionBusinesses
+                    ];
+                }
+            }
+        }
+
+        // Sort sections by total rating and availability
+        usort($dynamicSections, function($a, $b) {
+            $aAvgRating = collect($a['businesses'])->avg('overall_rating');
+            $bAvgRating = collect($b['businesses'])->avg('overall_rating');
+            return $bAvgRating <=> $aAvgRating;
+        });
+
+        return $dynamicSections;
+    }
+
+    /**
+     * Get top services (categories) based on location and user behavior
+     */
+    private function getTopServicesForHome($latitude, $longitude, $radiusKm, $userArea)
+    {
+        if ($latitude && $longitude) {
+            // Get categories based on actual business availability and trending data
+            return Category::active()
+                ->whereHas('businesses', function ($query) use ($latitude, $longitude, $radiusKm) {
+                    $query->active()->nearby($latitude, $longitude, $radiusKm);
+                })
+                ->withCount(['businesses' => function ($query) use ($latitude, $longitude, $radiusKm) {
+                    $query->active()->nearby($latitude, $longitude, $radiusKm);
+                }])
+                ->with(['trendingData' => function($query) use ($userArea) {
+                    $query->where('location_area', $userArea)
+                          ->where('time_period', 'daily')
+                          ->where('date_period', now()->format('Y-m-d'));
+                }])
+                ->get()
+                ->map(function($category) {
+                    $trendScore = $category->trendingData->sum('trend_score') ?? 0;
+                    return [
+                        'id' => $category->id,
+                        'name' => $category->name,
+                        'slug' => $category->slug,
+                        'icon_image' => $category->icon_image,
+                        'color_code' => $category->color_code,
+                        'business_count' => $category->businesses_count,
+                        'trend_score' => $trendScore,
+                        'popularity_score' => ($category->businesses_count * 0.7) + ($trendScore * 0.3)
+                    ];
+                })
+                ->sortByDesc('popularity_score')
+                ->take(8)
+                ->values();
+        } else {
+            // Fallback to featured categories with trending data
+            return Category::active()
+                ->featured()
+                ->level(1)
+                ->orderBy('sort_order')
+                ->take(8)
+                ->get();
+        }
+    }
+
+    /**
+     * Get special offers (can include used businesses as offers are separate)
+     */
+    private function getSpecialOffersForHome($latitude, $longitude, $radiusKm, $usedBusinessIds)
+    {
+        return Offer::whereHas('business', function ($query) use ($latitude, $longitude, $radiusKm) {
+            $query->active();
+            if ($latitude && $longitude) {
+                $query->nearby($latitude, $longitude, $radiusKm);
+            }
+        })
+            ->where('is_active', true)
+            ->where('valid_from', '<=', now())
+            ->where('valid_to', '>=', now())
+            ->with(['business' => function($query) {
+                $query->select(['id', 'business_name', 'slug', 'landmark', 'overall_rating', 'price_range', 'category_id', 'subcategory_id', 'latitude', 'longitude'])
+                      ->with([
+                          'category:id,name,slug,icon_image,color_code',
+                          'subcategory:id,name,slug',
+                          'logoImage:id,business_id,image_url'
+                      ]);
+            }])
+            ->orderBy('created_at', 'desc')
+            ->take(8)
+            ->get()
+            ->map(function($offer) {
+                return [
+                    'id' => $offer->id,
+                    'title' => $offer->title,
+                    'description' => $offer->description,
+                    'offer_type' => $offer->offer_type,
+                    'discount_percentage' => $offer->discount_percentage,
+                    'valid_to' => $offer->valid_to,
+                    'business' => $offer->business ? [
+                        'id' => $offer->business->id,
+                        'business_name' => $offer->business->business_name,
+                        'slug' => $offer->business->slug,
+                        'landmark' => $offer->business->landmark,
+                        'overall_rating' => $offer->business->overall_rating,
+                        'price_range' => $offer->business->price_range,
+                        'category_name' => $offer->business->category->name ?? null,
+                        'subcategory_name' => $offer->business->subcategory->name ?? null,
+                        'logo_image' => $offer->business->logoImage->image_url ?? null,
+                    ] : null
+                ];
+            })
+            ->filter(function($offer) {
+                return $offer['business'] !== null;
+            });
+    }
+
+    /**
+     * Track user interaction for analytics
+     */
+    private function trackUserInteraction($action, $itemId, $area, $latitude = null, $longitude = null)
+    {
+        try {
+            // Here you can log to database, analytics service, etc.
+            // This data will be used to improve trending algorithms
+            Log::info('User Interaction', [
+                'action' => $action,
+                'item_id' => $itemId,
+                'area' => $area,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'timestamp' => now(),
+                'date' => now()->format('Y-m-d'),
+                'hour' => now()->format('H')
+            ]);
+        } catch (\Exception $e) {
+            // Silent fail for analytics
+        }
+    }
+
+    /**
+     * Track section performance for optimization
+     */
+    private function trackSectionPerformance($sectionData, $area)
+    {
+        try {
+            $performance = [
+                'area' => $area,
+                'date' => now()->format('Y-m-d'),
+                'trending_count' => count($sectionData['trending_businesses']),
+                'featured_count' => count($sectionData['featured_businesses']),
+                'popular_count' => count($sectionData['popular_nearby']),
+                'dynamic_sections_count' => count($sectionData['dynamic_sections']),
+                'timestamp' => now()
+            ];
+            
+            Log::info('Section Performance', $performance);
+        } catch (\Exception $e) {
+            // Silent fail for analytics
+        }
+    }
+
+    /**
      * Get top-rated businesses with optional category filtering
      */
     public function topRated(Request $request)
@@ -1548,6 +1603,9 @@ class HomeController extends Controller
         $openingHours = $business->opening_hours;
         if (is_string($openingHours)) {
             $openingHours = json_decode($openingHours, true);
+        } elseif (is_array($openingHours)) {
+            // Already an array, use as is
+            $openingHours = $openingHours;
         }
         
         if (!$openingHours || !isset($openingHours[$currentDay])) {
