@@ -984,7 +984,15 @@ class HomeController extends Controller
 
             // Apply area filter if provided (don't filter if no area specified)
             if ($area) {
-                $businessQuery->where('location_area', $area);
+                // Hybrid approach: Show businesses that are either:
+                // 1. Trending among users in the specified area, OR
+                // 2. Physically located in the specified area
+                $businessQuery->where(function($query) use ($area) {
+                    $query->where('location_area', $area) // User location
+                          ->orWhereHas('business', function($subQuery) use ($area) {
+                              $subQuery->where('area', $area); // Business location
+                          });
+                });
             }
 
             // Join with business table for better filtering
