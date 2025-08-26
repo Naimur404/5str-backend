@@ -69,7 +69,8 @@ class CategoryResource extends Resource
                             ->label('Parent Category')
                             ->options(Category::whereNull('parent_id')->pluck('name', 'id'))
                             ->searchable()
-                            ->placeholder('Select parent (leave empty for main category)'),
+                            ->placeholder('Select parent (leave empty for main category)')
+                            ->helperText('Leave empty to create a main category (Level 1). Select a parent to create a subcategory (Level 2).'),
                     ])->columns(2),
                     
                 Forms\Components\Section::make('Visual & Display')
@@ -124,6 +125,18 @@ class CategoryResource extends Resource
                     ->badge()
                     ->color('info')
                     ->placeholder('Main Category'),
+                Tables\Columns\TextColumn::make('level')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        '1' => 'success',
+                        '2' => 'warning', 
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        '1' => 'Level 1 (Main)',
+                        '2' => 'Level 2 (Sub)',
+                        default => "Level {$state}",
+                    }),
                 Tables\Columns\TextColumn::make('slug')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),

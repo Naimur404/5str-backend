@@ -104,4 +104,40 @@ class Category extends Model
     {
         return $query->where('level', 2);
     }
+
+    /**
+     * Boot the model
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Automatically set the level when creating/updating a category
+        static::creating(function ($category) {
+            $category->level = $category->calculateLevel();
+        });
+
+        static::updating(function ($category) {
+            if ($category->isDirty('parent_id')) {
+                $category->level = $category->calculateLevel();
+            }
+        });
+    }
+
+    /**
+     * Calculate the level based on parent hierarchy
+     */
+    public function calculateLevel()
+    {
+        if (!$this->parent_id) {
+            return 1; // Root level
+        }
+
+        $parent = Category::find($this->parent_id);
+        if (!$parent) {
+            return 1; // Default to root if parent not found
+        }
+
+        return $parent->level + 1;
+    }
 }
