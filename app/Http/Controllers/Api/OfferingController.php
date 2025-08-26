@@ -202,10 +202,23 @@ class OfferingController extends Controller
                 ->with(['category:id,name,slug', 'business:id,business_name,slug'])
                 ->firstOrFail();
 
-            // Track offering view for analytics
+            // Track offering view for analytics with location data
             try {
-                $this->analyticsService->logView($offering, $request);
-                Log::info("Offering view tracked for offering ID: {$offeringId}");
+                $latitude = $request->input('latitude');
+                $longitude = $request->input('longitude');
+                $userArea = $this->determineUserArea($latitude, $longitude);
+
+                // Use enhanced tracking for trending analysis
+                $this->analyticsService->logOfferingView(
+                    offeringId: $offeringId,
+                    businessId: $businessId,
+                    userLatitude: $latitude ? (float) $latitude : null,
+                    userLongitude: $longitude ? (float) $longitude : null,
+                    userArea: $userArea,
+                    request: $request
+                );
+                
+                Log::info("Offering view tracked for offering ID: {$offeringId} in area: {$userArea}");
             } catch (\Exception $e) {
                 Log::error("Failed to track offering view: " . $e->getMessage());
             }
@@ -359,5 +372,93 @@ class OfferingController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Track offering view for trending analysis
+     */
+    public function trackOfferingView(Request $request, $businessId, $offeringId)
+    {
+        try {
+            $offering = BusinessOffering::where('business_id', $businessId)
+                ->where('id', $offeringId)
+                ->available()
+                ->firstOrFail();
+
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $userArea = $this->determineUserArea($latitude, $longitude);
+
+            // Track the view event for trending analysis
+            $this->analyticsService->logOfferingView(
+                offeringId: $offeringId,
+                businessId: $businessId,
+                userLatitude: $latitude ? (float) $latitude : null,
+                userLongitude: $longitude ? (float) $longitude : null,
+                userArea: $userArea,
+                request: $request
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Offering view tracked',
+                'data' => [
+                    'offering_id' => $offeringId,
+                    'business_id' => $businessId,
+                    'user_area' => $userArea
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to track offering view: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to track offering view'
+            ], 500);
+        }
+    }
+
+    /**
+     * Determine user area from coordinates
+     */
+    private function determineUserArea($latitude, $longitude)
+    {
+        if (!$latitude || !$longitude) {
+            return 'Dhanmondi'; // Default area
+        }
+
+        // Bangladesh area boundaries
+        $bangladeshAreas = [
+            'Dhanmondi' => [
+                'lat_min' => 23.740, 'lat_max' => 23.755,
+                'lng_min' => 90.365, 'lng_max' => 90.380
+            ],
+            'Gulshan' => [
+                'lat_min' => 23.780, 'lat_max' => 23.800,
+                'lng_min' => 90.405, 'lng_max' => 90.425
+            ],
+            'Banani' => [
+                'lat_min' => 23.785, 'lat_max' => 23.795,
+                'lng_min' => 90.395, 'lng_max' => 90.410
+            ],
+            'Uttara' => [
+                'lat_min' => 23.855, 'lat_max' => 23.885,
+                'lng_min' => 90.395, 'lng_max' => 90.420
+            ],
+            'Mirpur' => [
+                'lat_min' => 23.795, 'lat_max' => 23.825,
+                'lng_min' => 90.345, 'lng_max' => 90.375
+            ],
+        ];
+
+        // Check which area the coordinates fall into
+        foreach ($bangladeshAreas as $areaName => $bounds) {
+            if ($latitude >= $bounds['lat_min'] && $latitude <= $bounds['lat_max'] &&
+                $longitude >= $bounds['lng_min'] && $longitude <= $bounds['lng_max']) {
+                return $areaName;
+            }
+        }
+
+        return 'Bangladesh';
     }
 }

@@ -15,9 +15,17 @@ class View extends Model
         'user_id',
         'viewable_type',
         'viewable_id',
+        'user_latitude',
+        'user_longitude',
+        'user_area',
         'ip_address',
         'user_agent',
         'session_id'
+    ];
+
+    protected $casts = [
+        'user_latitude' => 'decimal:8',
+        'user_longitude' => 'decimal:8',
     ];
 
     public function user(): BelongsTo

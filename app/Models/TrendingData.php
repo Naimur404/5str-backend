@@ -15,18 +15,29 @@ class TrendingData extends Model
         'item_name',
         'location_area',
         'trend_score',
+        'hybrid_score',
+        'search_count',
+        'view_count',
         'time_period',
         'date_period',
     ];
 
     protected $casts = [
         'trend_score' => 'decimal:2',
+        'hybrid_score' => 'decimal:2',
+        'search_count' => 'integer',
+        'view_count' => 'integer',
         'date_period' => 'date',
     ];
 
     public function business()
     {
         return $this->belongsTo(Business::class, 'item_id');
+    }
+
+    public function offering()
+    {
+        return $this->belongsTo(BusinessOffering::class, 'item_id');
     }
 
     public function category()
@@ -39,6 +50,7 @@ class TrendingData extends Model
     {
         return match($this->item_type) {
             'business' => $this->business,
+            'offering' => $this->offering,
             'category' => $this->category,
             default => null
         };
@@ -55,6 +67,7 @@ class TrendingData extends Model
 
         return match($this->item_type) {
             'business' => $relatedItem->business_name ?? $this->item_name,
+            'offering' => $relatedItem->name ?? $this->item_name,
             'category' => $relatedItem->category_name ?? $this->item_name,
             default => $this->item_name
         };

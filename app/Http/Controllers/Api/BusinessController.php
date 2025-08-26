@@ -391,10 +391,22 @@ class BusinessController extends Controller
                 ])
                 ->findOrFail($businessId);
 
-            // Track business view for analytics
+            // Track business view for analytics with location data
             try {
-                $this->analyticsService->logView($business, $request);
-                Log::info("Business view tracked for business ID: {$businessId}");
+                $latitude = $request->input('latitude');
+                $longitude = $request->input('longitude');
+                $userArea = $this->determineUserArea($latitude, $longitude);
+
+                // Use enhanced tracking for trending analysis
+                $this->analyticsService->logBusinessView(
+                    businessId: $businessId,
+                    userLatitude: $latitude ? (float) $latitude : null,
+                    userLongitude: $longitude ? (float) $longitude : null,
+                    userArea: $userArea,
+                    request: $request
+                );
+                
+                Log::info("Business view tracked for business ID: {$businessId} in area: {$userArea}");
             } catch (\Exception $e) {
                 Log::error("Failed to track business view: " . $e->getMessage());
             }
@@ -617,8 +629,18 @@ class BusinessController extends Controller
     public function trackClick(Request $request, Business $business)
     {
         try {
-            // Log the view
-            $this->analyticsService->logView($business, $request);
+            // Track enhanced view with location data
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $userArea = $this->determineUserArea($latitude, $longitude);
+
+            $this->analyticsService->logBusinessView(
+                businessId: $business->id,
+                userLatitude: $latitude ? (float) $latitude : null,
+                userLongitude: $longitude ? (float) $longitude : null,
+                userArea: $userArea,
+                request: $request
+            );
 
             // Update search log if search_log_id is provided
             if ($request->has('search_log_id')) {
@@ -640,6 +662,117 @@ class BusinessController extends Controller
                 'message' => 'Failed to track click'
             ], 500);
         }
+    }
+
+    /**
+     * Track business view for trending analysis
+     */
+    public function trackBusinessView(Request $request, $businessId)
+    {
+        try {
+            $business = Business::findOrFail($businessId);
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $userArea = $this->determineUserArea($latitude, $longitude);
+
+            // Track the view event for trending analysis
+            $this->analyticsService->logBusinessView(
+                businessId: $businessId,
+                userLatitude: $latitude ? (float) $latitude : null,
+                userLongitude: $longitude ? (float) $longitude : null,
+                userArea: $userArea,
+                request: $request
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Business view tracked',
+                'data' => [
+                    'business_id' => $businessId,
+                    'user_area' => $userArea
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to track business view: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to track business view'
+            ], 500);
+        }
+    }
+
+    /**
+     * Determine user area from coordinates
+     */
+    private function determineUserArea($latitude, $longitude)
+    {
+        if (!$latitude || !$longitude) {
+            return 'Dhanmondi'; // Default area
+        }
+
+        // Bangladesh area boundaries
+        $bangladeshAreas = [
+            'Dhanmondi' => [
+                'lat_min' => 23.740, 'lat_max' => 23.755,
+                'lng_min' => 90.365, 'lng_max' => 90.380
+            ],
+            'Gulshan' => [
+                'lat_min' => 23.780, 'lat_max' => 23.800,
+                'lng_min' => 90.405, 'lng_max' => 90.425
+            ],
+            'Banani' => [
+                'lat_min' => 23.785, 'lat_max' => 23.795,
+                'lng_min' => 90.395, 'lng_max' => 90.410
+            ],
+            'Uttara' => [
+                'lat_min' => 23.855, 'lat_max' => 23.885,
+                'lng_min' => 90.395, 'lng_max' => 90.420
+            ],
+            'Mirpur' => [
+                'lat_min' => 23.795, 'lat_max' => 23.825,
+                'lng_min' => 90.345, 'lng_max' => 90.375
+            ],
+            'Wari' => [
+                'lat_min' => 23.715, 'lat_max' => 23.725,
+                'lng_min' => 90.410, 'lng_max' => 90.420
+            ],
+            'Old Dhaka' => [
+                'lat_min' => 23.700, 'lat_max' => 23.720,
+                'lng_min' => 90.390, 'lng_max' => 90.410
+            ],
+            'Motijheel' => [
+                'lat_min' => 23.725, 'lat_max' => 23.735,
+                'lng_min' => 90.410, 'lng_max' => 90.420
+            ],
+        ];
+
+        // Check which area the coordinates fall into
+        foreach ($bangladeshAreas as $areaName => $bounds) {
+            if ($latitude >= $bounds['lat_min'] && $latitude <= $bounds['lat_max'] &&
+                $longitude >= $bounds['lng_min'] && $longitude <= $bounds['lng_max']) {
+                return $areaName;
+            }
+        }
+
+        // If no specific area found, determine by general region
+        if ($latitude >= 23.0 && $latitude <= 24.5 && $longitude >= 90.0 && $longitude <= 90.5) {
+            return 'Dhaka Metropolitan';
+        } elseif ($latitude >= 22.0 && $latitude <= 23.0 && $longitude >= 91.5 && $longitude <= 92.0) {
+            return 'Chittagong Division';
+        } elseif ($latitude >= 24.5 && $latitude <= 25.5 && $longitude >= 91.5 && $longitude <= 92.5) {
+            return 'Sylhet Division';
+        } elseif ($latitude >= 24.0 && $latitude <= 25.0 && $longitude >= 88.0 && $longitude <= 89.5) {
+            return 'Rajshahi Division';
+        } elseif ($latitude >= 22.5 && $latitude <= 23.5 && $longitude >= 89.0 && $longitude <= 90.0) {
+            return 'Khulna Division';
+        } elseif ($latitude >= 22.0 && $latitude <= 23.0 && $longitude >= 90.0 && $longitude <= 91.0) {
+            return 'Barisal Division';
+        } elseif ($latitude >= 25.0 && $latitude <= 26.5 && $longitude >= 88.5 && $longitude <= 90.0) {
+            return 'Rangpur Division';
+        }
+
+        return 'Bangladesh';
     }
 
     /**

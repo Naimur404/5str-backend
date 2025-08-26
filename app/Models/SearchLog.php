@@ -15,6 +15,7 @@ class SearchLog extends Model
         'category_id',
         'user_latitude',
         'user_longitude',
+        'user_area',
         'filters_applied',
         'results_count',
         'clicked_business_id',

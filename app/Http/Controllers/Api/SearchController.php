@@ -35,17 +35,20 @@ class SearchController extends Controller
             $limit = $request->input('limit', 20);
             $sortBy = $request->input('sort', 'relevance');
 
+            // Determine user area for trending analysis
+            $userArea = $this->determineUserArea($latitude, $longitude);
+
             $results = [];
 
             // Search businesses if type is 'all' or 'businesses'
             if (in_array($searchType, ['all', 'businesses'])) {
-                $businessResults = $this->searchBusinesses($request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy);
+                $businessResults = $this->searchBusinesses($request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy, $userArea);
                 $results['businesses'] = $businessResults;
             }
 
             // Search offerings if type is 'all' or 'offerings'
             if (in_array($searchType, ['all', 'offerings'])) {
-                $offeringResults = $this->searchOfferings($request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy);
+                $offeringResults = $this->searchOfferings($request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy, $userArea);
                 $results['offerings'] = $offeringResults;
             }
 
@@ -65,7 +68,7 @@ class SearchController extends Controller
             }
 
             // Log the search
-            $this->logSearch($request, $totalResults);
+            $this->logSearch($request, $totalResults, $userArea);
 
             return response()->json([
                 'success' => true,
@@ -80,7 +83,8 @@ class SearchController extends Controller
                         'location' => $latitude && $longitude ? [
                             'latitude' => $latitude,
                             'longitude' => $longitude,
-                            'radius_km' => $radiusKm
+                            'radius_km' => $radiusKm,
+                            'determined_area' => $userArea
                         ] : null,
                         'sort' => $sortBy
                     ]
@@ -93,6 +97,84 @@ class SearchController extends Controller
                 'success' => false,
                 'message' => 'Search failed',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Track business view for trending analysis
+     */
+    public function trackBusinessView(Request $request, $businessId)
+    {
+        try {
+            $business = Business::findOrFail($businessId);
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $userArea = $this->determineUserArea($latitude, $longitude);
+
+            // Track the view event
+            $this->analyticsService->logBusinessView(
+                businessId: $businessId,
+                userLatitude: $latitude ? (float) $latitude : null,
+                userLongitude: $longitude ? (float) $longitude : null,
+                userArea: $userArea,
+                request: $request
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Business view tracked',
+                'data' => [
+                    'business_id' => $businessId,
+                    'user_area' => $userArea
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to track business view: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to track business view'
+            ], 500);
+        }
+    }
+
+    /**
+     * Track offering view for trending analysis
+     */
+    public function trackOfferingView(Request $request, $offeringId)
+    {
+        try {
+            $offering = BusinessOffering::findOrFail($offeringId);
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $userArea = $this->determineUserArea($latitude, $longitude);
+
+            // Track the view event
+            $this->analyticsService->logOfferingView(
+                offeringId: $offeringId,
+                businessId: $offering->business_id,
+                userLatitude: $latitude ? (float) $latitude : null,
+                userLongitude: $longitude ? (float) $longitude : null,
+                userArea: $userArea,
+                request: $request
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Offering view tracked',
+                'data' => [
+                    'offering_id' => $offeringId,
+                    'business_id' => $offering->business_id,
+                    'user_area' => $userArea
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to track offering view: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to track offering view'
             ], 500);
         }
     }
@@ -159,7 +241,7 @@ class SearchController extends Controller
     /**
      * Search businesses
      */
-    protected function searchBusinesses(Request $request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy)
+    protected function searchBusinesses(Request $request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy, $userArea)
     {
         $query = Business::active()
             ->with(['category:id,name,slug', 'logoImage']);
@@ -202,10 +284,28 @@ class SearchController extends Controller
             $query->where('has_pickup', true);
         }
 
-        // Sort options
+        // Add trending data for enhanced sorting
+        $today = now()->format('Y-m-d');
+        $query->leftJoin('trending_data', function($join) use ($today, $userArea) {
+            $join->on('businesses.id', '=', 'trending_data.item_id')
+                 ->where('trending_data.item_type', '=', 'business')
+                 ->where('trending_data.time_period', '=', 'daily')
+                 ->where('trending_data.date_period', '=', $today)
+                 ->where('trending_data.location_area', '=', $userArea);
+        });
+
+        // Enhanced sort options with trending + rating combination
         switch ($sortBy) {
+            case 'trending':
+                $query->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC')
+                      ->orderBy('overall_rating', 'desc');
+                break;
             case 'rating':
-                $query->orderBy('overall_rating', 'desc');
+                $query->orderBy('overall_rating', 'desc')
+                      ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
+                break;
+            case 'hybrid': // Combination of trending and rating
+                $query->orderByRaw('COALESCE(trending_data.hybrid_score, (overall_rating * 20)) DESC');
                 break;
             case 'distance':
                 // Already sorted by distance in nearby scope
@@ -219,9 +319,8 @@ class SearchController extends Controller
             case 'newest':
                 $query->orderBy('created_at', 'desc');
                 break;
-            default: // relevance
+            default: // relevance with trending boost
                 if ($searchTerm) {
-                    // Order by relevance: exact name matches first, then partial matches
                     $query->orderByRaw("CASE 
                         WHEN business_name LIKE ? THEN 1 
                         WHEN business_name LIKE ? THEN 2 
@@ -231,13 +330,15 @@ class SearchController extends Controller
                         $searchTerm,
                         "%{$searchTerm}%",
                         "%{$searchTerm}%"
-                    ]);
+                    ])
+                    ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
                 } else {
-                    $query->orderBy('discovery_score', 'desc');
+                    $query->orderByRaw('(COALESCE(trending_data.hybrid_score, 0) * 0.6 + discovery_score * 0.4) DESC');
                 }
         }
 
-        $businesses = $query->paginate($limit, ['*'], 'page', $page);
+        $businesses = $query->select('businesses.*', 'trending_data.trend_score', 'trending_data.hybrid_score')
+                           ->paginate($limit, ['*'], 'page', $page);
 
         // Format business data
         $businessData = $businesses->getCollection()->map(function($business) {
@@ -273,6 +374,8 @@ class SearchController extends Controller
                     'image_url' => $business->logoImage->image_url,
                 ] : null,
                 'distance_km' => $business->distance_km ?? null,
+                'trending_score' => $business->trend_score ?? 0,
+                'hybrid_score' => $business->hybrid_score ?? ($business->overall_rating * 20),
                 'type' => 'business'
             ];
         });
@@ -292,7 +395,7 @@ class SearchController extends Controller
     /**
      * Search offerings
      */
-    protected function searchOfferings(Request $request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy)
+    protected function searchOfferings(Request $request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy, $userArea)
     {
         $query = BusinessOffering::available()
             ->with([
@@ -343,10 +446,28 @@ class SearchController extends Controller
             $query->where('is_featured', true);
         }
 
-        // Sort options
+        // Add trending data for enhanced sorting
+        $today = now()->format('Y-m-d');
+        $query->leftJoin('trending_data', function($join) use ($today, $userArea) {
+            $join->on('business_offerings.id', '=', 'trending_data.item_id')
+                 ->where('trending_data.item_type', '=', 'offering')
+                 ->where('trending_data.time_period', '=', 'daily')
+                 ->where('trending_data.date_period', '=', $today)
+                 ->where('trending_data.location_area', '=', $userArea);
+        });
+
+        // Enhanced sort options with trending + rating combination
         switch ($sortBy) {
+            case 'trending':
+                $query->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC')
+                      ->orderBy('average_rating', 'desc');
+                break;
             case 'rating':
-                $query->orderBy('average_rating', 'desc');
+                $query->orderBy('average_rating', 'desc')
+                      ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
+                break;
+            case 'hybrid': // Combination of trending and rating
+                $query->orderByRaw('COALESCE(trending_data.hybrid_score, (average_rating * 20)) DESC');
                 break;
             case 'price_low':
                 $query->orderBy('price', 'asc');
@@ -363,9 +484,8 @@ class SearchController extends Controller
             case 'newest':
                 $query->orderBy('created_at', 'desc');
                 break;
-            default: // relevance
+            default: // relevance with trending boost
                 if ($searchTerm) {
-                    // Order by relevance: exact name matches first
                     $query->orderByRaw("CASE 
                         WHEN name LIKE ? THEN 1 
                         WHEN name LIKE ? THEN 2 
@@ -375,13 +495,15 @@ class SearchController extends Controller
                         $searchTerm,
                         "%{$searchTerm}%",
                         "%{$searchTerm}%"
-                    ]);
+                    ])
+                    ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
                 } else {
                     $query->orderBy('sort_order')->orderBy('name');
                 }
         }
 
-        $offerings = $query->paginate($limit, ['*'], 'page', $page);
+        $offerings = $query->select('business_offerings.*', 'trending_data.trend_score', 'trending_data.hybrid_score')
+                          ->paginate($limit, ['*'], 'page', $page);
 
         // Format offering data
         $offeringData = $offerings->getCollection()->map(function($offering) use ($latitude, $longitude) {
@@ -400,6 +522,8 @@ class SearchController extends Controller
                 'is_featured' => $offering->is_featured,
                 'average_rating' => $offering->average_rating,
                 'total_reviews' => $offering->total_reviews,
+                'trending_score' => $offering->trend_score ?? 0,
+                'hybrid_score' => $offering->hybrid_score ?? ($offering->average_rating * 20),
                 'business' => [
                     'id' => $offering->business->id,
                     'business_name' => $offering->business->business_name,
@@ -528,7 +652,7 @@ class SearchController extends Controller
     /**
      * Log search activity
      */
-    private function logSearch(Request $request, $resultsCount)
+    private function logSearch(Request $request, $resultsCount, $userArea)
     {
         try {
             $this->analyticsService->logSearch(
@@ -536,6 +660,7 @@ class SearchController extends Controller
                 categoryId: $request->input('category_id'),
                 userLatitude: $request->input('latitude') ? (float) $request->input('latitude') : null,
                 userLongitude: $request->input('longitude') ? (float) $request->input('longitude') : null,
+                userArea: $userArea,
                 filtersApplied: $request->except(['q', 'page', 'limit']),
                 resultsCount: $resultsCount,
                 request: $request
@@ -544,5 +669,79 @@ class SearchController extends Controller
             // Log error but don't fail the request
             Log::error('Failed to log search: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Determine user area from coordinates
+     */
+    private function determineUserArea($latitude, $longitude)
+    {
+        if (!$latitude || !$longitude) {
+            return 'Dhanmondi'; // Default area
+        }
+
+        // Bangladesh area boundaries (same as HomeController)
+        $bangladeshAreas = [
+            'Dhanmondi' => [
+                'lat_min' => 23.740, 'lat_max' => 23.755,
+                'lng_min' => 90.365, 'lng_max' => 90.380
+            ],
+            'Gulshan' => [
+                'lat_min' => 23.780, 'lat_max' => 23.800,
+                'lng_min' => 90.405, 'lng_max' => 90.425
+            ],
+            'Banani' => [
+                'lat_min' => 23.785, 'lat_max' => 23.795,
+                'lng_min' => 90.395, 'lng_max' => 90.410
+            ],
+            'Uttara' => [
+                'lat_min' => 23.855, 'lat_max' => 23.885,
+                'lng_min' => 90.395, 'lng_max' => 90.420
+            ],
+            'Mirpur' => [
+                'lat_min' => 23.795, 'lat_max' => 23.825,
+                'lng_min' => 90.345, 'lng_max' => 90.375
+            ],
+            'Wari' => [
+                'lat_min' => 23.715, 'lat_max' => 23.725,
+                'lng_min' => 90.410, 'lng_max' => 90.420
+            ],
+            'Old Dhaka' => [
+                'lat_min' => 23.700, 'lat_max' => 23.720,
+                'lng_min' => 90.390, 'lng_max' => 90.410
+            ],
+            'Motijheel' => [
+                'lat_min' => 23.725, 'lat_max' => 23.735,
+                'lng_min' => 90.410, 'lng_max' => 90.420
+            ],
+        ];
+
+        // Check which area the coordinates fall into
+        foreach ($bangladeshAreas as $areaName => $bounds) {
+            if ($latitude >= $bounds['lat_min'] && $latitude <= $bounds['lat_max'] &&
+                $longitude >= $bounds['lng_min'] && $longitude <= $bounds['lng_max']) {
+                return $areaName;
+            }
+        }
+
+        // If no specific area found, determine by general region
+        if ($latitude >= 23.0 && $latitude <= 24.5 && $longitude >= 90.0 && $longitude <= 90.5) {
+            return 'Dhaka Metropolitan'; // General Dhaka area
+        } elseif ($latitude >= 22.0 && $latitude <= 23.0 && $longitude >= 91.5 && $longitude <= 92.0) {
+            return 'Chittagong Division';
+        } elseif ($latitude >= 24.5 && $latitude <= 25.5 && $longitude >= 91.5 && $longitude <= 92.5) {
+            return 'Sylhet Division';
+        } elseif ($latitude >= 24.0 && $latitude <= 25.0 && $longitude >= 88.0 && $longitude <= 89.5) {
+            return 'Rajshahi Division';
+        } elseif ($latitude >= 22.5 && $latitude <= 23.5 && $longitude >= 89.0 && $longitude <= 90.0) {
+            return 'Khulna Division';
+        } elseif ($latitude >= 22.0 && $latitude <= 23.0 && $longitude >= 90.0 && $longitude <= 91.0) {
+            return 'Barisal Division';
+        } elseif ($latitude >= 25.0 && $latitude <= 26.5 && $longitude >= 88.5 && $longitude <= 90.0) {
+            return 'Rangpur Division';
+        }
+
+        // Default fallback
+        return 'Bangladesh';
     }
 }

@@ -45,12 +45,20 @@ Route::prefix('v1')->group(function () {
     Route::get('/home/dynamic-sections/{section}', [HomeController::class, 'dynamicSections']);
     Route::get('/home/featured-businesses', [HomeController::class, 'featuredBusinesses']);
     Route::get('/home/special-offers', [HomeController::class, 'specialOffers']);
+    
+    // Home analytics and tracking routes
+    Route::post('/home/businesses/{business}/track-view', [HomeController::class, 'trackHomeBusinessView']);
+    Route::post('/home/track-trending-performance', [HomeController::class, 'trackTrendingPerformance']);
 
     // Universal search routes (public access)
     Route::prefix('search')->group(function () {
         Route::get('/', [SearchController::class, 'search']);
         Route::get('/suggestions', [SearchController::class, 'suggestions']);
         Route::get('/popular', [SearchController::class, 'popular']);
+        
+        // View tracking for trending analysis
+        Route::post('/businesses/{business}/view', [SearchController::class, 'trackBusinessView']);
+        Route::post('/offerings/{offering}/view', [SearchController::class, 'trackOfferingView']);
     });
 
     // Public category routes
@@ -72,6 +80,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/featured', [BusinessController::class, 'featured']);
         Route::get('/{business}', [BusinessController::class, 'show']);
         Route::post('/{business}/track-click', [BusinessController::class, 'trackClick']);
+        Route::post('/{business}/track-view', [BusinessController::class, 'trackBusinessView']);
         Route::get('/{business}/offerings', [BusinessController::class, 'offerings']);
         Route::get('/{business}/reviews', [BusinessController::class, 'reviews']);
         Route::get('/{business}/offers', [BusinessController::class, 'offers']);
@@ -82,6 +91,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [OfferingController::class, 'index']);
         Route::get('/{offering}', [OfferingController::class, 'show']);
         Route::get('/{offering}/reviews', [OfferingController::class, 'reviews']);
+        
+        // View tracking for trending analysis
+        Route::post('/{offering}/track-view', [OfferingController::class, 'trackOfferingView']);
     });
 
     // Public offer routes (with optional authentication for usage tracking)

@@ -10,11 +10,18 @@ use App\Models\Banner;
 use App\Models\Offer;
 use App\Models\Review;
 use App\Models\TrendingData;
+use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class HomeController extends Controller
 {
+    protected $analyticsService;
+
+    public function __construct(AnalyticsService $analyticsService)
+    {
+        $this->analyticsService = $analyticsService;
+    }
     /**
      * Get home screen data (Public access)
      * Includes: banners, featured sections, top categories, nearby businesses, offers
@@ -156,6 +163,83 @@ class HomeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to track banner click'
+            ], 500);
+        }
+    }
+
+    /**
+     * Track business view from home page interactions
+     */
+    public function trackHomeBusinessView(Request $request, $businessId)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $section = $request->input('section', 'unknown'); // trending, featured, popular, etc.
+            $userArea = $this->determineUserArea($latitude, $longitude);
+
+            // Track using AnalyticsService
+            $this->analyticsService->logBusinessView(
+                businessId: $businessId,
+                userLatitude: $latitude ? (float) $latitude : null,
+                userLongitude: $longitude ? (float) $longitude : null,
+                userArea: $userArea,
+                request: $request
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Business view tracked from home page',
+                'data' => [
+                    'business_id' => $businessId,
+                    'section' => $section,
+                    'user_area' => $userArea
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to track home business view: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to track business view'
+            ], 500);
+        }
+    }
+
+    /**
+     * Track trending data performance 
+     */
+    public function trackTrendingPerformance(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $userArea = $this->determineUserArea($latitude, $longitude);
+            $interactionType = $request->input('interaction_type', 'view'); // view, click, etc.
+            $sectionData = $request->input('section_data', []); // data about which sections were shown
+
+            // Get current trending data for comparison
+            $currentTrending = $this->analyticsService->getTrendingBusinesses($userArea, 'daily', 10);
+
+            // Track the interaction
+            $this->trackUserInteraction('trending_interaction', null, $userArea, $latitude, $longitude);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Trending performance tracked',
+                'data' => [
+                    'user_area' => $userArea,
+                    'interaction_type' => $interactionType,
+                    'current_trending_count' => $currentTrending->count(),
+                    'timestamp' => now()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to track trending performance: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to track trending performance'
             ], 500);
         }
     }
@@ -1057,10 +1141,12 @@ class HomeController extends Controller
     {
         $today = now()->format('Y-m-d');
         
+        // Get trending data with hybrid scoring (trending + rating combination)
         $trendingData = TrendingData::where('item_type', 'business')
             ->where('time_period', 'daily')
             ->where('date_period', $today)
             ->where('location_area', $userArea)
+            ->orderByRaw('COALESCE(hybrid_score, trend_score) DESC')
             ->orderBy('trend_score', 'desc')
             ->take(6)
             ->get();
@@ -1086,6 +1172,9 @@ class HomeController extends Controller
                     ],
                     'distance' => $business->distance ?? null,
                     'trend_score' => $trend->trend_score,
+                    'hybrid_score' => $trend->hybrid_score ?? ($trend->trend_score * 0.6 + ($business->overall_rating * 20) * 0.4),
+                    'view_count' => $trend->view_count ?? 0,
+                    'search_count' => $trend->search_count ?? 0,
                     'section_priority' => 'trending'
                 ];
                 
@@ -1325,9 +1414,64 @@ class HomeController extends Controller
     private function trackUserInteraction($action, $itemId, $area, $latitude = null, $longitude = null)
     {
         try {
-            // Here you can log to database, analytics service, etc.
-            // This data will be used to improve trending algorithms
-            Log::info('User Interaction', [
+            // Use the AnalyticsService for proper tracking
+            switch ($action) {
+                case 'home_view':
+                    // Track home page view with location data
+                    $this->analyticsService->logSearch(
+                        searchTerm: null,
+                        categoryId: null,
+                        userLatitude: $latitude,
+                        userLongitude: $longitude,
+                        userArea: $area,
+                        filtersApplied: ['action' => $action],
+                        resultsCount: 0,
+                        request: request()
+                    );
+                    break;
+                    
+                case 'business_view':
+                    if ($itemId) {
+                        $this->analyticsService->logBusinessView(
+                            businessId: $itemId,
+                            userLatitude: $latitude,
+                            userLongitude: $longitude,
+                            userArea: $area,
+                            request: request()
+                        );
+                    }
+                    break;
+                    
+                case 'offering_view':
+                    if ($itemId) {
+                        // Get offering to find business_id
+                        $offering = \App\Models\BusinessOffering::find($itemId);
+                        if ($offering) {
+                            $this->analyticsService->logOfferingView(
+                                offeringId: $itemId,
+                                businessId: $offering->business_id,
+                                userLatitude: $latitude,
+                                userLongitude: $longitude,
+                                userArea: $area,
+                                request: request()
+                            );
+                        }
+                    }
+                    break;
+                    
+                default:
+                    // Fallback to general view logging
+                    if ($itemId) {
+                        // Find the model type and log accordingly
+                        $business = \App\Models\Business::find($itemId);
+                        if ($business) {
+                            $this->analyticsService->logView($business, request());
+                        }
+                    }
+            }
+            
+            // Additional logging for debugging (can be removed in production)
+            Log::info('User Interaction via AnalyticsService', [
                 'action' => $action,
                 'item_id' => $itemId,
                 'area' => $area,
@@ -1338,7 +1482,8 @@ class HomeController extends Controller
                 'hour' => now()->format('H')
             ]);
         } catch (\Exception $e) {
-            // Silent fail for analytics
+            // Silent fail for analytics but log the error
+            Log::error('Analytics tracking failed: ' . $e->getMessage());
         }
     }
 
