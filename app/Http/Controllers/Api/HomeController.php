@@ -933,32 +933,100 @@ class HomeController extends Controller
     }
 
     /**
-     * Get today's trending offerings and businesses combined
+     * Get today's trending businesses and offerings with enhanced filtering and accuracy
+     * Supports multiple sorting options, filtering, and real-time data
      */
     public function todayTrending(Request $request)
     {
         try {
+            // Validate and sanitize input parameters
+            $request->validate([
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
+                'area' => 'nullable|string|max:100',
+                'category_id' => 'nullable|integer|exists:categories,id',
+                'business_limit' => 'nullable|integer|min:1|max:50',
+                'offering_limit' => 'nullable|integer|min:1|max:50',
+                'sort_by' => 'nullable|in:trend_score,hybrid_score,rating,views,distance',
+                'min_rating' => 'nullable|numeric|between:0,5',
+                'max_distance' => 'nullable|numeric|min:1|max:100',
+                'price_range' => 'nullable|in:$,$-$$,$$-$$$,$$$-$$$$',
+                'time_period' => 'nullable|in:daily,weekly,monthly',
+                'include_inactive' => 'nullable|boolean'
+            ]);
+
             $latitude = $request->input('latitude');
             $longitude = $request->input('longitude');
             $area = $request->input('area');
-            $businessLimit = $request->input('business_limit', 10);
+            $categoryId = $request->input('category_id');
+            $businessLimit = $request->input('business_limit', 15);
             $offeringLimit = $request->input('offering_limit', 10);
+            $sortBy = $request->input('sort_by', 'hybrid_score');
+            $minRating = $request->input('min_rating');
+            $maxDistance = $request->input('max_distance', 50);
+            $priceRange = $request->input('price_range');
+            $timePeriod = $request->input('time_period', 'daily');
+            $includeInactive = $request->input('include_inactive', false);
             
-            // Determine user area if not provided
-            if (!$area) {
-                $area = $this->determineUserArea($latitude, $longitude);
+            // Determine user area if not provided using enhanced location detection
+            if (!$area && $latitude && $longitude) {
+                $area = $this->analyticsService->determineUserArea($latitude, $longitude);
             }
 
             $today = now()->format('Y-m-d');
 
-            // Get trending businesses for today
-            $trendingBusinesses = TrendingData::where('item_type', 'business')
-                ->where('time_period', 'daily')
+            // Build base query for trending businesses with optimized joins
+            $businessQuery = TrendingData::where('item_type', 'business')
+                ->where('time_period', $timePeriod)
                 ->where('date_period', $today)
-                ->where('location_area', $area)
-                ->orderBy('trend_score', 'desc')
+                ->whereNotNull('trend_score')
+                ->where('trend_score', '>', 0);
+
+            // Apply area filter if provided
+            if ($area) {
+                $businessQuery->where('location_area', $area);
+            }
+
+            // Join with business table for better filtering
+            $businessQuery->whereHas('business', function($query) use ($categoryId, $minRating, $priceRange, $includeInactive) {
+                if (!$includeInactive) {
+                    $query->where('is_active', true);
+                }
+                if ($categoryId) {
+                    $query->where('category_id', $categoryId);
+                }
+                if ($minRating) {
+                    $query->where('overall_rating', '>=', $minRating);
+                }
+                if ($priceRange) {
+                    $query->where('price_range', $priceRange);
+                }
+            });
+
+            // Apply sorting
+            switch ($sortBy) {
+                case 'trend_score':
+                    $businessQuery->orderBy('trend_score', 'desc');
+                    break;
+                case 'hybrid_score':
+                    $businessQuery->orderBy('hybrid_score', 'desc')->orderBy('trend_score', 'desc');
+                    break;
+                case 'rating':
+                    $businessQuery->join('businesses', 'trending_data.item_id', '=', 'businesses.id')
+                        ->orderBy('businesses.overall_rating', 'desc')
+                        ->select('trending_data.*');
+                    break;
+                case 'views':
+                    $businessQuery->orderBy('view_count', 'desc');
+                    break;
+                default:
+                    $businessQuery->orderBy('hybrid_score', 'desc')->orderBy('trend_score', 'desc');
+            }
+
+            // Get trending businesses with enhanced data
+            $trendingBusinessesData = $businessQuery
                 ->with(['business' => function($query) use ($latitude, $longitude) {
-                    $query->select(['id', 'business_name', 'slug', 'landmark', 'overall_rating', 'price_range', 'category_id', 'subcategory_id', 'latitude', 'longitude'])
+                    $query->select(['id', 'business_name', 'slug', 'landmark', 'area', 'overall_rating', 'price_range', 'category_id', 'subcategory_id', 'latitude', 'longitude', 'phone', 'website', 'is_featured', 'is_verified'])
                           ->with([
                               'category:id,name,slug,icon_image,color_code',
                               'subcategory:id,name,slug',
@@ -968,57 +1036,106 @@ class HomeController extends Controller
                           ]);
                 }])
                 ->take($businessLimit)
-                ->get()
-                ->map(function($trend) use ($latitude, $longitude) {
+                ->get();
+
+            // Process trending businesses with distance calculation and filtering
+            $trendingBusinesses = $trendingBusinessesData
+                ->map(function($trend) use ($latitude, $longitude, $maxDistance) {
                     if (!$trend->business) return null;
                     
                     $business = $trend->business;
-                    $businessData = [
+                    $distance = null;
+
+                    // Calculate distance if coordinates provided
+                    if ($latitude && $longitude && $business->latitude && $business->longitude) {
+                        $distance = $this->calculateDistance(
+                            $latitude, $longitude, 
+                            $business->latitude, $business->longitude
+                        );
+                        
+                        // Filter by max distance if specified
+                        if ($maxDistance && $distance > $maxDistance) {
+                            return null;
+                        }
+                    }
+
+                    return [
                         'id' => $business->id,
                         'business_name' => $business->business_name,
                         'slug' => $business->slug,
                         'landmark' => $business->landmark,
+                        'area' => $business->area,
                         'overall_rating' => $business->overall_rating,
                         'price_range' => $business->price_range,
-                        'category_name' => $business->category->name ?? null,
-                        'subcategory_name' => $business->subcategory->name ?? null,
+                        'phone' => $business->phone,
+                        'website' => $business->website,
+                        'is_featured' => $business->is_featured,
+                        'is_verified' => $business->is_verified,
+                        'category' => [
+                            'id' => $business->category->id ?? null,
+                            'name' => $business->category->name ?? null,
+                            'slug' => $business->category->slug ?? null,
+                            'icon' => $business->category->icon_image ?? null,
+                            'color' => $business->category->color_code ?? null,
+                        ],
+                        'subcategory' => [
+                            'id' => $business->subcategory->id ?? null,
+                            'name' => $business->subcategory->name ?? null,
+                            'slug' => $business->subcategory->slug ?? null,
+                        ],
                         'images' => [
                             'logo' => $business->logoImage->image_url ?? null,
                             'cover' => $business->coverImage->image_url ?? null,
-                            'gallery' => $business->galleryImages->pluck('image_url')->toArray()
+                            'gallery' => $business->galleryImages->pluck('image_url')->take(5)->toArray()
                         ],
-                        'trend_score' => $trend->trend_score,
-                        'trend_rank' => $trend->id
+                        'trending' => [
+                            'rank' => $trend->id,
+                            'trend_score' => round($trend->trend_score, 2),
+                            'hybrid_score' => round($trend->hybrid_score ?? 0, 2),
+                            'view_count' => $trend->view_count ?? 0,
+                            'search_count' => $trend->search_count ?? 0,
+                            'last_updated' => $trend->updated_at,
+                        ],
+                        'distance' => $distance,
+                        'coordinates' => [
+                            'latitude' => $business->latitude,
+                            'longitude' => $business->longitude,
+                        ]
                     ];
-
-                    // Calculate distance if coordinates provided
-                    if ($latitude && $longitude && $business->latitude && $business->longitude) {
-                        $businessData['distance'] = $this->calculateDistance(
-                            $latitude, $longitude, 
-                            $business->latitude, $business->longitude
-                        );
-                    }
-
-                    return $businessData;
                 })
                 ->filter()
                 ->values();
 
-            // Get trending offerings for today
-            $trendingOfferings = TrendingData::where('item_type', 'offering')
-                ->where('time_period', 'daily')
+            // Sort by distance if distance sorting is requested
+            if ($sortBy === 'distance' && $latitude && $longitude) {
+                $trendingBusinesses = $trendingBusinesses->sortBy('distance')->values();
+            }
+
+            // Build enhanced query for trending offerings
+            $offeringQuery = TrendingData::where('item_type', 'offering')
+                ->where('time_period', $timePeriod)
                 ->where('date_period', $today)
-                ->where('location_area', $area)
+                ->whereNotNull('trend_score')
+                ->where('trend_score', '>', 0);
+
+            // Apply area filter for offerings
+            if ($area) {
+                $offeringQuery->where('location_area', $area);
+            }
+
+            // Get trending offerings with enhanced data
+            $trendingOfferings = $offeringQuery
+                ->orderBy('hybrid_score', 'desc')
                 ->orderBy('trend_score', 'desc')
                 ->take($offeringLimit)
                 ->get()
-                ->map(function($trend) use ($latitude, $longitude) {
-                    // Get the offering details with images
-                    $offering = \App\Models\BusinessOffering::select(['id', 'name', 'offering_type', 'price', 'description', 'image_url', 'business_id'])
+                ->map(function($trend) use ($latitude, $longitude, $maxDistance) {
+                    // Get the offering with comprehensive business data
+                    $offering = \App\Models\BusinessOffering::select(['id', 'name', 'offering_type', 'price', 'description', 'image_url', 'business_id', 'is_featured'])
                         ->with(['business' => function($query) {
-                            $query->select(['id', 'business_name', 'slug', 'area', 'latitude', 'longitude'])
+                            $query->select(['id', 'business_name', 'slug', 'area', 'latitude', 'longitude', 'overall_rating', 'is_verified'])
                                   ->with([
-                                      'category:id,name,slug', 
+                                      'category:id,name,slug,icon_image', 
                                       'logoImage:id,business_id,image_url',
                                       'coverImage:id,business_id,image_url'
                                   ]);
@@ -1027,73 +1144,149 @@ class HomeController extends Controller
                     
                     if (!$offering || !$offering->business) return null;
 
-                    $offeringData = [
+                    $distance = null;
+                    
+                    // Calculate distance and apply filter
+                    if ($latitude && $longitude && $offering->business->latitude && $offering->business->longitude) {
+                        $distance = $this->calculateDistance(
+                            $latitude, $longitude, 
+                            $offering->business->latitude, $offering->business->longitude
+                        );
+                        
+                        if ($maxDistance && $distance > $maxDistance) {
+                            return null;
+                        }
+                    }
+
+                    return [
                         'id' => $offering->id,
                         'name' => $offering->name,
                         'offering_type' => $offering->offering_type,
                         'price' => $offering->price,
                         'description' => $offering->description,
                         'image_url' => $offering->image_url,
-                        'trend_score' => $trend->trend_score,
-                        'trend_rank' => $trend->id,
+                        'is_featured' => $offering->is_featured,
+                        'trending' => [
+                            'rank' => $trend->id,
+                            'trend_score' => round($trend->trend_score, 2),
+                            'hybrid_score' => round($trend->hybrid_score ?? 0, 2),
+                            'view_count' => $trend->view_count ?? 0,
+                            'last_updated' => $trend->updated_at,
+                        ],
                         'business' => [
                             'id' => $offering->business->id,
                             'business_name' => $offering->business->business_name,
                             'slug' => $offering->business->slug,
                             'area' => $offering->business->area,
-                            'category_name' => $offering->business->category->name ?? null,
+                            'overall_rating' => $offering->business->overall_rating,
+                            'is_verified' => $offering->business->is_verified,
+                            'category' => [
+                                'id' => $offering->business->category->id ?? null,
+                                'name' => $offering->business->category->name ?? null,
+                                'icon' => $offering->business->category->icon_image ?? null,
+                            ],
                             'images' => [
                                 'logo' => $offering->business->logoImage->image_url ?? null,
                                 'cover' => $offering->business->coverImage->image_url ?? null,
+                            ],
+                            'distance' => $distance,
+                            'coordinates' => [
+                                'latitude' => $offering->business->latitude,
+                                'longitude' => $offering->business->longitude,
                             ]
                         ]
                     ];
-
-                    // Calculate distance if coordinates provided
-                    if ($latitude && $longitude && $offering->business->latitude && $offering->business->longitude) {
-                        $offeringData['business']['distance'] = $this->calculateDistance(
-                            $latitude, $longitude, 
-                            $offering->business->latitude, $offering->business->longitude
-                        );
-                    }
-
-                    return $offeringData;
                 })
                 ->filter()
                 ->values();
 
-            // Get summary stats
-            $totalTrendingItems = TrendingData::where('time_period', 'daily')
+            // Get comprehensive summary statistics
+            $allAreasCount = TrendingData::where('time_period', $timePeriod)
+                ->where('date_period', $today)
+                ->where('trend_score', '>', 0)
+                ->count();
+
+            $currentAreaCount = $area ? TrendingData::where('time_period', $timePeriod)
                 ->where('date_period', $today)
                 ->where('location_area', $area)
-                ->count();
+                ->where('trend_score', '>', 0)
+                ->count() : $allAreasCount;
+
+            // Get trending categories for the area
+            $trendingCategories = TrendingData::where('item_type', 'business')
+                ->where('time_period', $timePeriod)
+                ->where('date_period', $today)
+                ->when($area, function($query) use ($area) {
+                    return $query->where('location_area', $area);
+                })
+                ->join('businesses', 'trending_data.item_id', '=', 'businesses.id')
+                ->join('categories', 'businesses.category_id', '=', 'categories.id')
+                ->select('categories.id', 'categories.name', 'categories.slug')
+                ->selectRaw('COUNT(*) as trending_count, AVG(trending_data.trend_score) as avg_score')
+                ->groupBy('categories.id', 'categories.name', 'categories.slug')
+                ->orderBy('trending_count', 'desc')
+                ->take(5)
+                ->get();
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'trending_businesses' => $trendingBusinesses,
                     'trending_offerings' => $trendingOfferings,
+                    'trending_categories' => $trendingCategories,
                     'summary' => [
                         'date' => $today,
+                        'time_period' => $timePeriod,
                         'area' => $area,
-                        'total_trending_items' => $totalTrendingItems,
-                        'businesses_count' => $trendingBusinesses->count(),
-                        'offerings_count' => $trendingOfferings->count(),
-                        'location_provided' => $latitude && $longitude ? true : false
+                        'total_items_all_areas' => $allAreasCount,
+                        'total_items_current_area' => $currentAreaCount,
+                        'businesses_returned' => $trendingBusinesses->count(),
+                        'offerings_returned' => $trendingOfferings->count(),
+                        'categories_trending' => $trendingCategories->count(),
+                        'filters_applied' => [
+                            'category_id' => $categoryId,
+                            'min_rating' => $minRating,
+                            'max_distance' => $maxDistance,
+                            'price_range' => $priceRange,
+                            'sort_by' => $sortBy,
+                        ]
                     ],
                     'location' => [
-                        'latitude' => $latitude,
-                        'longitude' => $longitude,
-                        'determined_area' => $area
+                        'provided' => [
+                            'latitude' => $latitude,
+                            'longitude' => $longitude,
+                            'area' => $request->input('area'),
+                        ],
+                        'determined' => [
+                            'area' => $area,
+                            'coordinates_used' => $latitude && $longitude,
+                        ]
+                    ],
+                    'meta' => [
+                        'generated_at' => now()->toISOString(),
+                        'cache_ttl' => 300, // 5 minutes
+                        'next_update' => now()->addMinutes(30)->toISOString(),
+                        'data_freshness' => 'real-time',
                     ]
                 ]
             ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid input parameters',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
+            Log::error('Today trending API error: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch today\'s trending data',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
     }
