@@ -388,7 +388,7 @@ class HomeController extends Controller
     private function determineUserArea($latitude, $longitude)
     {
         if (!$latitude || !$longitude) {
-            return 'Dhanmondi'; // Default area
+            return null; // No default area - let the API handle areas properly
         }
 
         // Define Bangladesh area boundaries (approximate)
@@ -982,7 +982,7 @@ class HomeController extends Controller
                 ->whereNotNull('trend_score')
                 ->where('trend_score', '>', 0);
 
-            // Apply area filter if provided
+            // Apply area filter if provided (don't filter if no area specified)
             if ($area) {
                 $businessQuery->where('location_area', $area);
             }
