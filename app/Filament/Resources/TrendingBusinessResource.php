@@ -20,7 +20,7 @@ class TrendingBusinessResource extends Resource
 {
     protected static ?string $model = TrendingData::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-trending-up';
+    protected static ?string $navigationIcon = 'heroicon-o-arrow-trending-up';
 
     protected static ?string $navigationLabel = 'Trending Businesses';
 
@@ -91,7 +91,7 @@ class TrendingBusinessResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->url(fn (TrendingData $record) => $record->business ? 
-                        route('filament.admin.resources.businesses.view', $record->business) : null)
+                        "#" : null)
                     ->openUrlInNewTab(),
 
                 TextColumn::make('business.category.name')
