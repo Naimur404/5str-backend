@@ -159,6 +159,11 @@ class Business extends Model
         return $this->hasMany(SearchLog::class, 'clicked_business_id');
     }
 
+    public function trendingData()
+    {
+        return $this->hasMany(TrendingData::class, 'item_id')->where('item_type', 'business');
+    }
+
     /**
      * Scopes
      */

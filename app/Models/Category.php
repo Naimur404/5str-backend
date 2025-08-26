@@ -72,6 +72,11 @@ class Category extends Model
         return $this->hasMany(SearchLog::class);
     }
 
+    public function trendingData()
+    {
+        return $this->hasMany(TrendingData::class, 'item_id')->where('item_type', 'category');
+    }
+
     /**
      * Scopes
      */
