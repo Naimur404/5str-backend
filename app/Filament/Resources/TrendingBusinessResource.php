@@ -36,7 +36,6 @@ class TrendingBusinessResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('item_type', 'business')
-            ->where('location_area', 'Dhanmondi')
             ->with(['business.category', 'business.logoImage'])
             ->orderBy('hybrid_score', 'desc')
             ->orderBy('trend_score', 'desc');
@@ -187,8 +186,7 @@ class TrendingBusinessResource extends Resource
                         'Barisal Division' => 'Barisal Division',
                         'Rangpur Division' => 'Rangpur Division',
                         'Bangladesh' => 'Bangladesh',
-                    ])
-                    ->default('Dhanmondi'),
+                    ]),
 
                 SelectFilter::make('time_period')
                     ->label('Time Period')
