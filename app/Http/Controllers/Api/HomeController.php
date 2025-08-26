@@ -1034,7 +1034,7 @@ class HomeController extends Controller
             // Get trending businesses with enhanced data
             $trendingBusinessesData = $businessQuery
                 ->with(['business' => function($query) use ($latitude, $longitude) {
-                    $query->select(['id', 'business_name', 'slug', 'landmark', 'area', 'overall_rating', 'price_range', 'category_id', 'subcategory_id', 'latitude', 'longitude', 'phone', 'website', 'is_featured', 'is_verified'])
+                    $query->select(['id', 'business_name', 'slug', 'landmark', 'area', 'overall_rating', 'price_range', 'category_id', 'subcategory_id', 'latitude', 'longitude', 'business_phone', 'website_url', 'is_featured', 'is_verified'])
                           ->with([
                               'category:id,name,slug,icon_image,color_code',
                               'subcategory:id,name,slug',
@@ -1075,8 +1075,8 @@ class HomeController extends Controller
                         'area' => $business->area,
                         'overall_rating' => $business->overall_rating,
                         'price_range' => $business->price_range,
-                        'phone' => $business->phone,
-                        'website' => $business->website,
+                        'phone' => $business->business_phone,
+                        'website' => $business->website_url,
                         'is_featured' => $business->is_featured,
                         'is_verified' => $business->is_verified,
                         'category' => [
