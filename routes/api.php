@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\OfferController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -124,6 +125,20 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         
         // User points and rewards
         Route::get('/points', [UserController::class, 'points']);
+    });
+
+    // Notification management (require login)
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/stats', [NotificationController::class, 'stats']);
+        Route::get('/{notification}', [NotificationController::class, 'show']);
+        Route::patch('/{notification}/read', [NotificationController::class, 'markAsRead']);
+        Route::patch('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+        Route::delete('/{notification}', [NotificationController::class, 'clear']);
+        Route::delete('/', [NotificationController::class, 'clearAll']);
+        
+        // Test notification (development only)
+        Route::post('/test', [NotificationController::class, 'createTest']);
     });
 
     // Review management (require login)
