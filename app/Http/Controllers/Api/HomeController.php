@@ -586,6 +586,44 @@ class HomeController extends Controller
                 ->orderBy('overall_rating', 'desc')
                 ->paginate($limit);
 
+            // Transform businesses to include formatted distance
+            $transformedBusinesses = $businesses->getCollection()->map(function($business) {
+                $businessData = [
+                    'id' => $business->id,
+                    'business_name' => $business->business_name,
+                    'slug' => $business->slug,
+                    'landmark' => $business->landmark,
+                    'overall_rating' => $business->overall_rating,
+                    'total_reviews' => $business->total_reviews,
+                    'price_range' => $business->price_range,
+                    'category' => $business->category,
+                    'subcategory' => $business->subcategory,
+                    'logo_image' => $business->logoImage->image_url ?? null,
+                    'distance_km' => null // Will be set below
+                ];
+
+                // Add formatted distance if available
+                if (isset($business->distance)) {
+                    $distanceKm = $business->distance;
+                    
+                    // Format distance with proper units
+                    if ($distanceKm < 1) {
+                        // Show in meters if less than 1 km
+                        $distanceFormatted = number_format($distanceKm * 1000, 2) . ' m';
+                    } else {
+                        // Show in kilometers if 1 km or more
+                        $distanceFormatted = number_format($distanceKm, 2) . ' km';
+                    }
+                    
+                    $businessData['distance'] = $distanceFormatted;
+                    $businessData['distance_km'] = $distanceFormatted;
+                }
+
+                return $businessData;
+            });
+
+            $businesses->setCollection($transformedBusinesses);
+
             return response()->json([
                 'success' => true,
                 'data' => [
