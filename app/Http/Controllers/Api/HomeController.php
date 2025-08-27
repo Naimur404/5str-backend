@@ -1886,14 +1886,18 @@ class HomeController extends Controller
                         'cover' => $business->coverImage->image_url ?? null,
                     ],
                     'is_open_now' => true, // All returned businesses are open
-                    'opening_status' => $openingStatus['status'],
+                    'opening_status' => [
+                        'status' => $openingStatus['status']
+                    ],
                     'closes_at' => $openingStatus['closes_at'],
-                    'hours_today' => $this->getTodayHours($business, $currentDay)
+                    'hours_today' => $this->getTodayHours($business, $currentDay),
+                    'distance_km' => null // Will be set below if coordinates provided
                 ];
 
                 // Add distance if coordinates provided
                 if ($latitude && $longitude && isset($business->distance)) {
                     $businessData['distance'] = $business->distance;
+                    $businessData['distance_km'] = $business->distance; // Add distance_km field
                 }
 
                 return $businessData;
