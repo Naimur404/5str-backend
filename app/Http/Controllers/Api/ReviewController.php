@@ -9,6 +9,7 @@ use App\Models\BusinessOffering;
 use App\Models\ReviewImage;
 use App\Models\Favorite;
 use App\Models\ReviewHelpfulVote;
+use App\Services\PushNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -18,6 +19,12 @@ use Illuminate\Validation\Rule;
 
 class ReviewController extends Controller
 {
+    protected PushNotificationService $pushService;
+
+    public function __construct(PushNotificationService $pushService)
+    {
+        $this->pushService = $pushService;
+    }
     /**
      * Check if the given item is in user's favorites
      */
@@ -27,6 +34,93 @@ class ReviewController extends Controller
             ->where('favoritable_type', $favoritable_type)
             ->where('favoritable_id', $favoritable_id)
             ->exists();
+    }
+
+    /**
+     * Approve a review (Admin/Moderator function with push notification)
+     * Example usage of the push notification service
+     */
+    public function approveReview($reviewId)
+    {
+        try {
+            $review = Review::with(['user', 'reviewable'])->findOrFail($reviewId);
+            
+            // Check if review is already approved
+            if ($review->status === 'approved') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Review is already approved'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Update review status
+            $review->update(['status' => 'approved', 'approved_at' => now()]);
+
+            // Get the reviewed item title for the notification
+            $itemTitle = '';
+            if ($review->reviewable_type === 'App\\Models\\Business') {
+                $itemTitle = $review->reviewable->business_name ?? 'Business';
+            } elseif ($review->reviewable_type === 'App\\Models\\BusinessOffering') {
+                $itemTitle = $review->reviewable->name ?? 'Service';
+            }
+
+            // Create and save notification to database (for notification list)
+            $review->user->notifications()->create([
+                'title' => 'Review Approved! 🎉',
+                'body' => "Your review for \"{$itemTitle}\" has been approved and is now visible to other users. Thank you for your valuable feedback!",
+                'icon' => 'heroicon-o-check-circle',
+                'color' => 'success',
+                'type' => 'review_approved',
+                'data' => [
+                    'review_id' => $review->id,
+                    'item_title' => $itemTitle,
+                    'item_type' => $review->reviewable_type === 'App\\Models\\Business' ? 'business' : 'offering'
+                ],
+            ]);
+
+            // Send push notification (for real-time alert)
+            try {
+                $notification = $this->pushService->createReviewApprovalNotification($itemTitle);
+                $this->pushService->sendToUser($review->user, $notification);
+                Log::info("Push notification sent for review approval", [
+                    'review_id' => $review->id,
+                    'user_id' => $review->user_id
+                ]);
+            } catch (\Exception $e) {
+                // Log error but don't fail the approval process
+                Log::error("Failed to send push notification for review approval", [
+                    'review_id' => $review->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => '✅ Review approved successfully! User has been notified.',
+                'data' => [
+                    'review' => [
+                        'id' => $review->id,
+                        'status' => $review->status,
+                        'approved_at' => $review->approved_at?->format('Y-m-d H:i:s'),
+                        'user_name' => $review->user->name,
+                        'item_title' => $itemTitle,
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to approve review',
+                'error' => config('app.debug') ? $e->getMessage() : 'Something went wrong'
+            ], 500);
+        }
     }
 
     /**

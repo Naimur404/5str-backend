@@ -106,6 +106,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Business::class, 'owner_user_id');
     }
 
+    public function pushTokens()
+    {
+        return $this->hasMany(PushToken::class);
+    }
+
+    public function activePushTokens()
+    {
+        return $this->hasMany(PushToken::class)->where('is_active', true);
+    }
+
     /**
      * Check if user can access Filament admin panel
      */

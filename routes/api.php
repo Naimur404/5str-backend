@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PushTokenController;
 
 /*
 |--------------------------------------------------------------------------
@@ -141,6 +142,18 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::post('/test', [NotificationController::class, 'createTest']);
     });
 
+    // Push token management (require login)
+    Route::prefix('push-tokens')->group(function () {
+        Route::get('/', [PushTokenController::class, 'index']);
+        Route::post('/', [PushTokenController::class, 'store']);
+        Route::put('/{token}', [PushTokenController::class, 'update']);
+        Route::delete('/{token}', [PushTokenController::class, 'destroy']);
+        Route::put('/{token}/status', [PushTokenController::class, 'updateStatus']);
+        
+        // Test push notification (development only)
+        Route::post('/test', [PushTokenController::class, 'testNotification']);
+    });
+
     // Review management (require login)
     Route::prefix('reviews')->group(function () {
         Route::post('/', [ReviewController::class, 'store']);
@@ -152,6 +165,10 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::post('/{review}/vote', [ReviewController::class, 'voteHelpful']);
         Route::delete('/{review}/vote', [ReviewController::class, 'removeVote']);
         Route::get('/{review}/vote-status', [ReviewController::class, 'getVoteStatus']);
+        
+        // Admin/Moderator functions
+        Route::post('/{review}/approve', [ReviewController::class, 'approveReview'])
+            ->middleware('role:admin|super-admin|moderator');
     });
 
     // Offer usage (require login)

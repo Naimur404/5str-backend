@@ -45,6 +45,7 @@ class Review extends Model
         'helpful_count',
         'not_helpful_count',
         'status',
+        'approved_at',
     ];
 
     protected $hidden = [
@@ -66,6 +67,7 @@ class Review extends Model
         'is_verified_visit' => 'boolean',
         'helpful_count' => 'integer',
         'not_helpful_count' => 'integer',
+        'approved_at' => 'datetime',
     ];
 
     /**
