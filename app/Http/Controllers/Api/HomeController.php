@@ -1824,7 +1824,7 @@ class HomeController extends Controller
 
             // Get current day and time
             $currentDay = strtolower(now()->format('l')); // monday, tuesday, etc.
-            $currentTime = now()->format('H:i:s');
+            $currentTime = now()->format('H:i');
 
             $query = Business::active()
                 ->where('overall_rating', '>=', $minRating)
@@ -1848,29 +1848,25 @@ class HomeController extends Controller
                 $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
             }
 
-            // Filter for businesses that are currently open
-            // This assumes opening_hours is stored as JSON with day-wise hours
-            $query->where(function($q) use ($currentDay, $currentTime) {
-                $q->whereNotNull('opening_hours')
-                  ->where(function($subQ) use ($currentDay, $currentTime) {
-                      // Check if opening_hours contains today's schedule
-                      $subQ->whereRaw("JSON_EXTRACT(opening_hours, '$.{$currentDay}') IS NOT NULL")
-                           ->whereRaw("JSON_EXTRACT(opening_hours, '$.{$currentDay}.is_open') = true")
-                           ->whereRaw("TIME(JSON_UNQUOTE(JSON_EXTRACT(opening_hours, '$.{$currentDay}.open_time'))) <= ?", [$currentTime])
-                           ->whereRaw("TIME(JSON_UNQUOTE(JSON_EXTRACT(opening_hours, '$.{$currentDay}.close_time'))) >= ?", [$currentTime]);
-                  })
-                  // Or if it's a 24/7 business
-                  ->orWhereRaw("JSON_EXTRACT(opening_hours, '$.{$currentDay}.is_24_hours') = true")
-                  // Or fallback for businesses without detailed opening hours but marked as open
-                  ->orWhere('is_active', true);
+            // Get all businesses first, then filter in PHP for better accuracy
+            $allBusinesses = $query->get();
+
+            // Filter businesses that are currently open
+            $openBusinesses = $allBusinesses->filter(function($business) use ($currentDay, $currentTime) {
+                return $this->isBusinessCurrentlyOpen($business, $currentDay, $currentTime);
             });
 
-            $businesses = $query->orderBy('overall_rating', 'desc')
-                ->orderBy('total_reviews', 'desc')
-                ->paginate($limit);
+            // Paginate the filtered results
+            $perPage = $limit;
+            $currentPage = $request->input('page', 1);
+            $total = $openBusinesses->count();
+            $offset = ($currentPage - 1) * $perPage;
+            $paginatedBusinesses = $openBusinesses->slice($offset, $perPage)->values();
 
             // Transform the data to include images and opening status
-            $transformedBusinesses = $businesses->getCollection()->map(function($business) use ($latitude, $longitude, $currentDay, $currentTime) {
+            $transformedBusinesses = $paginatedBusinesses->map(function($business) use ($latitude, $longitude, $currentDay, $currentTime) {
+                $openingStatus = $this->getOpeningStatus($business, $currentDay, $currentTime);
+                
                 $businessData = [
                     'id' => $business->id,
                     'business_name' => $business->business_name,
@@ -1885,7 +1881,8 @@ class HomeController extends Controller
                         'logo' => $business->logoImage->image_url ?? null,
                         'cover' => $business->coverImage->image_url ?? null,
                     ],
-                    'opening_status' => $this->getOpeningStatus($business, $currentDay, $currentTime)
+                    'opening_status' => $openingStatus,
+                    'hours_today' => $this->getTodayHours($business, $currentDay)
                 ];
 
                 // Add distance if coordinates provided
@@ -1896,24 +1893,23 @@ class HomeController extends Controller
                 return $businessData;
             });
 
-            $businesses->setCollection($transformedBusinesses);
-
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'businesses' => $businesses->items(),
+                    'businesses' => $transformedBusinesses,
                     'pagination' => [
-                        'current_page' => $businesses->currentPage(),
-                        'last_page' => $businesses->lastPage(),
-                        'per_page' => $businesses->perPage(),
-                        'total' => $businesses->total(),
-                        'has_more' => $businesses->hasMorePages()
+                        'current_page' => $currentPage,
+                        'last_page' => ceil($total / $perPage),
+                        'per_page' => $perPage,
+                        'total' => $total,
+                        'has_more' => ($offset + $perPage) < $total
                     ],
                     'filters' => [
                         'category_id' => $categoryId,
                         'min_rating' => $minRating,
                         'current_time' => now()->format('Y-m-d H:i:s'),
                         'current_day' => $currentDay,
+                        'open_businesses_found' => $total,
                         'location' => $latitude && $longitude ? [
                             'latitude' => $latitude,
                             'longitude' => $longitude,
@@ -1941,7 +1937,9 @@ class HomeController extends Controller
             return [
                 'is_open' => true, // Assume open if no hours specified
                 'status' => 'Hours not specified',
-                'next_change' => null
+                'next_change' => null,
+                'closes_at' => null,
+                'opens_at' => null
             ];
         }
 
@@ -1958,45 +1956,253 @@ class HomeController extends Controller
             return [
                 'is_open' => false,
                 'status' => 'Closed today',
-                'next_change' => null
+                'next_change' => null,
+                'closes_at' => null,
+                'opens_at' => null
             ];
         }
 
         $todayHours = $openingHours[$currentDay];
 
-        // Check if closed today
-        if (!($todayHours['is_open'] ?? true)) {
+        // Handle the format: "7:00 AM - 10:00 PM"
+        if (is_string($todayHours)) {
+            $timeRange = $this->parseTimeRange($todayHours);
+            if (!$timeRange) {
+                return [
+                    'is_open' => false,
+                    'status' => 'Invalid hours format',
+                    'next_change' => null,
+                    'closes_at' => null,
+                    'opens_at' => null
+                ];
+            }
+
+            $openTime = $timeRange['open'];
+            $closeTime = $timeRange['close'];
+            $isOpen = $this->isTimeInRange($currentTime, $openTime, $closeTime);
+
             return [
-                'is_open' => false,
-                'status' => 'Closed today',
-                'next_change' => null
+                'is_open' => $isOpen,
+                'status' => $isOpen ? "Open until {$this->formatTime12Hour($closeTime)}" : "Opens at {$this->formatTime12Hour($openTime)}",
+                'next_change' => $isOpen ? $closeTime : $openTime,
+                'closes_at' => $closeTime,
+                'opens_at' => $openTime,
+                'raw_hours' => $todayHours
             ];
         }
 
-        // Check if 24 hours
-        if ($todayHours['is_24_hours'] ?? false) {
+        // Handle object format with is_open, open_time, close_time, etc.
+        if (is_array($todayHours)) {
+            // Check if closed today
+            if (!($todayHours['is_open'] ?? true)) {
+                return [
+                    'is_open' => false,
+                    'status' => 'Closed today',
+                    'next_change' => null,
+                    'closes_at' => null,
+                    'opens_at' => null
+                ];
+            }
+
+            // Check if 24 hours
+            if ($todayHours['is_24_hours'] ?? false) {
+                return [
+                    'is_open' => true,
+                    'status' => 'Open 24 hours',
+                    'next_change' => null,
+                    'closes_at' => '23:59',
+                    'opens_at' => '00:00'
+                ];
+            }
+
+            $openTime = $todayHours['open_time'] ?? '09:00';
+            $closeTime = $todayHours['close_time'] ?? '22:00';
+
+            // Convert to 24-hour format if needed
+            $openTime = $this->convertTo24Hour($openTime);
+            $closeTime = $this->convertTo24Hour($closeTime);
+
+            $isOpen = $this->isTimeInRange($currentTime, $openTime, $closeTime);
+
             return [
-                'is_open' => true,
-                'status' => 'Open 24 hours',
-                'next_change' => null
+                'is_open' => $isOpen,
+                'status' => $isOpen ? "Open until {$this->formatTime12Hour($closeTime)}" : "Opens at {$this->formatTime12Hour($openTime)}",
+                'next_change' => $isOpen ? $closeTime : $openTime,
+                'closes_at' => $closeTime,
+                'opens_at' => $openTime
             ];
         }
 
-        $openTime = $todayHours['open_time'] ?? '09:00:00';
-        $closeTime = $todayHours['close_time'] ?? '22:00:00';
+        return [
+            'is_open' => false,
+            'status' => 'Unable to determine hours',
+            'next_change' => null,
+            'closes_at' => null,
+            'opens_at' => null
+        ];
+    }
 
-        if ($currentTime >= $openTime && $currentTime <= $closeTime) {
-            return [
-                'is_open' => true,
-                'status' => "Open until {$closeTime}",
-                'next_change' => $closeTime
-            ];
+    /**
+     * Check if a business is currently open
+     */
+    private function isBusinessCurrentlyOpen($business, $currentDay, $currentTime)
+    {
+        $status = $this->getOpeningStatus($business, $currentDay, $currentTime);
+        return $status['is_open'];
+    }
+
+    /**
+     * Parse time range string like "7:00 AM - 10:00 PM"
+     */
+    private function parseTimeRange($timeString)
+    {
+        if (empty($timeString) || strtolower($timeString) === 'closed') {
+            return null;
+        }
+
+        // Handle "24 hours" or "24/7" cases
+        if (preg_match('/24\s*(hours?|\/7)/i', $timeString)) {
+            return ['open' => '00:00', 'close' => '23:59'];
+        }
+
+        // Parse "7:00 AM - 10:00 PM" format
+        if (preg_match('/(.+?)\s*-\s*(.+)/', $timeString, $matches)) {
+            $openTime = $this->convertTo24Hour(trim($matches[1]));
+            $closeTime = $this->convertTo24Hour(trim($matches[2]));
+            
+            if ($openTime && $closeTime) {
+                return ['open' => $openTime, 'close' => $closeTime];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Convert 12-hour format to 24-hour format
+     */
+    private function convertTo24Hour($timeString)
+    {
+        if (empty($timeString)) {
+            return null;
+        }
+
+        // If already in 24-hour format (HH:MM), return as is
+        if (preg_match('/^\d{1,2}:\d{2}$/', $timeString)) {
+            return $timeString;
+        }
+
+        // Handle 12-hour format with AM/PM
+        if (preg_match('/(\d{1,2}):(\d{2})\s*(AM|PM)/i', $timeString, $matches)) {
+            $hours = (int) $matches[1];
+            $minutes = $matches[2];
+            $period = strtoupper($matches[3]);
+
+            if ($period === 'AM') {
+                if ($hours === 12) {
+                    $hours = 0; // 12 AM = 00:00
+                }
+            } else { // PM
+                if ($hours !== 12) {
+                    $hours += 12; // Convert PM hours (except 12 PM)
+                }
+            }
+
+            return sprintf('%02d:%s', $hours, $minutes);
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if current time is within the open range
+     */
+    private function isTimeInRange($currentTime, $openTime, $closeTime)
+    {
+        // Convert all times to minutes for easier comparison
+        $currentMinutes = $this->timeToMinutes($currentTime);
+        $openMinutes = $this->timeToMinutes($openTime);
+        $closeMinutes = $this->timeToMinutes($closeTime);
+
+        // Handle case where business closes after midnight (e.g., 23:00 - 02:00)
+        if ($closeMinutes < $openMinutes) {
+            // Business is open past midnight
+            return ($currentMinutes >= $openMinutes) || ($currentMinutes <= $closeMinutes);
         } else {
-            return [
-                'is_open' => false,
-                'status' => "Opens at {$openTime}",
-                'next_change' => $openTime
-            ];
+            // Normal case: business opens and closes on the same day
+            return ($currentMinutes >= $openMinutes) && ($currentMinutes <= $closeMinutes);
         }
+    }
+
+    /**
+     * Convert time string (HH:MM) to minutes since midnight
+     */
+    private function timeToMinutes($timeString)
+    {
+        if (preg_match('/(\d{1,2}):(\d{2})/', $timeString, $matches)) {
+            return ((int) $matches[1] * 60) + (int) $matches[2];
+        }
+        return 0;
+    }
+
+    /**
+     * Format 24-hour time to 12-hour format for display
+     */
+    private function formatTime12Hour($time24)
+    {
+        if (preg_match('/(\d{1,2}):(\d{2})/', $time24, $matches)) {
+            $hours = (int) $matches[1];
+            $minutes = $matches[2];
+            
+            $period = $hours >= 12 ? 'PM' : 'AM';
+            $displayHours = $hours === 0 ? 12 : ($hours > 12 ? $hours - 12 : $hours);
+            
+            return "{$displayHours}:{$minutes} {$period}";
+        }
+        return $time24;
+    }
+
+    /**
+     * Get today's hours in a readable format
+     */
+    private function getTodayHours($business, $currentDay)
+    {
+        if (!$business->opening_hours) {
+            return 'Hours not specified';
+        }
+
+        $openingHours = $business->opening_hours;
+        if (is_string($openingHours)) {
+            $openingHours = json_decode($openingHours, true);
+        }
+
+        if (!$openingHours || !isset($openingHours[$currentDay])) {
+            return 'Closed today';
+        }
+
+        $todayHours = $openingHours[$currentDay];
+
+        // If it's already a formatted string, return it
+        if (is_string($todayHours)) {
+            return $todayHours;
+        }
+
+        // If it's an array/object format
+        if (is_array($todayHours)) {
+            if (!($todayHours['is_open'] ?? true)) {
+                return 'Closed today';
+            }
+
+            if ($todayHours['is_24_hours'] ?? false) {
+                return '24 hours';
+            }
+
+            $openTime = $this->formatTime12Hour($this->convertTo24Hour($todayHours['open_time'] ?? '09:00'));
+            $closeTime = $this->formatTime12Hour($this->convertTo24Hour($todayHours['close_time'] ?? '22:00'));
+
+            return "{$openTime} - {$closeTime}";
+        }
+
+        return 'Hours not specified';
     }
 }
