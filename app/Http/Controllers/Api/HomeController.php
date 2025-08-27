@@ -596,7 +596,7 @@ class HomeController extends Controller
                     'overall_rating' => $business->overall_rating,
                     'total_reviews' => $business->total_reviews,
                     'price_range' => $business->price_range,
-                    'category_name' => $business->category,
+                    'category' => $business->category,
                     'subcategory' => $business->subcategory,
                     'logo_image' => $business->logoImage->image_url ?? null,
                     'distance_km' => null // Will be set below
