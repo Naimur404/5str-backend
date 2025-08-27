@@ -1908,7 +1908,7 @@ class HomeController extends Controller
                     }
                     
                     $businessData['distance'] = $distanceFormatted;
-                    $businessData['distance_km'] = number_format($distanceKm, 2); // Raw number with 2 decimals
+                    $businessData['distance_km'] = $distanceFormatted; // Same formatted value with units
                 }
 
                 return $businessData;
