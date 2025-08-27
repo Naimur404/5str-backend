@@ -1787,7 +1787,7 @@ class HomeController extends Controller
                 ->orderBy('total_reviews', 'desc')
                 ->paginate($limit);
 
-            // Transform the data to include images
+            // Transform the data to include images and formatted distance
             $transformedBusinesses = $businesses->getCollection()->map(function($business) use ($latitude, $longitude) {
                 $businessData = [
                     'id' => $business->id,
@@ -1802,12 +1802,25 @@ class HomeController extends Controller
                     'images' => [
                         'logo' => $business->logoImage->image_url ?? null,
                         'cover' => $business->coverImage->image_url ?? null,
-                    ]
+                    ],
+                    'distance_km' => null // Will be set below if coordinates provided
                 ];
 
-                // Add distance if coordinates provided
+                // Add formatted distance if coordinates provided
                 if ($latitude && $longitude && isset($business->distance)) {
-                    $businessData['distance'] = $business->distance;
+                    $distanceKm = $business->distance;
+                    
+                    // Format distance with proper units
+                    if ($distanceKm < 1) {
+                        // Show in meters if less than 1 km
+                        $distanceFormatted = number_format($distanceKm * 1000, 2) . ' m';
+                    } else {
+                        // Show in kilometers if 1 km or more
+                        $distanceFormatted = number_format($distanceKm, 2) . ' km';
+                    }
+                    
+                    $businessData['distance'] = $distanceFormatted;
+                    $businessData['distance_km'] = $distanceFormatted;
                 }
 
                 return $businessData;
