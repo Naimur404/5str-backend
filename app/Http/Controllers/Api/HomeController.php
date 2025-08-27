@@ -1896,8 +1896,19 @@ class HomeController extends Controller
 
                 // Add distance if coordinates provided
                 if ($latitude && $longitude && isset($business->distance)) {
-                    $businessData['distance'] = $business->distance;
-                    $businessData['distance_km'] = $business->distance; // Add distance_km field
+                    $distanceKm = $business->distance;
+                    
+                    // Format distance with proper units
+                    if ($distanceKm < 1) {
+                        // Show in meters if less than 1 km
+                        $distanceFormatted = number_format($distanceKm * 1000, 2) . ' m';
+                    } else {
+                        // Show in kilometers if 1 km or more
+                        $distanceFormatted = number_format($distanceKm, 2) . ' km';
+                    }
+                    
+                    $businessData['distance'] = $distanceFormatted;
+                    $businessData['distance_km'] = number_format($distanceKm, 2); // Raw number with 2 decimals
                 }
 
                 return $businessData;
