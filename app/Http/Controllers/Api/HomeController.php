@@ -1822,9 +1822,10 @@ class HomeController extends Controller
             $limit = $request->input('limit', 50);
             $categoryId = $request->input('category_id'); // Restore category filtering
 
-            // Get current day and time
-            $currentDay = strtolower(now()->format('l')); // monday, tuesday, etc.
-            $currentTime = now()->format('H:i');
+            // Use Bangladesh timezone for business hours calculation
+            $bangladeshTime = now()->setTimezone('Asia/Dhaka');
+            $currentDay = strtolower($bangladeshTime->format('l')); // monday, tuesday, etc.
+            $currentTime = $bangladeshTime->format('H:i');
 
             // Base query - get active businesses with optional category filter
             $query = Business::active()
@@ -1905,9 +1906,11 @@ class HomeController extends Controller
                     'businesses' => $transformedBusinesses,
                     'meta' => [
                         'total_open_now' => $total,
-                        'current_time' => now()->format('Y-m-d H:i:s'),
+                        'current_time' => $bangladeshTime->format('Y-m-d H:i:s'),
+                        'current_time_bangladesh' => $bangladeshTime->format('Y-m-d H:i:s T'),
                         'current_day' => ucfirst($currentDay),
-                        'checked_at' => now()->format('H:i A'),
+                        'checked_at' => $bangladeshTime->format('H:i A'),
+                        'timezone' => 'Asia/Dhaka',
                         'all_businesses_are_open' => true,
                         'filters_applied' => [
                             'category_id' => $categoryId,
