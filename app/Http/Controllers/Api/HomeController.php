@@ -1810,7 +1810,8 @@ class HomeController extends Controller
     }
 
     /**
-     * Get businesses that are currently open with optional category filtering
+     * Get businesses that are currently open - returns ONLY open businesses
+     * Priority: Open status first, then rating, with optional category filtering
      */
     public function openNow(Request $request)
     {
@@ -1819,15 +1820,14 @@ class HomeController extends Controller
             $longitude = $request->input('longitude');
             $radiusKm = $request->input('radius', 50);
             $limit = $request->input('limit', 50);
-            $categoryId = $request->input('category_id');
-            $minRating = $request->input('min_rating', 3.0);
+            $categoryId = $request->input('category_id'); // Restore category filtering
 
             // Get current day and time
             $currentDay = strtolower(now()->format('l')); // monday, tuesday, etc.
             $currentTime = now()->format('H:i');
 
+            // Base query - get active businesses with optional category filter
             $query = Business::active()
-                ->where('overall_rating', '>=', $minRating)
                 ->with([
                     'category:id,name,slug,icon_image,color_code',
                     'subcategory:id,name,slug',
@@ -1835,7 +1835,7 @@ class HomeController extends Controller
                     'coverImage:id,business_id,image_url'
                 ]);
 
-            // Filter by category if provided
+            // Apply category filter if provided
             if ($categoryId) {
                 $query->where(function($q) use ($categoryId) {
                     $q->where('category_id', $categoryId)
@@ -1848,13 +1848,16 @@ class HomeController extends Controller
                 $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
             }
 
-            // Get all businesses first, then filter in PHP for better accuracy
+            // Get all businesses first, then filter in PHP for accurate opening hours check
             $allBusinesses = $query->get();
 
-            // Filter businesses that are currently open
+            // Filter to get ONLY businesses that are currently open
             $openBusinesses = $allBusinesses->filter(function($business) use ($currentDay, $currentTime) {
                 return $this->isBusinessCurrentlyOpen($business, $currentDay, $currentTime);
             });
+
+            // Sort by rating to show best businesses first
+            $openBusinesses = $openBusinesses->sortByDesc('overall_rating');
 
             // Paginate the filtered results
             $perPage = $limit;
@@ -1863,7 +1866,7 @@ class HomeController extends Controller
             $offset = ($currentPage - 1) * $perPage;
             $paginatedBusinesses = $openBusinesses->slice($offset, $perPage)->values();
 
-            // Transform the data to include images and opening status
+            // Transform the data - simplified response focused on open businesses
             $transformedBusinesses = $paginatedBusinesses->map(function($business) use ($latitude, $longitude, $currentDay, $currentTime) {
                 $openingStatus = $this->getOpeningStatus($business, $currentDay, $currentTime);
                 
@@ -1881,7 +1884,9 @@ class HomeController extends Controller
                         'logo' => $business->logoImage->image_url ?? null,
                         'cover' => $business->coverImage->image_url ?? null,
                     ],
-                    'opening_status' => $openingStatus,
+                    'is_open_now' => true, // All returned businesses are open
+                    'opening_status' => $openingStatus['status'],
+                    'closes_at' => $openingStatus['closes_at'],
                     'hours_today' => $this->getTodayHours($business, $currentDay)
                 ];
 
@@ -1895,26 +1900,30 @@ class HomeController extends Controller
 
             return response()->json([
                 'success' => true,
+                'message' => "Found {$total} businesses currently open" . ($categoryId ? ' in selected category' : ''),
                 'data' => [
                     'businesses' => $transformedBusinesses,
+                    'meta' => [
+                        'total_open_now' => $total,
+                        'current_time' => now()->format('Y-m-d H:i:s'),
+                        'current_day' => ucfirst($currentDay),
+                        'checked_at' => now()->format('H:i A'),
+                        'all_businesses_are_open' => true,
+                        'filters_applied' => [
+                            'category_id' => $categoryId,
+                            'location' => $latitude && $longitude ? [
+                                'latitude' => $latitude,
+                                'longitude' => $longitude,
+                                'radius_km' => $radiusKm
+                            ] : null
+                        ]
+                    ],
                     'pagination' => [
                         'current_page' => $currentPage,
                         'last_page' => ceil($total / $perPage),
                         'per_page' => $perPage,
                         'total' => $total,
                         'has_more' => ($offset + $perPage) < $total
-                    ],
-                    'filters' => [
-                        'category_id' => $categoryId,
-                        'min_rating' => $minRating,
-                        'current_time' => now()->format('Y-m-d H:i:s'),
-                        'current_day' => $currentDay,
-                        'open_businesses_found' => $total,
-                        'location' => $latitude && $longitude ? [
-                            'latitude' => $latitude,
-                            'longitude' => $longitude,
-                            'radius_km' => $radiusKm
-                        ] : null
                     ]
                 ]
             ]);
@@ -1954,8 +1963,8 @@ class HomeController extends Controller
         
         if (!$openingHours || !isset($openingHours[$currentDay])) {
             return [
-                'is_open' => false,
-                'status' => 'Closed today',
+                'is_open' => true, // Assume open if no hours specified for today
+                'status' => 'Hours not specified for today',
                 'next_change' => null,
                 'closes_at' => null,
                 'opens_at' => null
