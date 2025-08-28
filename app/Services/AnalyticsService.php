@@ -8,9 +8,17 @@ use App\Models\TrendingData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Services\LocationService;
 
 class AnalyticsService
 {
+    protected $locationService;
+
+    public function __construct(LocationService $locationService)
+    {
+        $this->locationService = $locationService;
+    }
+
     /**
      * Log a search query
      */
@@ -57,7 +65,7 @@ class AnalyticsService
         
         // Determine user area from coordinates if not provided
         if (!$userArea && $userLatitude && $userLongitude) {
-            $userArea = $this->determineUserArea($userLatitude, $userLongitude);
+            $userArea = $this->locationService->determineUserAreaPrecise($userLatitude, $userLongitude);
         }
         
         $view = View::create([
@@ -98,7 +106,7 @@ class AnalyticsService
         
         // Determine user area from coordinates if not provided
         if (!$userArea && $userLatitude && $userLongitude) {
-            $userArea = $this->determineUserArea($userLatitude, $userLongitude);
+               $userArea = $this->locationService->determineUserAreaPrecise($userLatitude, $userLongitude);
         }
         
         $view = View::create([
@@ -539,127 +547,7 @@ class AnalyticsService
      * Determine user area from latitude and longitude coordinates
      * Uses reverse geocoding logic for Bangladesh areas
      */
-    public function determineUserArea($latitude, $longitude)
-    {
-        if (!$latitude || !$longitude) {
-            return null; // Return null instead of default to avoid incorrect area assignment
-        }
 
-        // Define Bangladesh area boundaries (approximate)
-        $bangladeshAreas = [
-            // Dhaka areas
-            'Dhanmondi' => [
-                'lat_min' => 23.740, 'lat_max' => 23.755,
-                'lng_min' => 90.365, 'lng_max' => 90.380
-            ],
-            'Gulshan' => [
-                'lat_min' => 23.780, 'lat_max' => 23.800,
-                'lng_min' => 90.405, 'lng_max' => 90.425
-            ],
-            'Banani' => [
-                'lat_min' => 23.785, 'lat_max' => 23.795,
-                'lng_min' => 90.395, 'lng_max' => 90.410
-            ],
-            'Uttara' => [
-                'lat_min' => 23.855, 'lat_max' => 23.885,
-                'lng_min' => 90.395, 'lng_max' => 90.420
-            ],
-            'Mirpur' => [
-                'lat_min' => 23.795, 'lat_max' => 23.825,
-                'lng_min' => 90.345, 'lng_max' => 90.375
-            ],
-            'Old Dhaka' => [
-                'lat_min' => 23.700, 'lat_max' => 23.725,
-                'lng_min' => 90.395, 'lng_max' => 90.420
-            ],
-            'Wari' => [
-                'lat_min' => 23.715, 'lat_max' => 23.725,
-                'lng_min' => 90.410, 'lng_max' => 90.425
-            ],
-            'Motijheel' => [
-                'lat_min' => 23.725, 'lat_max' => 23.735,
-                'lng_min' => 90.410, 'lng_max' => 90.425
-            ],
-            'Tejgaon' => [
-                'lat_min' => 23.755, 'lat_max' => 23.770,
-                'lng_min' => 90.395, 'lng_max' => 90.415
-            ],
-            'Farmgate' => [
-                'lat_min' => 23.755, 'lat_max' => 23.765,
-                'lng_min' => 90.385, 'lng_max' => 90.395
-            ],
-            'Mohammadpur' => [
-                'lat_min' => 23.760, 'lat_max' => 23.775,
-                'lng_min' => 90.355, 'lng_max' => 90.370
-            ],
-            'Bashundhara' => [
-                'lat_min' => 23.810, 'lat_max' => 23.830,
-                'lng_min' => 90.425, 'lng_max' => 90.445
-            ],
-            
-            // Major cities outside Dhaka
-            'Chittagong' => [
-                'lat_min' => 22.320, 'lat_max' => 22.380,
-                'lng_min' => 91.800, 'lng_max' => 91.860
-            ],
-            'Sylhet' => [
-                'lat_min' => 24.880, 'lat_max' => 24.920,
-                'lng_min' => 91.860, 'lng_max' => 91.900
-            ],
-            'Rajshahi' => [
-                'lat_min' => 24.360, 'lat_max' => 24.380,
-                'lng_min' => 88.590, 'lng_max' => 88.620
-            ],
-            'Khulna' => [
-                'lat_min' => 22.800, 'lat_max' => 22.820,
-                'lng_min' => 89.540, 'lng_max' => 89.570
-            ],
-            'Barisal' => [
-                'lat_min' => 22.700, 'lat_max' => 22.720,
-                'lng_min' => 90.350, 'lng_max' => 90.380
-            ],
-            'Rangpur' => [
-                'lat_min' => 25.740, 'lat_max' => 25.760,
-                'lng_min' => 89.240, 'lng_max' => 89.270
-            ],
-            'Comilla' => [
-                'lat_min' => 23.450, 'lat_max' => 23.470,
-                'lng_min' => 91.170, 'lng_max' => 91.190
-            ],
-            'Mymensingh' => [
-                'lat_min' => 24.740, 'lat_max' => 24.760,
-                'lng_min' => 90.400, 'lng_max' => 90.420
-            ]
-        ];
-
-        // Check which area the coordinates fall into
-        foreach ($bangladeshAreas as $areaName => $bounds) {
-            if ($latitude >= $bounds['lat_min'] && $latitude <= $bounds['lat_max'] &&
-                $longitude >= $bounds['lng_min'] && $longitude <= $bounds['lng_max']) {
-                return $areaName;
-            }
-        }
-
-        // If no specific area found, determine by general region
-        if ($latitude >= 23.0 && $latitude <= 24.5 && $longitude >= 90.0 && $longitude <= 90.5) {
-            return 'Dhaka Metropolitan'; // General Dhaka area
-        } elseif ($latitude >= 22.0 && $latitude <= 23.0 && $longitude >= 91.5 && $longitude <= 92.0) {
-            return 'Chittagong Division';
-        } elseif ($latitude >= 24.5 && $latitude <= 25.5 && $longitude >= 91.5 && $longitude <= 92.5) {
-            return 'Sylhet Division';
-        } elseif ($latitude >= 24.0 && $latitude <= 25.0 && $longitude >= 88.0 && $longitude <= 89.5) {
-            return 'Rajshahi Division';
-        } elseif ($latitude >= 22.5 && $latitude <= 23.5 && $longitude >= 89.0 && $longitude <= 90.0) {
-            return 'Khulna Division';
-        } elseif ($latitude >= 22.0 && $latitude <= 23.0 && $longitude >= 90.0 && $longitude <= 91.0) {
-            return 'Barisal Division';
-        } elseif ($latitude >= 25.0 && $latitude <= 26.5 && $longitude >= 88.5 && $longitude <= 90.0) {
-            return 'Rangpur Division';
-        }
-
-        // Default fallback
-        return 'Bangladesh';
-    }
 
     /**
      * Log endpoint analytics for dashboard tracking
@@ -699,7 +587,7 @@ class AnalyticsService
 
             // Determine user area if coordinates provided
             if ($latitude && $longitude) {
-                $userArea = $this->determineUserArea($latitude, $longitude);
+                $userArea = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
             }
 
             $this->logEndpointAnalytics(

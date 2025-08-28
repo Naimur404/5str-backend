@@ -10,7 +10,7 @@ class LocationService
      */
     public function determineUserAreaPrecise($latitude, $longitude)
     {
-       $url = "https://nominatim.openstreetmap.org/reverse?format=json&lat={$latitude}&lon={$longitude}&zoom=13&addressdetails=1";
+    $url = "https://nominatim.openstreetmap.org/reverse?format=json&lat={$latitude}&lon={$longitude}&zoom=13&addressdetails=1";
     
     $context = stream_context_create([
         'http' => [
