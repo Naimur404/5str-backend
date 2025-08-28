@@ -41,9 +41,9 @@ Get all collections created by the authenticated user.
         "businesses": [
           {
             "id": 1,
-            "name": "Restaurant ABC",
-            "phone": "+8801234567890",
-            "address": "123 Main St, Dhaka",
+            "business_name": "Restaurant ABC",
+            "business_phone": "+8801234567890",
+            "full_address": "123 Main St, Dhaka",
             "image_url": "https://example.com/restaurant.jpg"
           }
         ]
@@ -118,11 +118,11 @@ Add a business to a collection.
       "added_at": "2024-01-15T10:30:00Z",
       "business": {
         "id": 123,
-        "name": "Restaurant ABC",
-        "phone": "+8801234567890",
-        "address": "123 Main St, Dhaka",
+        "business_name": "Restaurant ABC",
+        "business_phone": "+8801234567890",
+        "full_address": "123 Main St, Dhaka",
         "image_url": "https://example.com/restaurant.jpg",
-        "rating": 4.5
+        "overall_rating": 4.5
       }
     }
   }

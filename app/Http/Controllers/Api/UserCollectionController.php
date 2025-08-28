@@ -21,7 +21,11 @@ class UserCollectionController extends Controller
         $user = Auth::user();
         
         $collections = UserCollection::byUser($user)
-            ->with(['businesses:id,name,phone,address,image_url', 'followers:id'])
+            ->with([
+                'businesses:id,business_name,business_phone,full_address',
+                'businesses.logoImage:id,business_id,image_url',
+                'followers:id'
+            ])
             ->withCount(['items', 'followers'])
             ->orderBy('updated_at', 'desc')
             ->get();
@@ -57,7 +61,7 @@ class UserCollectionController extends Controller
             'slug' => Str::slug($request->name . '-' . time())
         ]);
 
-        $collection->load(['businesses:id,name,phone,address,image_url']);
+        $collection->load(['businesses:id,business_name,business_phone,full_address', 'businesses.logoImage:id,business_id,image_url']);
 
         return response()->json([
             'success' => true,
@@ -85,9 +89,13 @@ class UserCollectionController extends Controller
 
         $collection->load([
             'user:id,name',
-            'businesses:id,name,phone,address,image_url,rating',
+            'businesses:id,business_name,business_phone,full_address,overall_rating',
+            'businesses.logoImage:id,business_id,image_url',
             'items' => function($query) {
-                $query->with('business:id,name,phone,address,image_url,rating')
+                $query->with([
+                    'business:id,business_name,business_phone,full_address,overall_rating',
+                    'business.logoImage:id,business_id,image_url'
+                ])
                       ->orderBy('sort_order')
                       ->orderBy('added_at', 'desc');
             }
@@ -138,7 +146,7 @@ class UserCollectionController extends Controller
                      : $collection->slug
         ]);
 
-        $collection->load(['businesses:id,name,phone,address,image_url']);
+        $collection->load(['businesses:id,business_name,business_phone,full_address', 'businesses.logoImage:id,business_id,image_url']);
 
         return response()->json([
             'success' => true,
@@ -209,7 +217,10 @@ class UserCollectionController extends Controller
             $request->sort_order ?? 0
         );
 
-        $collectionItem->load('business:id,name,phone,address,image_url,rating');
+        $collectionItem->load([
+            'business:id,business_name,business_phone,full_address,overall_rating',
+            'business.logoImage:id,business_id,image_url'
+        ]);
 
         return response()->json([
             'success' => true,
@@ -322,7 +333,11 @@ class UserCollectionController extends Controller
         $limit = min($request->get('limit', 10), 50);
         
         $collections = UserCollection::public()
-            ->with(['user:id,name', 'businesses:id,name,image_url'])
+            ->with([
+                'user:id,name', 
+                'businesses:id,business_name',
+                'businesses.logoImage:id,business_id,image_url'
+            ])
             ->withCount(['items', 'followers'])
             ->popular($limit)
             ->get();
@@ -353,7 +368,11 @@ class UserCollectionController extends Controller
                 $q->where('name', 'LIKE', "%{$query}%")
                   ->orWhere('description', 'LIKE', "%{$query}%");
             })
-            ->with(['user:id,name', 'businesses:id,name,image_url'])
+            ->with([
+                'user:id,name', 
+                'businesses:id,business_name',
+                'businesses.logoImage:id,business_id,image_url'
+            ])
             ->withCount(['items', 'followers'])
             ->orderByDesc('followers_count')
             ->orderBy('updated_at', 'desc')

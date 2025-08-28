@@ -49,6 +49,10 @@ class Business extends Model
         'updated_at'
     ];
 
+    protected $appends = [
+        'image_url'
+    ];
+
     protected $casts = [
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
@@ -67,6 +71,12 @@ class Business extends Model
         'has_pending_changes' => 'boolean',
         'approved_at' => 'datetime',
     ];
+
+    // Accessors
+    public function getImageUrlAttribute()
+    {
+        return $this->logoImage?->image_url;
+    }
 
     /**
      * Relationships
