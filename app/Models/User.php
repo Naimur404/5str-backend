@@ -116,6 +116,18 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(PushToken::class)->where('is_active', true);
     }
 
+    public function collections()
+    {
+        return $this->hasMany(UserCollection::class);
+    }
+
+    public function followedCollections()
+    {
+        return $this->belongsToMany(UserCollection::class, 'collection_followers', 'user_id', 'collection_id')
+                    ->withPivot('followed_at')
+                    ->withTimestamps();
+    }
+
     /**
      * Check if user can access Filament admin panel
      */

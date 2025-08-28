@@ -164,6 +164,13 @@ class Business extends Model
         return $this->hasMany(TrendingData::class, 'item_id')->where('item_type', 'business');
     }
 
+    public function collections()
+    {
+        return $this->belongsToMany(UserCollection::class, 'collection_items', 'business_id', 'collection_id')
+                    ->withPivot(['notes', 'sort_order', 'added_at'])
+                    ->withTimestamps();
+    }
+
     /**
      * Scopes
      */

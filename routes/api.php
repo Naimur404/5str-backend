@@ -199,4 +199,28 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::prefix('offers')->group(function () {
         Route::post('/{offer}/use', [OfferController::class, 'useOffer']);
     });
+
+    // User Collections (require login)
+    Route::prefix('collections')->group(function () {
+        // User's collections CRUD
+        Route::get('/', [App\Http\Controllers\API\UserCollectionController::class, 'index']);
+        Route::post('/', [App\Http\Controllers\API\UserCollectionController::class, 'store']);
+        Route::get('/{collection}', [App\Http\Controllers\API\UserCollectionController::class, 'show']);
+        Route::put('/{collection}', [App\Http\Controllers\API\UserCollectionController::class, 'update']);
+        Route::delete('/{collection}', [App\Http\Controllers\API\UserCollectionController::class, 'destroy']);
+        
+        // Collection business management
+        Route::post('/{collection}/businesses', [App\Http\Controllers\API\UserCollectionController::class, 'addBusiness']);
+        Route::delete('/{collection}/businesses/{business}', [App\Http\Controllers\API\UserCollectionController::class, 'removeBusiness']);
+        
+        // Collection following system
+        Route::post('/{collection}/follow', [App\Http\Controllers\API\UserCollectionController::class, 'follow']);
+        Route::delete('/{collection}/follow', [App\Http\Controllers\API\UserCollectionController::class, 'unfollow']);
+    });
+});
+
+// Public Collection Discovery Routes (no authentication required)
+Route::prefix('v1/discover/collections')->group(function () {
+    Route::get('/popular', [App\Http\Controllers\API\UserCollectionController::class, 'popular']);
+    Route::get('/search', [App\Http\Controllers\API\UserCollectionController::class, 'search']);
 });
