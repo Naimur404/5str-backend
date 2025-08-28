@@ -13,7 +13,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PushTokenController;
-use App\Http\Controllers\API\UserCollectionController;
+use App\Http\Controllers\Api\UserCollectionController;
 
 /*
 |--------------------------------------------------------------------------
