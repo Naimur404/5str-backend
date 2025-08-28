@@ -233,7 +233,7 @@ class HomeController extends Controller
             $latitude = $request->input('latitude');
             $longitude = $request->input('longitude');
             $section = $request->input('section', 'unknown'); // trending, featured, popular, etc.
-            $userArea = $this->determineUserArea($latitude, $longitude);
+            $userArea = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
 
             // Track using AnalyticsService
             $this->analyticsService->logBusinessView(
@@ -271,7 +271,7 @@ class HomeController extends Controller
         try {
             $latitude = $request->input('latitude');
             $longitude = $request->input('longitude');
-            $userArea = $this->determineUserArea($latitude, $longitude);
+            $userArea = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
             $interactionType = $request->input('interaction_type', 'view'); // view, click, etc.
             $sectionData = $request->input('section_data', []); // data about which sections were shown
 
@@ -1083,7 +1083,7 @@ class HomeController extends Controller
             
             // Determine user area if not provided using enhanced location detection
             if (!$area && $latitude && $longitude) {
-                $area = $this->analyticsService->determineUserArea($latitude, $longitude);
+                 $area = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
             }
 
             $today = now()->format('Y-m-d');
