@@ -2555,7 +2555,7 @@ class HomeController extends Controller
                         'category' => $business->category,
                         'subcategory' => $business->subcategory,
                         'logo_image' => $business->logoImage->image_url ?? null,
-                        'banner_image' => $business->bannerImages->first()->image_url ?? null,
+                        // 'banner_image' => $business->bannerImages->first()->image_url ?? null,
                         'area_relevance_score' => $areaScore,
                         'recommendation_reason' => $this->getRecommendationReason($business, $areaScore)
                     ];
