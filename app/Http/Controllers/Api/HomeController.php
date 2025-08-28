@@ -1723,6 +1723,102 @@ class HomeController extends Controller
     }
 
     /**
+     * Track section performance for future optimization
+     */
+    private function trackSectionPerformance($sectionData, $userArea)
+    {
+        try {
+            // Calculate performance metrics for each section
+            $performanceData = [
+                'user_area' => $userArea,
+                'timestamp' => now(),
+                'sections' => []
+            ];
+
+            foreach ($sectionData as $sectionName => $sectionContent) {
+                $businessCount = 0;
+                $avgRating = 0;
+                $totalViews = 0;
+
+                if (is_array($sectionContent)) {
+                    if ($sectionName === 'dynamic_sections') {
+                        // Handle dynamic sections (array of category sections)
+                        foreach ($sectionContent as $dynamicSection) {
+                            if (isset($dynamicSection['businesses'])) {
+                                $businessCount += count($dynamicSection['businesses']);
+                                $ratings = collect($dynamicSection['businesses'])->pluck('overall_rating')->filter();
+                                if ($ratings->count() > 0) {
+                                    $avgRating += $ratings->average();
+                                }
+                            }
+                        }
+                        if (count($sectionContent) > 0) {
+                            $avgRating = $avgRating / count($sectionContent);
+                        }
+                    } else {
+                        // Handle regular sections (direct business arrays)
+                        $businessCount = count($sectionContent);
+                        $ratings = collect($sectionContent)->pluck('overall_rating')->filter();
+                        $avgRating = $ratings->count() > 0 ? $ratings->average() : 0;
+                        $totalViews = collect($sectionContent)->sum('view_count') ?? 0;
+                    }
+                }
+
+                $performanceData['sections'][$sectionName] = [
+                    'business_count' => $businessCount,
+                    'avg_rating' => round($avgRating, 2),
+                    'total_views' => $totalViews,
+                    'quality_score' => $this->calculateSectionQualityScore($businessCount, $avgRating, $totalViews)
+                ];
+            }
+
+            // Log performance data for analytics
+            Log::info('Home Section Performance', $performanceData);
+
+            // Store in database for analytics (optional)
+            DB::table('endpoint_analytics')->insert([
+                'endpoint' => 'home_section_performance',
+                'user_id' => Auth::id(),
+                'user_area' => $userArea,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'additional_data' => json_encode($performanceData),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Failed to track section performance", [
+                'error' => $e->getMessage(),
+                'user_area' => $userArea
+            ]);
+        }
+    }
+
+    /**
+     * Calculate section quality score based on business count, rating, and views
+     */
+    private function calculateSectionQualityScore($businessCount, $avgRating, $totalViews)
+    {
+        // Weight factors for quality calculation
+        $countWeight = 0.3;
+        $ratingWeight = 0.5;
+        $viewWeight = 0.2;
+
+        // Normalize values (0-100 scale)
+        $countScore = min(($businessCount / 10) * 100, 100); // Max 10 businesses = 100%
+        $ratingScore = ($avgRating / 5) * 100; // Max 5 rating = 100%
+        $viewScore = min(($totalViews / 1000) * 100, 100); // Max 1000 views = 100%
+
+        return round(
+            ($countScore * $countWeight) + 
+            ($ratingScore * $ratingWeight) + 
+            ($viewScore * $viewWeight),
+            2
+        );
+    }
+
+    /**
      * Track user interaction for analytics
      */
     private function trackUserInteraction($action, $itemId, $area, $latitude = null, $longitude = null)
