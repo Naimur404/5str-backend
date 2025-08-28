@@ -2532,7 +2532,7 @@ class HomeController extends Controller
                     'category:id,name,slug,icon_image,color_code',
                     'subcategory:id,name,slug',
                     'logoImage:id,business_id,image_url',
-                    'bannerImages:id,business_id,image_url'
+                    // 'bannerImages:id,business_id,image_url'
                 ])
                 ->get()
                 ->map(function ($business) {
