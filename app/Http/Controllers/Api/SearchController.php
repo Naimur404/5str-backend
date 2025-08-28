@@ -7,16 +7,19 @@ use App\Models\Business;
 use App\Models\BusinessOffering;
 use App\Models\Category;
 use App\Services\AnalyticsService;
+use App\Services\LocationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SearchController extends Controller
 {
     protected $analyticsService;
+    protected $locationService;
 
-    public function __construct(AnalyticsService $analyticsService)
+    public function __construct(AnalyticsService $analyticsService, LocationService $locationService)
     {
         $this->analyticsService = $analyticsService;
+        $this->locationService = $locationService;
     }
 
     /**
@@ -36,7 +39,7 @@ class SearchController extends Controller
             $sortBy = $request->input('sort', 'relevance');
 
             // Determine user area for trending analysis
-            $userArea = $this->determineUserArea($latitude, $longitude);
+            $userArea = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
 
             $results = [];
 
@@ -110,7 +113,7 @@ class SearchController extends Controller
             $business = Business::findOrFail($businessId);
             $latitude = $request->input('latitude');
             $longitude = $request->input('longitude');
-            $userArea = $this->determineUserArea($latitude, $longitude);
+            $userArea = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
 
             // Track the view event
             $this->analyticsService->logBusinessView(
@@ -148,7 +151,7 @@ class SearchController extends Controller
             $offering = BusinessOffering::findOrFail($offeringId);
             $latitude = $request->input('latitude');
             $longitude = $request->input('longitude');
-            $userArea = $this->determineUserArea($latitude, $longitude);
+            $userArea = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
 
             // Track the view event
             $this->analyticsService->logOfferingView(
@@ -636,7 +639,10 @@ class SearchController extends Controller
     /**
      * Calculate distance between two points
      */
-    protected function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    /**
+     * Calculate distance between two points using Haversine formula
+     */
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
     {
         $earthRadius = 6371; // km
 
@@ -672,76 +678,396 @@ class SearchController extends Controller
     }
 
     /**
-     * Determine user area from coordinates
+     * Advanced location-based search with area filtering
+     * Uses LocationService for precise area detection
      */
-    private function determineUserArea($latitude, $longitude)
+    public function searchByArea(Request $request)
     {
-        if (!$latitude || !$longitude) {
-            return 'Dhanmondi'; // Default area
+        try {
+            $searchTerm = $request->input('q');
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 15);
+            $areaFilter = $request->input('area_filter'); // Specific area name to filter by
+            $categoryId = $request->input('category_id');
+            $limit = $request->input('limit', 20);
+            $sortBy = $request->input('sort', 'relevance');
+
+            if (!$latitude || !$longitude) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Latitude and longitude are required for area-based search'
+                ], 422);
+            }
+
+            // Get user's precise location info
+            $userArea = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
+            $locationInsights = $this->locationService->getAreaInsights($latitude, $longitude);
+
+            // Search businesses
+            $businessQuery = Business::active();
+
+            if ($searchTerm) {
+                $businessQuery->where(function ($q) use ($searchTerm) {
+                    $q->where('business_name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('description', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('landmark', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+
+            if ($categoryId) {
+                $businessQuery->where('category_id', $categoryId);
+            }
+
+            $businessQuery->nearbyWithDistance($latitude, $longitude, $radiusKm)
+                         ->with([
+                             'category:id,name,slug,icon_image,color_code',
+                             'subcategory:id,name,slug',
+                             'logoImage:id,business_id,image_url',
+                             'bannerImages:id,business_id,image_url'
+                         ]);
+
+            $businesses = $businessQuery->get();
+
+            // Filter by specific area if requested
+            if ($areaFilter) {
+                $businesses = $businesses->filter(function ($business) use ($areaFilter) {
+                    $businessArea = $this->locationService->determineUserAreaPrecise(
+                        $business->latitude, 
+                        $business->longitude
+                    );
+                    return str_contains(strtolower($businessArea), strtolower($areaFilter)) ||
+                           str_contains(strtolower($areaFilter), strtolower($businessArea));
+                });
+            }
+
+            // Search offerings
+            $offeringQuery = BusinessOffering::active();
+
+            if ($searchTerm) {
+                $offeringQuery->where(function ($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+
+            $offeringQuery->whereHas('business', function ($q) use ($latitude, $longitude, $radiusKm) {
+                $q->active()->nearby($latitude, $longitude, $radiusKm);
+            });
+
+            if ($categoryId) {
+                $offeringQuery->whereHas('business', function ($q) use ($categoryId) {
+                    $q->where('category_id', $categoryId);
+                });
+            }
+
+            $offeringQuery->with([
+                'business:id,business_name,slug,latitude,longitude,landmark',
+                'business.category:id,name,slug',
+                'variants'
+            ]);
+
+            $offerings = $offeringQuery->get();
+
+            // Calculate distances for offerings
+            $offerings = $offerings->map(function ($offering) use ($latitude, $longitude) {
+                $offering->distance_km = $this->calculateDistance(
+                    $latitude, 
+                    $longitude, 
+                    $offering->business->latitude, 
+                    $offering->business->longitude
+                );
+                return $offering;
+            });
+
+            // Filter offerings by area if requested
+            if ($areaFilter) {
+                $offerings = $offerings->filter(function ($offering) use ($areaFilter) {
+                    $businessArea = $this->locationService->determineUserAreaPrecise(
+                        $offering->business->latitude, 
+                        $offering->business->longitude
+                    );
+                    return str_contains(strtolower($businessArea), strtolower($areaFilter)) ||
+                           str_contains(strtolower($areaFilter), strtolower($businessArea));
+                });
+            }
+
+            // Apply sorting
+            $businesses = $this->applySorting($businesses, $sortBy, $userArea);
+            $offerings = $this->applySorting($offerings, $sortBy, $userArea);
+
+            // Limit results
+            $businesses = $businesses->take($limit);
+            $offerings = $offerings->take($limit);
+
+            // Track search analytics
+            $this->analyticsService->logSearch(
+                searchTerm: $searchTerm,
+                categoryId: $categoryId,
+                userLatitude: (float) $latitude,
+                userLongitude: (float) $longitude,
+                userArea: $userArea,
+                filtersApplied: [
+                    'area_based_search' => true,
+                    'area_filter' => $areaFilter,
+                    'radius_km' => $radiusKm,
+                    'sort_by' => $sortBy
+                ],
+                resultsCount: $businesses->count() + $offerings->count(),
+                request: $request
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'search_info' => [
+                        'search_term' => $searchTerm,
+                        'user_location' => $locationInsights,
+                        'area_filter' => $areaFilter,
+                        'search_radius_km' => $radiusKm
+                    ],
+                    'businesses' => $businesses->map(function ($business) {
+                        return [
+                            'id' => $business->id,
+                            'business_name' => $business->business_name,
+                            'slug' => $business->slug,
+                            'phone' => $business->phone,
+                            'landmark' => $business->landmark,
+                            'latitude' => $business->latitude,
+                            'longitude' => $business->longitude,
+                            'distance_km' => round($business->distance_km, 2),
+                            'overall_rating' => $business->overall_rating,
+                            'total_reviews' => $business->total_reviews,
+                            'price_range' => $business->price_range,
+                            'is_featured' => $business->is_featured,
+                            'category' => $business->category,
+                            'subcategory' => $business->subcategory,
+                            'logo_image' => $business->logoImage->image_url ?? null,
+                            'banner_image' => $business->bannerImages->first()->image_url ?? null,
+                            'detected_area' => $this->locationService->determineUserAreaPrecise(
+                                $business->latitude, 
+                                $business->longitude
+                            )
+                        ];
+                    }),
+                    'offerings' => $offerings->map(function ($offering) {
+                        return [
+                            'id' => $offering->id,
+                            'name' => $offering->name,
+                            'description' => $offering->description,
+                            'price' => $offering->price,
+                            'business' => [
+                                'id' => $offering->business->id,
+                                'name' => $offering->business->business_name,
+                                'slug' => $offering->business->slug,
+                                'landmark' => $offering->business->landmark,
+                                'category' => $offering->business->category
+                            ],
+                            'distance_km' => round($offering->distance_km, 2),
+                            'detected_area' => $this->locationService->determineUserAreaPrecise(
+                                $offering->business->latitude, 
+                                $offering->business->longitude
+                            )
+                        ];
+                    }),
+                    'metadata' => [
+                        'total_businesses' => $businesses->count(),
+                        'total_offerings' => $offerings->count(),
+                        'total_results' => $businesses->count() + $offerings->count(),
+                        'area_filtered' => $areaFilter !== null
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Area-based search error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Search failed'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get search suggestions with area context
+     */
+    public function getAreaBasedSuggestions(Request $request)
+    {
+        try {
+            $query = $request->input('q', '');
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $limit = $request->input('limit', 10);
+
+            $suggestions = [];
+
+            if (!$latitude || !$longitude) {
+                // Fallback to general suggestions
+                return $this->suggestions($request);
+            }
+
+            // Get user's area context
+            $userArea = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
+            $locationInsights = $this->locationService->getAreaInsights($latitude, $longitude);
+
+            // Get businesses in the area for contextual suggestions
+            $nearbyBusinesses = Business::active()
+                ->nearbyWithDistance($latitude, $longitude, 20)
+                ->with('category:id,name')
+                ->get();
+
+            // Business name suggestions from nearby businesses
+            if (strlen($query) >= 2) {
+                $businessSuggestions = $nearbyBusinesses
+                    ->filter(function ($business) use ($query) {
+                        return str_contains(strtolower($business->business_name), strtolower($query));
+                    })
+                    ->take(5)
+                    ->map(function ($business) {
+                        return [
+                            'type' => 'business',
+                            'text' => $business->business_name,
+                            'category' => $business->category->name ?? null,
+                            'distance_km' => round($business->distance_km, 2),
+                            'area' => $this->locationService->determineUserAreaPrecise(
+                                $business->latitude, 
+                                $business->longitude
+                            )
+                        ];
+                    });
+
+                $suggestions = array_merge($suggestions, $businessSuggestions->toArray());
+            }
+
+            // Category suggestions based on area
+            $areaCategories = $nearbyBusinesses
+                ->groupBy('category.name')
+                ->map->count()
+                ->sortDesc()
+                ->take(5)
+                ->keys()
+                ->filter(function ($categoryName) use ($query) {
+                    return strlen($query) < 2 || str_contains(strtolower($categoryName), strtolower($query));
+                })
+                ->map(function ($categoryName) use ($nearbyBusinesses) {
+                    $count = $nearbyBusinesses->where('category.name', $categoryName)->count();
+                    return [
+                        'type' => 'category',
+                        'text' => $categoryName,
+                        'business_count' => $count,
+                        'suggestion_reason' => "Popular in your area"
+                    ];
+                });
+
+            $suggestions = array_merge($suggestions, $areaCategories->toArray());
+
+            // Area-specific suggestions
+            $areaSuggestions = [
+                [
+                    'type' => 'area',
+                    'text' => "Near {$userArea}",
+                    'suggestion_reason' => 'Search in your current area'
+                ]
+            ];
+
+            if ($locationInsights['district'] !== 'Unknown District' && 
+                $locationInsights['district'] !== $userArea) {
+                $areaSuggestions[] = [
+                    'type' => 'area',
+                    'text' => "In {$locationInsights['district']}",
+                    'suggestion_reason' => 'Search in your district'
+                ];
+            }
+
+            $suggestions = array_merge($suggestions, $areaSuggestions);
+
+            // Limit total suggestions
+            $suggestions = array_slice($suggestions, 0, $limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'suggestions' => $suggestions,
+                    'user_context' => [
+                        'area' => $userArea,
+                        'district' => $locationInsights['district'] ?? null,
+                        'division' => $locationInsights['division'] ?? null
+                    ],
+                    'query' => $query
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Area-based suggestions error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get suggestions'
+            ], 500);
+        }
+    }
+
+    /**
+     * Apply sorting to search results with area context
+     */
+    private function applySorting($items, $sortBy, $userArea)
+    {
+        switch ($sortBy) {
+            case 'distance':
+                return $items->sortBy('distance_km');
+            case 'rating':
+                return $items->sortByDesc('overall_rating');
+            case 'reviews':
+                return $items->sortByDesc('total_reviews');
+            case 'relevance':
+            default:
+                return $items->map(function ($item) use ($userArea) {
+                    $item->relevance_score = $this->calculateRelevanceScore($item, $userArea);
+                    return $item;
+                })->sortByDesc('relevance_score');
+        }
+    }
+
+    /**
+     * Calculate relevance score for search results
+     */
+    private function calculateRelevanceScore($item, $userArea)
+    {
+        $score = 0;
+
+        // Base rating score (0-40 points)
+        if (isset($item->overall_rating)) {
+            $score += ($item->overall_rating / 5) * 40;
         }
 
-        // Bangladesh area boundaries (same as HomeController)
-        $bangladeshAreas = [
-            'Dhanmondi' => [
-                'lat_min' => 23.740, 'lat_max' => 23.755,
-                'lng_min' => 90.365, 'lng_max' => 90.380
-            ],
-            'Gulshan' => [
-                'lat_min' => 23.780, 'lat_max' => 23.800,
-                'lng_min' => 90.405, 'lng_max' => 90.425
-            ],
-            'Banani' => [
-                'lat_min' => 23.785, 'lat_max' => 23.795,
-                'lng_min' => 90.395, 'lng_max' => 90.410
-            ],
-            'Uttara' => [
-                'lat_min' => 23.855, 'lat_max' => 23.885,
-                'lng_min' => 90.395, 'lng_max' => 90.420
-            ],
-            'Mirpur' => [
-                'lat_min' => 23.795, 'lat_max' => 23.825,
-                'lng_min' => 90.345, 'lng_max' => 90.375
-            ],
-            'Wari' => [
-                'lat_min' => 23.715, 'lat_max' => 23.725,
-                'lng_min' => 90.410, 'lng_max' => 90.420
-            ],
-            'Old Dhaka' => [
-                'lat_min' => 23.700, 'lat_max' => 23.720,
-                'lng_min' => 90.390, 'lng_max' => 90.410
-            ],
-            'Motijheel' => [
-                'lat_min' => 23.725, 'lat_max' => 23.735,
-                'lng_min' => 90.410, 'lng_max' => 90.420
-            ],
-        ];
+        // Review count factor (0-20 points)
+        if (isset($item->total_reviews)) {
+            $reviewScore = min(($item->total_reviews / 50) * 20, 20);
+            $score += $reviewScore;
+        }
 
-        // Check which area the coordinates fall into
-        foreach ($bangladeshAreas as $areaName => $bounds) {
-            if ($latitude >= $bounds['lat_min'] && $latitude <= $bounds['lat_max'] &&
-                $longitude >= $bounds['lng_min'] && $longitude <= $bounds['lng_max']) {
-                return $areaName;
+        // Distance factor (0-20 points, closer is better)
+        if (isset($item->distance_km)) {
+            $distanceScore = max(0, 20 - ($item->distance_km * 2));
+            $score += $distanceScore;
+        }
+
+        // Featured bonus (0-10 points)
+        if (isset($item->is_featured) && $item->is_featured) {
+            $score += 10;
+        }
+
+        // Same area bonus (0-10 points)
+        if (isset($item->latitude) && isset($item->longitude)) {
+            $itemArea = $this->locationService->determineUserAreaPrecise(
+                $item->latitude, 
+                $item->longitude
+            );
+            if ($itemArea === $userArea) {
+                $score += 10;
             }
         }
 
-        // If no specific area found, determine by general region
-        if ($latitude >= 23.0 && $latitude <= 24.5 && $longitude >= 90.0 && $longitude <= 90.5) {
-            return 'Dhaka Metropolitan'; // General Dhaka area
-        } elseif ($latitude >= 22.0 && $latitude <= 23.0 && $longitude >= 91.5 && $longitude <= 92.0) {
-            return 'Chittagong Division';
-        } elseif ($latitude >= 24.5 && $latitude <= 25.5 && $longitude >= 91.5 && $longitude <= 92.5) {
-            return 'Sylhet Division';
-        } elseif ($latitude >= 24.0 && $latitude <= 25.0 && $longitude >= 88.0 && $longitude <= 89.5) {
-            return 'Rajshahi Division';
-        } elseif ($latitude >= 22.5 && $latitude <= 23.5 && $longitude >= 89.0 && $longitude <= 90.0) {
-            return 'Khulna Division';
-        } elseif ($latitude >= 22.0 && $latitude <= 23.0 && $longitude >= 90.0 && $longitude <= 91.0) {
-            return 'Barisal Division';
-        } elseif ($latitude >= 25.0 && $latitude <= 26.5 && $longitude >= 88.5 && $longitude <= 90.0) {
-            return 'Rangpur Division';
-        }
-
-        // Default fallback
-        return 'Bangladesh';
+        return round($score, 2);
     }
+
 }

@@ -48,9 +48,17 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Pages\Dashboard::class,
                 \App\Filament\Pages\ProfilePage::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
+                \App\Filament\Widgets\PlatformStatsOverview::class,
+                \App\Filament\Widgets\BasicStatsWidget::class,
+                \App\Filament\Widgets\BusinessGrowthChart::class,
+                \App\Filament\Widgets\AreaUsageChart::class,
+                \App\Filament\Widgets\DashboardStats::class,
+                \App\Filament\Widgets\EndpointAnalyticsOverview::class,
+                \App\Filament\Widgets\EndpointUsageChart::class,
                 \App\Filament\Widgets\PendingApprovalsOverview::class,
+                \App\Filament\Widgets\QuickAnalyticsActions::class,
+                \App\Filament\Widgets\SimpleStatsWidget::class,
                 Widgets\AccountWidget::class,
                 Widgets\FilamentInfoWidget::class,
             ])

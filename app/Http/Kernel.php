@@ -44,6 +44,7 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\AutoTrackViews::class,
             \App\Http\Middleware\AutoTrackSearches::class,
+            \App\Http\Middleware\TrackEndpointAnalytics::class,
         ],
     ];
 

@@ -660,4 +660,62 @@ class AnalyticsService
         // Default fallback
         return 'Bangladesh';
     }
+
+    /**
+     * Log endpoint analytics for dashboard tracking
+     */
+    public function logEndpointAnalytics(
+        string $endpoint,
+        ?float $userLatitude = null,
+        ?float $userLongitude = null,
+        ?string $userArea = null,
+        ?array $additionalData = null,
+        Request $request = null
+    ): \App\Models\EndpointAnalytics {
+        return \App\Models\EndpointAnalytics::create([
+            'endpoint' => $endpoint,
+            'user_id' => Auth::id(),
+            'user_area' => $userArea,
+            'latitude' => $userLatitude,
+            'longitude' => $userLongitude,
+            'ip_address' => $request?->ip(),
+            'user_agent' => $request?->userAgent(),
+            'additional_data' => $additionalData,
+        ]);
+    }
+
+    /**
+     * Track API endpoint usage with location data
+     */
+    public function trackEndpoint(
+        string $endpointName,
+        Request $request,
+        ?array $additionalData = null
+    ): void {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $userArea = null;
+
+            // Determine user area if coordinates provided
+            if ($latitude && $longitude) {
+                $userArea = $this->determineUserArea($latitude, $longitude);
+            }
+
+            $this->logEndpointAnalytics(
+                endpoint: $endpointName,
+                userLatitude: $latitude ? (float) $latitude : null,
+                userLongitude: $longitude ? (float) $longitude : null,
+                userArea: $userArea,
+                additionalData: $additionalData,
+                request: $request
+            );
+        } catch (\Exception $e) {
+            // Log error but don't break the main functionality
+            Log::warning('Failed to track endpoint analytics: ' . $e->getMessage(), [
+                'endpoint' => $endpointName,
+                'request_url' => $request->fullUrl(),
+            ]);
+        }
+    }
 }

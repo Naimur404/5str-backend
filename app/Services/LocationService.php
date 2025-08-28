@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
-
-class AnalyticsService
+class LocationService
 {
-    private function determineUserAreaPrecise($latitude, $longitude)
+    /**
+     * Determine user's specific area/ward from coordinates with enhanced precision for full Bangladesh
+     * Covers all 8 divisions, 64 districts, and major cities with ward-level precision
+     */
+    public function determineUserAreaPrecise($latitude, $longitude)
     {
         if (!$latitude || !$longitude) {
             return null;
@@ -45,6 +48,149 @@ class AnalyticsService
         if ($result) return $result;
 
         return 'Bangladesh';
+    }
+
+    /**
+     * Get area statistics and insights
+     */
+    public function getAreaInsights($latitude, $longitude)
+    {
+        $area = $this->determineUserAreaPrecise($latitude, $longitude);
+        
+        if (!$area) {
+            return null;
+        }
+
+        // Determine division
+        $division = $this->getDivisionFromArea($area);
+        
+        // Determine district
+        $district = $this->getDistrictFromArea($area);
+        
+        return [
+            'specific_area' => $area,
+            'district' => $district,
+            'division' => $division,
+            'coordinates' => [
+                'latitude' => $latitude,
+                'longitude' => $longitude
+            ],
+            'precision_level' => $this->getPrecisionLevel($area)
+        ];
+    }
+
+    /**
+     * Get division from area name
+     */
+    private function getDivisionFromArea($area)
+    {
+        if (str_contains($area, 'Dhaka') || str_contains($area, 'Dhanmondi') || 
+            str_contains($area, 'Gulshan') || str_contains($area, 'Uttara') || 
+            str_contains($area, 'Mirpur') || str_contains($area, 'Banani') ||
+            str_contains($area, 'Bashundhara') || str_contains($area, 'Tejgaon') ||
+            str_contains($area, 'Mohammadpur') || str_contains($area, 'Wari') ||
+            str_contains($area, 'Motijheel') || str_contains($area, 'Ramna') ||
+            str_contains($area, 'Lalmatia') || str_contains($area, 'Farmgate') ||
+            str_contains($area, 'Cantonment') || str_contains($area, 'Baridhara') ||
+            str_contains($area, 'Savar') || str_contains($area, 'Gazipur') ||
+            str_contains($area, 'Narayanganj') || str_contains($area, 'Keraniganj') ||
+            str_contains($area, 'Manikganj') || str_contains($area, 'Tongi')) {
+            return 'Dhaka Division';
+        } elseif (str_contains($area, 'Chittagong') || str_contains($area, 'Cox') ||
+                 str_contains($area, 'Comilla') || str_contains($area, 'Feni') ||
+                 str_contains($area, 'Noakhali') || str_contains($area, 'Lakshmipur') ||
+                 str_contains($area, 'Chandpur') || str_contains($area, 'Brahmanbaria') ||
+                 str_contains($area, 'Rangamati') || str_contains($area, 'Khagrachhari') ||
+                 str_contains($area, 'Bandarban')) {
+            return 'Chittagong Division';
+        } elseif (str_contains($area, 'Sylhet') || str_contains($area, 'Moulvibazar') ||
+                 str_contains($area, 'Habiganj') || str_contains($area, 'Sunamganj') ||
+                 str_contains($area, 'Sreemangal')) {
+            return 'Sylhet Division';
+        } elseif (str_contains($area, 'Rajshahi') || str_contains($area, 'Naogaon') ||
+                 str_contains($area, 'Pabna') || str_contains($area, 'Bogura') ||
+                 str_contains($area, 'Sirajganj') || str_contains($area, 'Natore') ||
+                 str_contains($area, 'Joypurhat') || str_contains($area, 'Chapainawabganj')) {
+            return 'Rajshahi Division';
+        } elseif (str_contains($area, 'Khulna') || str_contains($area, 'Jessore') ||
+                 str_contains($area, 'Satkhira') || str_contains($area, 'Narail') ||
+                 str_contains($area, 'Bagerhat') || str_contains($area, 'Chuadanga') ||
+                 str_contains($area, 'Kushtia') || str_contains($area, 'Meherpur') ||
+                 str_contains($area, 'Magura') || str_contains($area, 'Jhenaidah')) {
+            return 'Khulna Division';
+        } elseif (str_contains($area, 'Barisal') || str_contains($area, 'Patuakhali') ||
+                 str_contains($area, 'Pirojpur') || str_contains($area, 'Jhalokati') ||
+                 str_contains($area, 'Barguna') || str_contains($area, 'Bhola') ||
+                 str_contains($area, 'Kuakata')) {
+            return 'Barisal Division';
+        } elseif (str_contains($area, 'Rangpur') || str_contains($area, 'Dinajpur') ||
+                 str_contains($area, 'Gaibandha') || str_contains($area, 'Kurigram') ||
+                 str_contains($area, 'Lalmonirhat') || str_contains($area, 'Nilphamari') ||
+                 str_contains($area, 'Thakurgaon') || str_contains($area, 'Panchagarh') ||
+                 str_contains($area, 'Saidpur')) {
+            return 'Rangpur Division';
+        } elseif (str_contains($area, 'Mymensingh') || str_contains($area, 'Jamalpur') ||
+                 str_contains($area, 'Sherpur') || str_contains($area, 'Netrokona')) {
+            return 'Mymensingh Division';
+        } else {
+            return 'Unknown Division';
+        }
+    }
+
+    /**
+     * Get district from area name
+     */
+    private function getDistrictFromArea($area)
+    {
+        // Extract district information from area name
+        $districts = [
+            'Dhaka', 'Gazipur', 'Narayanganj', 'Manikganj', 'Chittagong', 'Cox\'s Bazar', 
+            'Comilla', 'Feni', 'Noakhali', 'Lakshmipur', 'Chandpur', 'Brahmanbaria',
+            'Rangamati', 'Khagrachhari', 'Bandarban', 'Sylhet', 'Moulvibazar', 'Habiganj',
+            'Sunamganj', 'Rajshahi', 'Naogaon', 'Pabna', 'Bogura', 'Sirajganj', 'Natore',
+            'Joypurhat', 'Chapainawabganj', 'Khulna', 'Jessore', 'Satkhira', 'Narail',
+            'Bagerhat', 'Chuadanga', 'Kushtia', 'Meherpur', 'Magura', 'Jhenaidah',
+            'Barisal', 'Patuakhali', 'Pirojpur', 'Jhalokati', 'Barguna', 'Bhola',
+            'Rangpur', 'Dinajpur', 'Gaibandha', 'Kurigram', 'Lalmonirhat', 'Nilphamari',
+            'Thakurgaon', 'Panchagarh', 'Mymensingh', 'Jamalpur', 'Sherpur', 'Netrokona'
+        ];
+
+        foreach ($districts as $district) {
+            if (str_contains($area, $district)) {
+                return $district;
+            }
+        }
+
+        return 'Unknown District';
+    }
+
+    /**
+     * Get precision level of area detection
+     */
+    private function getPrecisionLevel($area)
+    {
+        if (str_contains($area, 'Ward') || str_contains($area, 'Sector') || 
+            str_contains($area, 'Block') || str_contains($area, 'Circle')) {
+            return 'Ward Level';
+        } elseif (str_contains($area, 'Upazila') || str_contains($area, 'Sadar')) {
+            return 'Upazila Level';
+        } elseif (str_contains($area, 'District') || str_contains($area, 'Division')) {
+            return 'District/Division Level';
+        } else {
+            return 'City/Area Level';
+        }
+    }
+
+    /**
+     * Check if coordinates are within Bangladesh boundaries
+     */
+    public function isWithinBangladesh($latitude, $longitude)
+    {
+        $lat = (float) $latitude;
+        $lng = (float) $longitude;
+        
+        // Bangladesh approximate boundaries
+        return $lat >= 20.5000 && $lat <= 26.6000 && $lng >= 88.0000 && $lng <= 92.8000;
     }
 
     /**

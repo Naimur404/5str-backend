@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Auth;
 
 class PendingApprovalsOverview extends BaseWidget
 {
-    protected static ?int $sort = 1;
-
+    // Removed sort order to prevent auto-display on main dashboard
+    
     public static function canView(): bool
     {
         return Auth::user()?->hasAnyRole(['super-admin', 'admin', 'moderator']);

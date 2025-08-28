@@ -20,17 +20,17 @@ class DashboardStats extends BaseWidget
         $featuredBusinesses = Business::where('is_featured', true)->count();
         
         return [
-            Stat::make('Total Users', User::count())
-                ->description('Registered users')
-                ->descriptionIcon('heroicon-m-users')
-                ->color('success')
-                ->chart([7, 2, 10, 3, 15, 4, 17]),
+            // Stat::make('Total Users', User::count())
+            //     ->description('Registered users')
+            //     ->descriptionIcon('heroicon-m-users')
+            //     ->color('success')
+            //     ->chart([7, 2, 10, 3, 15, 4, 17]),
                 
-            Stat::make('Active Businesses', $activeBusinesses)
-                ->description('Live business listings')
-                ->descriptionIcon('heroicon-m-building-office')
-                ->color('info')
-                ->chart([5, 3, 8, 6, 12, 8, 15]),
+            // Stat::make('Active Businesses', $activeBusinesses)
+            //     ->description('Live business listings')
+            //     ->descriptionIcon('heroicon-m-building-office')
+            //     ->color('info')
+            //     ->chart([5, 3, 8, 6, 12, 8, 15]),
                 
             Stat::make('Pending Reviews', $pendingReviews)
                 ->description('Awaiting moderation')

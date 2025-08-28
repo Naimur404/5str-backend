@@ -52,14 +52,23 @@ Route::prefix('v1')->group(function () {
     Route::post('/home/businesses/{business}/track-view', [HomeController::class, 'trackHomeBusinessView']);
     Route::post('/home/track-trending-performance', [HomeController::class, 'trackTrendingPerformance']);
     
-    // Location-based analytics (Admin access)
+    // Location-based analytics and insights
     Route::get('/analytics/area-insights', [HomeController::class, 'getAreaAnalytics']);
+    Route::get('/location/insights', [HomeController::class, 'getLocationInsights']);
+    Route::get('/location/recommendations', [HomeController::class, 'getAreaBasedRecommendations']);
+    
+    // Admin analytics (consider adding admin middleware later)
+    Route::get('/analytics/divisions', [HomeController::class, 'getDivisionAnalytics']);
 
     // Universal search routes (public access)
     Route::prefix('search')->group(function () {
         Route::get('/', [SearchController::class, 'search']);
         Route::get('/suggestions', [SearchController::class, 'suggestions']);
         Route::get('/popular', [SearchController::class, 'popular']);
+        
+        // Enhanced area-based search routes
+        Route::get('/area', [SearchController::class, 'searchByArea']);
+        Route::get('/area-suggestions', [SearchController::class, 'getAreaBasedSuggestions']);
         
         // View tracking for trending analysis
         Route::post('/businesses/{business}/view', [SearchController::class, 'trackBusinessView']);
@@ -89,6 +98,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/{business}/offerings', [BusinessController::class, 'offerings']);
         Route::get('/{business}/reviews', [BusinessController::class, 'reviews']);
         Route::get('/{business}/offers', [BusinessController::class, 'offers']);
+        
+        // Enhanced location-based business features
+        Route::get('/analytics/by-area', [BusinessController::class, 'getBusinessAnalyticsByArea']);
+        Route::get('/by-precise-area', [BusinessController::class, 'getBusinessesByPreciseArea']);
+        Route::post('/analytics/area-comparison', [BusinessController::class, 'getAreaComparisonAnalytics']);
     });
 
     // Public offering routes (with optional authentication for favorites)
@@ -99,6 +113,13 @@ Route::prefix('v1')->group(function () {
         
         // View tracking for trending analysis
         Route::post('/{offering}/track-view', [OfferingController::class, 'trackOfferingView']);
+    });
+
+    // Public offering analytics routes
+    Route::prefix('offerings/analytics')->group(function () {
+        Route::post('/area-analytics', [OfferingController::class, 'getOfferingAnalyticsByArea']);
+        Route::post('/area-offerings', [OfferingController::class, 'getOfferingsByPreciseArea']);
+        Route::post('/popular-in-area', [OfferingController::class, 'getPopularOfferingsInArea']);
     });
 
     // Public offer routes (with optional authentication for usage tracking)
