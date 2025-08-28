@@ -193,7 +193,7 @@ Get popular public collections (no authentication required).
         "businesses": [
           {
             "id": 1,
-            "name": "Restaurant ABC",
+            "business_name": "Restaurant ABC",
             "image_url": "https://example.com/restaurant.jpg"
           }
         ]

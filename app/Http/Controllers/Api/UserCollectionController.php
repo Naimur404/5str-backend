@@ -8,6 +8,7 @@ use App\Models\Business;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -75,12 +76,23 @@ class UserCollectionController extends Controller
     /**
      * Display the specified collection.
      */
-    public function show(UserCollection $collection): JsonResponse
+    public function show($collectionId): JsonResponse
     {
         $user = Auth::user();
         
-        // Check if user can view this collection
-        if (!$collection->is_public && $collection->user_id !== $user->id) {
+        // First try to find the collection owned by the user
+        $collection = UserCollection::where('id', $collectionId)
+                                   ->where('user_id', $user->id)
+                                   ->first();
+        
+        // If not found, check if it's a public collection
+        if (!$collection) {
+            $collection = UserCollection::where('id', $collectionId)
+                                       ->where('is_public', true)
+                                       ->first();
+        }
+        
+        if (!$collection) {
             return response()->json([
                 'success' => false,
                 'message' => 'Collection not found or access denied'
@@ -117,16 +129,20 @@ class UserCollectionController extends Controller
     /**
      * Update the specified collection.
      */
-    public function update(Request $request, UserCollection $collection): JsonResponse
+    public function update(Request $request, $collectionId): JsonResponse
     {
         $user = Auth::user();
         
-        // Check ownership
-        if ($collection->user_id !== $user->id) {
+        // Find the collection that belongs to the authenticated user
+        $collection = UserCollection::where('id', $collectionId)
+                                   ->where('user_id', $user->id)
+                                   ->first();
+        
+        if (!$collection) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized to update this collection'
-            ], 403);
+                'message' => 'Collection not found or you don\'t have permission to update it'
+            ], 404);
         }
 
         $request->validate([
@@ -160,16 +176,20 @@ class UserCollectionController extends Controller
     /**
      * Remove the specified collection.
      */
-    public function destroy(UserCollection $collection): JsonResponse
+    public function destroy($collectionId): JsonResponse
     {
         $user = Auth::user();
         
-        // Check ownership
-        if ($collection->user_id !== $user->id) {
+        // Find the collection that belongs to the authenticated user
+        $collection = UserCollection::where('id', $collectionId)
+                                   ->where('user_id', $user->id)
+                                   ->first();
+        
+        if (!$collection) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized to delete this collection'
-            ], 403);
+                'message' => 'Collection not found or you don\'t have permission to delete it'
+            ], 404);
         }
 
         $collection->delete();
@@ -183,16 +203,20 @@ class UserCollectionController extends Controller
     /**
      * Add a business to a collection.
      */
-    public function addBusiness(Request $request, UserCollection $collection): JsonResponse
+    public function addBusiness(Request $request, $collectionId): JsonResponse
     {
         $user = Auth::user();
         
-        // Check ownership
-        if ($collection->user_id !== $user->id) {
+        // Find the collection that belongs to the authenticated user
+        $collection = UserCollection::where('id', $collectionId)
+                                   ->where('user_id', $user->id)
+                                   ->first();
+        
+        if (!$collection) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized to modify this collection'
-            ], 403);
+                'message' => 'Collection not found or you don\'t have permission to modify it'
+            ], 404);
         }
 
         $request->validate([
@@ -234,16 +258,28 @@ class UserCollectionController extends Controller
     /**
      * Remove a business from a collection.
      */
-    public function removeBusiness(UserCollection $collection, Business $business): JsonResponse
+    public function removeBusiness($collectionId, $businessId): JsonResponse
     {
         $user = Auth::user();
         
-        // Check ownership
-        if ($collection->user_id !== $user->id) {
+        // Find the collection that belongs to the authenticated user
+        $collection = UserCollection::where('id', $collectionId)
+                                   ->where('user_id', $user->id)
+                                   ->first();
+        
+        if (!$collection) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized to modify this collection'
-            ], 403);
+                'message' => 'Collection not found or you don\'t have permission to modify it'
+            ], 404);
+        }
+        
+        $business = Business::find($businessId);
+        if (!$business) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Business not found'
+            ], 404);
         }
 
         if (!$collection->containsBusiness($business)) {
