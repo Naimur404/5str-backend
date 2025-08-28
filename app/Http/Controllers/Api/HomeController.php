@@ -2581,7 +2581,7 @@ class HomeController extends Controller
             Log::error('Area recommendations error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to get area-based recommendations'
+                'message' => 'Failed to get area-based recommendations'. $e->getMessage()
             ], 500);
         }
     }
