@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PushTokenController;
+use App\Http\Controllers\API\UserCollectionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -203,24 +204,24 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     // User Collections (require login)
     Route::prefix('collections')->group(function () {
         // User's collections CRUD
-        Route::get('/', [App\Http\Controllers\API\UserCollectionController::class, 'index']);
-        Route::post('/', [App\Http\Controllers\API\UserCollectionController::class, 'store']);
-        Route::get('/{collection}', [App\Http\Controllers\API\UserCollectionController::class, 'show']);
-        Route::put('/{collection}', [App\Http\Controllers\API\UserCollectionController::class, 'update']);
-        Route::delete('/{collection}', [App\Http\Controllers\API\UserCollectionController::class, 'destroy']);
+        Route::get('/', [UserCollectionController::class, 'index']);
+        Route::post('/', [UserCollectionController::class, 'store']);
+        Route::get('/{collection}', [UserCollectionController::class, 'show']);
+        Route::put('/{collection}', [UserCollectionController::class, 'update']);
+        Route::delete('/{collection}', [UserCollectionController::class, 'destroy']);
         
         // Collection business management
-        Route::post('/{collection}/businesses', [App\Http\Controllers\API\UserCollectionController::class, 'addBusiness']);
-        Route::delete('/{collection}/businesses/{business}', [App\Http\Controllers\API\UserCollectionController::class, 'removeBusiness']);
+        Route::post('/{collection}/businesses', [UserCollectionController::class, 'addBusiness']);
+        Route::delete('/{collection}/businesses/{business}', [UserCollectionController::class, 'removeBusiness']);
         
         // Collection following system
-        Route::post('/{collection}/follow', [App\Http\Controllers\API\UserCollectionController::class, 'follow']);
-        Route::delete('/{collection}/follow', [App\Http\Controllers\API\UserCollectionController::class, 'unfollow']);
+        Route::post('/{collection}/follow', [UserCollectionController::class, 'follow']);
+        Route::delete('/{collection}/follow', [UserCollectionController::class, 'unfollow']);
     });
 });
 
 // Public Collection Discovery Routes (no authentication required)
 Route::prefix('v1/discover/collections')->group(function () {
-    Route::get('/popular', [App\Http\Controllers\API\UserCollectionController::class, 'popular']);
-    Route::get('/search', [App\Http\Controllers\API\UserCollectionController::class, 'search']);
+    Route::get('/popular', [UserCollectionController::class, 'popular']);
+    Route::get('/search', [UserCollectionController::class, 'search']);
 });
