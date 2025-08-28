@@ -51,6 +51,9 @@ Route::prefix('v1')->group(function () {
     // Home analytics and tracking routes
     Route::post('/home/businesses/{business}/track-view', [HomeController::class, 'trackHomeBusinessView']);
     Route::post('/home/track-trending-performance', [HomeController::class, 'trackTrendingPerformance']);
+    
+    // Location-based analytics (Admin access)
+    Route::get('/analytics/area-insights', [HomeController::class, 'getAreaAnalytics']);
 
     // Universal search routes (public access)
     Route::prefix('search')->group(function () {

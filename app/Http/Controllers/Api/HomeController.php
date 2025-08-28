@@ -12,6 +12,8 @@ use App\Models\Review;
 use App\Models\TrendingData;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class HomeController extends Controller
@@ -21,6 +23,52 @@ class HomeController extends Controller
     public function __construct(AnalyticsService $analyticsService)
     {
         $this->analyticsService = $analyticsService;
+    }
+
+    /**
+     * Determine user's specific area/ward from coordinates with enhanced precision for full Bangladesh
+     * Covers all 8 divisions, 64 districts, and major cities with ward-level precision
+     */
+   
+
+    /**
+     * Track endpoint analytics with location data
+     */
+    private function trackEndpointAnalytics($endpoint, $latitude = null, $longitude = null, $additionalData = [])
+    {
+        try {
+            $userArea = $this->determineUserAreaPrecise($latitude, $longitude);
+            
+            $analyticsData = [
+                'endpoint' => $endpoint,
+                'user_id' => Auth::id(),
+                'user_area' => $userArea,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'additional_data' => json_encode($additionalData),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+            // Store in database for analytics
+            DB::table('endpoint_analytics')->insert($analyticsData);
+
+            // Also log for immediate debugging
+            Log::info("Endpoint analytics", [
+                'endpoint' => $endpoint,
+                'user_area' => $userArea,
+                'coordinates' => $latitude && $longitude ? "{$latitude},{$longitude}" : null,
+                'user_id' => Auth::id()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Failed to track endpoint analytics", [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
     /**
      * Get home screen data (Public access)
@@ -35,10 +83,16 @@ class HomeController extends Controller
             $longitude = $request->input('longitude');
             $radiusKm = $request->input('radius', 10);
 
-            // Determine user area from coordinates or use default
-            $userArea = $this->determineUserArea($latitude, $longitude);
+            // Determine user area from coordinates with enhanced precision
+            $userArea = $this->determineUserAreaPrecise($latitude, $longitude);
 
-            // Track this API call for analytics
+            // Track this API call for analytics with location data
+            $this->trackEndpointAnalytics('home_index', $latitude, $longitude, [
+                'radius_km' => $radiusKm,
+                'user_area' => $userArea
+            ]);
+
+            // Track legacy interaction for compatibility
             $this->trackUserInteraction('home_view', null, $userArea, $latitude, $longitude);
 
             // Get active banners
@@ -518,6 +572,14 @@ class HomeController extends Controller
             $radiusKm = $request->input('radius', 20);
             $limit = $request->input('limit', 50);
 
+            // Determine user area and track analytics
+            $userArea = $this->determineUserAreaPrecise($latitude, $longitude);
+            $this->trackEndpointAnalytics('top_services', $latitude, $longitude, [
+                'radius_km' => $radiusKm,
+                'limit' => $limit,
+                'user_area' => $userArea
+            ]);
+
             $query = Category::active();
 
             if ($latitude && $longitude) {
@@ -574,6 +636,14 @@ class HomeController extends Controller
                     'message' => 'Latitude and longitude are required'
                 ], 422);
             }
+
+            // Determine user area and track analytics
+            $userArea = $this->determineUserAreaPrecise($latitude, $longitude);
+            $this->trackEndpointAnalytics('popular_nearby', $latitude, $longitude, [
+                'radius_km' => $radiusKm,
+                'limit' => $limit,
+                'user_area' => $userArea
+            ]);
 
             $businesses = Business::active()
                 ->nearbyWithDistance($latitude, $longitude, $radiusKm)
@@ -638,7 +708,9 @@ class HomeController extends Controller
                     'location' => [
                         'latitude' => $latitude,
                         'longitude' => $longitude,
-                        'radius_km' => $radiusKm
+                        'radius_km' => $radiusKm,
+                        'user_area' => $userArea,
+                        'determined_area' => $userArea
                     ]
                 ]
             ]);
@@ -1727,24 +1799,85 @@ class HomeController extends Controller
     }
 
     /**
-     * Track section performance for optimization
+     * Get analytics insights by area (Admin function)
      */
-    private function trackSectionPerformance($sectionData, $area)
+    public function getAreaAnalytics(Request $request)
     {
         try {
-            $performance = [
-                'area' => $area,
-                'date' => now()->format('Y-m-d'),
-                'trending_count' => count($sectionData['trending_businesses']),
-                'featured_count' => count($sectionData['featured_businesses']),
-                'popular_count' => count($sectionData['popular_nearby']),
-                'dynamic_sections_count' => count($sectionData['dynamic_sections']),
-                'timestamp' => now()
-            ];
+            $timeRange = $request->input('time_range', '7_days'); // 7_days, 30_days, 3_months
+            $area = $request->input('area'); // Optional filter by specific area
             
-            Log::info('Section Performance', $performance);
+            // Calculate date range
+            $startDate = match($timeRange) {
+                '7_days' => now()->subDays(7),
+                '30_days' => now()->subDays(30),
+                '3_months' => now()->subMonths(3),
+                default => now()->subDays(7)
+            };
+
+            $query = DB::table('endpoint_analytics')
+                ->where('created_at', '>=', $startDate);
+
+            if ($area) {
+                $query->where('user_area', $area);
+            }
+
+            // Get top areas by activity
+            $topAreas = DB::table('endpoint_analytics')
+                ->select('user_area', DB::raw('COUNT(*) as request_count'))
+                ->whereNotNull('user_area')
+                ->where('created_at', '>=', $startDate)
+                ->groupBy('user_area')
+                ->orderBy('request_count', 'desc')
+                ->take(10)
+                ->get();
+
+            // Get endpoint usage by area
+            $endpointsByArea = DB::table('endpoint_analytics')
+                ->select('endpoint', 'user_area', DB::raw('COUNT(*) as usage_count'))
+                ->whereNotNull('user_area')
+                ->where('created_at', '>=', $startDate)
+                ->when($area, function($q) use ($area) {
+                    return $q->where('user_area', $area);
+                })
+                ->groupBy('endpoint', 'user_area')
+                ->orderBy('usage_count', 'desc')
+                ->get();
+
+            // Get hourly patterns
+            $hourlyPattern = DB::table('endpoint_analytics')
+                ->select(DB::raw('HOUR(created_at) as hour'), DB::raw('COUNT(*) as requests'))
+                ->where('created_at', '>=', $startDate)
+                ->when($area, function($q) use ($area) {
+                    return $q->where('user_area', $area);
+                })
+                ->groupBy(DB::raw('HOUR(created_at)'))
+                ->orderBy('hour')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'time_range' => $timeRange,
+                    'filtered_area' => $area,
+                    'top_areas' => $topAreas,
+                    'endpoint_usage_by_area' => $endpointsByArea,
+                    'hourly_patterns' => $hourlyPattern,
+                    'total_requests' => $query->count(),
+                    'unique_areas' => DB::table('endpoint_analytics')
+                        ->whereNotNull('user_area')
+                        ->where('created_at', '>=', $startDate)
+                        ->distinct('user_area')
+                        ->count('user_area')
+                ]
+            ]);
+
         } catch (\Exception $e) {
-            // Silent fail for analytics
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch analytics',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
         }
     }
 
@@ -1760,6 +1893,16 @@ class HomeController extends Controller
             $limit = $request->input('limit', 50);
             $categoryId = $request->input('category_id');
             $minRating = $request->input('min_rating', 4.0);
+
+            // Determine user area and track analytics
+            $userArea = $this->determineUserAreaPrecise($latitude, $longitude);
+            $this->trackEndpointAnalytics('top_rated', $latitude, $longitude, [
+                'radius_km' => $radiusKm,
+                'limit' => $limit,
+                'category_id' => $categoryId,
+                'min_rating' => $minRating,
+                'user_area' => $userArea
+            ]);
 
             $query = Business::active()
                 ->where('overall_rating', '>=', $minRating)
@@ -1873,6 +2016,15 @@ class HomeController extends Controller
             $limit = $request->input('limit', 50);
             $categoryId = $request->input('category_id'); // Restore category filtering
 
+            // Determine user area and track analytics
+            $userArea = $this->determineUserAreaPrecise($latitude, $longitude);
+            $this->trackEndpointAnalytics('open_now', $latitude, $longitude, [
+                'radius_km' => $radiusKm,
+                'limit' => $limit,
+                'category_id' => $categoryId,
+                'user_area' => $userArea
+            ]);
+
             // Use Bangladesh timezone for business hours calculation
             $bangladeshTime = now()->setTimezone('Asia/Dhaka');
             $currentDay = strtolower($bangladeshTime->format('l')); // monday, tuesday, etc.
@@ -1977,6 +2129,12 @@ class HomeController extends Controller
                         'current_day' => ucfirst($currentDay),
                         'checked_at' => $bangladeshTime->format('H:i A'),
                         'timezone' => 'Asia/Dhaka',
+                        'user_area' => $userArea,
+                        'user_location' => [
+                            'latitude' => $latitude,
+                            'longitude' => $longitude,
+                            'determined_area' => $userArea
+                        ],
                         'all_businesses_are_open' => true,
                         'filters_applied' => [
                             'category_id' => $categoryId,
