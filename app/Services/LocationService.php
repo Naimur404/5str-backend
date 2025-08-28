@@ -80,31 +80,29 @@ class LocationService
     // /**
     //  * Get area statistics and insights
     //  */
-    // public function getAreaInsights($latitude, $longitude)
-    // {
-    //     $area = $this->determineUserAreaPrecise($latitude, $longitude);
+    public function getAreaInsights($latitude, $longitude)
+    {
+        $area = $this->determineUserAreaPrecise($latitude, $longitude);
         
-    //     if (!$area) {
-    //         return null;
-    //     }
+        if (!$area) {
+            return null;
+        }
 
-    //     // Determine division
-    //     $division = $this->getDivisionFromArea($area);
+        // // Determine division
+        // $division = $this->getDivisionFromArea($area);
         
-    //     // Determine district
-    //     $district = $this->getDistrictFromArea($area);
+        // // Determine district
+        // $district = $this->getDistrictFromArea($area);
         
-    //     return [
-    //         'specific_area' => $area,
-    //         'district' => $district,
-    //         'division' => $division,
-    //         'coordinates' => [
-    //             'latitude' => $latitude,
-    //             'longitude' => $longitude
-    //         ],
-    //         'precision_level' => $this->getPrecisionLevel($area)
-    //     ];
-    // }
+        return [
+            'specific_area' => $area,
+            'coordinates' => [
+                'latitude' => $latitude,
+                'longitude' => $longitude
+            ],
+            'precision_level' => $this->getPrecisionLevel($area)
+        ];
+    }
 
     // /**
     //  * Get division from area name
@@ -194,31 +192,31 @@ class LocationService
     // /**
     //  * Get precision level of area detection
     //  */
-    // private function getPrecisionLevel($area)
-    // {
-    //     if (str_contains($area, 'Ward') || str_contains($area, 'Sector') || 
-    //         str_contains($area, 'Block') || str_contains($area, 'Circle')) {
-    //         return 'Ward Level';
-    //     } elseif (str_contains($area, 'Upazila') || str_contains($area, 'Sadar')) {
-    //         return 'Upazila Level';
-    //     } elseif (str_contains($area, 'District') || str_contains($area, 'Division')) {
-    //         return 'District/Division Level';
-    //     } else {
-    //         return 'City/Area Level';
-    //     }
-    // }
+    private function getPrecisionLevel($area)
+    {
+        if (str_contains($area, 'Ward') || str_contains($area, 'Sector') || 
+            str_contains($area, 'Block') || str_contains($area, 'Circle')) {
+            return 'Ward Level';
+        } elseif (str_contains($area, 'Upazila') || str_contains($area, 'Sadar')) {
+            return 'Upazila Level';
+        } elseif (str_contains($area, 'District') || str_contains($area, 'Division')) {
+            return 'District/Division Level';
+        } else {
+            return 'City/Area Level';
+        }
+    }
 
     // /**
     //  * Check if coordinates are within Bangladesh boundaries
     //  */
-    // public function isWithinBangladesh($latitude, $longitude)
-    // {
-    //     $lat = (float) $latitude;
-    //     $lng = (float) $longitude;
+    public function isWithinBangladesh($latitude, $longitude)
+    {
+        $lat = (float) $latitude;
+        $lng = (float) $longitude;
         
-    //     // Bangladesh approximate boundaries
-    //     return $lat >= 20.5000 && $lat <= 26.6000 && $lng >= 88.0000 && $lng <= 92.8000;
-    // }
+        // Bangladesh approximate boundaries
+        return $lat >= 20.5000 && $lat <= 26.6000 && $lng >= 88.0000 && $lng <= 92.8000;
+    }
 
     // /**
     //  * Check Dhaka Metropolitan and surrounding areas with ward-level precision
