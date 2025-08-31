@@ -128,6 +128,16 @@ class User extends Authenticatable implements FilamentUser
                     ->withTimestamps();
     }
 
+    public function preferences()
+    {
+        return $this->hasOne(UserPreference::class);
+    }
+
+    public function interactions()
+    {
+        return $this->hasMany(UserInteraction::class);
+    }
+
     /**
      * Check if user can access Filament admin panel
      */

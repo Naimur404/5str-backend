@@ -50,7 +50,8 @@ class Business extends Model
     ];
 
     protected $appends = [
-        'image_url'
+        'image_url',
+        'name'
     ];
 
     protected $casts = [
@@ -306,5 +307,13 @@ class Business extends Model
         $distance = $earthRadius * $c;
 
         return $distance;
+    }
+
+    /**
+     * Get the business name
+     */
+    public function getNameAttribute()
+    {
+        return $this->business_name;
     }
 }

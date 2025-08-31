@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PushTokenController;
 use App\Http\Controllers\Api\UserCollectionController;
+use App\Http\Controllers\Api\RecommendationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -217,6 +218,33 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         // Collection following system
         Route::post('/{collection}/follow', [UserCollectionController::class, 'follow']);
         Route::delete('/{collection}/follow', [UserCollectionController::class, 'unfollow']);
+    });
+
+    // AI-Powered Recommendations (require login)
+    Route::prefix('recommendations')->group(function () {
+        Route::get('/', [RecommendationController::class, 'getRecommendations']);
+        Route::get('/advanced-ai', [RecommendationController::class, 'getAdvancedAIRecommendations']);
+        Route::get('/personalized', [RecommendationController::class, 'getPersonalizedBusinesses']);
+        Route::get('/similar/{business}', [RecommendationController::class, 'getSimilarBusinesses']);
+        Route::get('/trending', [RecommendationController::class, 'getTrendingBusinesses']);
+        Route::get('/history', [RecommendationController::class, 'getInteractionHistory']);
+        
+        // Interaction tracking
+        Route::post('/track', [RecommendationController::class, 'trackInteraction']);
+    });
+
+    // User Interaction Tracking and Personalization
+    Route::prefix('interactions')->group(function () {
+        Route::post('/track', [\App\Http\Controllers\Api\UserInteractionController::class, 'track']);
+        Route::post('/batch', [\App\Http\Controllers\Api\UserInteractionController::class, 'batch']);
+        Route::get('/history', [\App\Http\Controllers\Api\UserInteractionController::class, 'history']);
+        Route::get('/personalization-summary', [\App\Http\Controllers\Api\UserInteractionController::class, 'personalizationSummary']);
+    });
+
+    // Personalization Testing (for development/admin)
+    Route::prefix('personalization-test')->group(function () {
+        Route::get('/ab-testing', [\App\Http\Controllers\Api\PersonalizationTestController::class, 'testABTesting']);
+        Route::get('/metrics', [\App\Http\Controllers\Api\PersonalizationTestController::class, 'getMetrics']);
     });
 });
 

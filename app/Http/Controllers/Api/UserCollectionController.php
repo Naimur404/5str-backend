@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -48,17 +49,28 @@ class UserCollectionController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'is_public' => 'boolean',
-            'cover_image' => 'nullable|string|max:500'
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048' // 2MB max
         ]);
 
         $user = Auth::user();
+        
+        // Handle cover image upload
+        $coverImageUrl = null;
+        if ($request->hasFile('cover_image')) {
+            $image = $request->file('cover_image');
+            $imageName = 'collection_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+            
+            // Store in public/storage/collections directory
+            $imagePath = $image->storeAs('collections', $imageName, 'public');
+            $coverImageUrl = asset('storage/' . $imagePath);
+        }
         
         $collection = UserCollection::create([
             'user_id' => $user->id,
             'name' => $request->name,
             'description' => $request->description,
             'is_public' => $request->boolean('is_public', false),
-            'cover_image' => $request->cover_image,
+            'cover_image' => $coverImageUrl,
             'slug' => Str::slug($request->name . '-' . time())
         ]);
 
@@ -149,14 +161,32 @@ class UserCollectionController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'is_public' => 'boolean',
-            'cover_image' => 'nullable|string|max:500'
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048' // 2MB max
         ]);
+
+        // Handle cover image upload
+        $coverImageUrl = $collection->cover_image; // Keep existing image by default
+        if ($request->hasFile('cover_image')) {
+            // Delete old image if it exists
+            if ($collection->cover_image) {
+                $oldImagePath = str_replace(url('storage/'), '', $collection->cover_image);
+                if (Storage::disk('public')->exists($oldImagePath)) {
+                    Storage::disk('public')->delete($oldImagePath);
+                }
+            }
+            
+            // Upload new image
+            $image = $request->file('cover_image');
+            $imageName = 'collection_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+            $imagePath = $image->storeAs('collections', $imageName, 'public');
+            $coverImageUrl = asset('storage/' . $imagePath);
+        }
 
         $collection->update([
             'name' => $request->name,
             'description' => $request->description,
             'is_public' => $request->boolean('is_public'),
-            'cover_image' => $request->cover_image,
+            'cover_image' => $coverImageUrl,
             'slug' => $request->name !== $collection->name 
                      ? Str::slug($request->name . '-' . time()) 
                      : $collection->slug
