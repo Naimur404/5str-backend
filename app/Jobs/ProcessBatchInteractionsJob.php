@@ -40,13 +40,20 @@ class ProcessBatchInteractionsJob implements ShouldQueue
 
             foreach ($this->interactions as $index => $interaction) {
                 try {
-                    // Directly save the interaction instead of dispatching another job
+                    // Extract location data from interaction
+                    $userLatitude = $interaction['user_latitude'] ?? null;
+                    $userLongitude = $interaction['user_longitude'] ?? null;
+                    
+                    // Directly save the interaction with location data
                     UserInteraction::track(
                         $this->userId,
                         $interaction['business_id'],
                         $interaction['action'],
                         $interaction['source'] ?? null,
-                        $interaction['context'] ?? []
+                        $interaction['context'] ?? [],
+                        null, // custom weight
+                        $userLatitude,
+                        $userLongitude
                     );
 
                     $processedCount++;
@@ -55,7 +62,8 @@ class ProcessBatchInteractionsJob implements ShouldQueue
                         'user_id' => $this->userId,
                         'business_id' => $interaction['business_id'],
                         'action' => $interaction['action'],
-                        'index' => $index
+                        'index' => $index,
+                        'has_location' => ($userLatitude && $userLongitude) ? 'yes' : 'no'
                     ]);
 
                 } catch (\Exception $e) {

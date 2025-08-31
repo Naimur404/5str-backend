@@ -63,11 +63,14 @@ class UserInteraction extends Model
         string $interactionType,
         string $source = null,
         array $contextData = null,
-        float $customWeight = null
+        float $customWeight = null,
+        float $userLatitude = null,
+        float $userLongitude = null,
+        string $sessionId = null
     ): self {
         $weight = $customWeight ?? self::$interactionWeights[$interactionType] ?? 1.0;
 
-        return self::create([
+        $data = [
             'user_id' => $userId,
             'business_id' => $businessId,
             'interaction_type' => $interactionType,
@@ -75,7 +78,20 @@ class UserInteraction extends Model
             'context_data' => $contextData,
             'weight' => $weight,
             'interaction_time' => now()
-        ]);
+        ];
+
+        // Add location data if provided
+        if ($userLatitude !== null && $userLongitude !== null) {
+            $data['user_latitude'] = $userLatitude;
+            $data['user_longitude'] = $userLongitude;
+        }
+
+        // Add session ID if provided
+        if ($sessionId !== null) {
+            $data['session_id'] = $sessionId;
+        }
+
+        return self::create($data);
     }
 
     /**

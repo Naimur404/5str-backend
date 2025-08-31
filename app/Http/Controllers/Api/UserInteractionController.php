@@ -21,7 +21,9 @@ class UserInteractionController extends Controller
             'business_id' => 'required|exists:businesses,id',
             'action' => 'required|in:view,click,save,share,visit,call,direction,search_click,phone_call,favorite,unfavorite,review,collection_add,collection_remove,offer_view,offer_use,direction_request,website_click',
             'source' => 'nullable|string|max:100',
-            'context' => 'nullable|array'
+            'context' => 'nullable|array',
+            'user_latitude' => 'nullable|numeric|between:-90,90',
+            'user_longitude' => 'nullable|numeric|between:-180,180'
         ]);
 
         $user = Auth::user();
@@ -29,6 +31,8 @@ class UserInteractionController extends Controller
         $action = $request->input('action');
         $source = $request->input('source');
         $context = $request->input('context', []);
+        $userLatitude = $request->input('user_latitude');
+        $userLongitude = $request->input('user_longitude');
 
         // Verify business exists
         $business = Business::find($businessId);
@@ -46,7 +50,9 @@ class UserInteractionController extends Controller
                 $businessId,
                 $action,
                 $source,
-                $context
+                $context,
+                $userLatitude,
+                $userLongitude
             );
 
             return response()->json([
@@ -74,7 +80,9 @@ class UserInteractionController extends Controller
             'interactions.*.action' => 'required|in:view,click,save,share,visit,call,direction,search_click,phone_call,favorite,unfavorite,review,collection_add,collection_remove,offer_view,offer_use,direction_request,website_click',
             'interactions.*.source' => 'nullable|string|max:100',
             'interactions.*.context' => 'nullable|array',
-            'interactions.*.timestamp' => 'nullable|integer'
+            'interactions.*.timestamp' => 'nullable|integer',
+            'interactions.*.user_latitude' => 'nullable|numeric|between:-90,90',
+            'interactions.*.user_longitude' => 'nullable|numeric|between:-180,180'
         ]);
 
         $user = Auth::user();

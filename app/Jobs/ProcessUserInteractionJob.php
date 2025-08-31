@@ -22,6 +22,8 @@ class ProcessUserInteractionJob implements ShouldQueue
     protected $action;
     protected $source;
     protected $context;
+    protected $userLatitude;
+    protected $userLongitude;
 
     public $timeout = 60; // 1 minute timeout
     public $tries = 3; // Retry 3 times on failure
@@ -29,13 +31,15 @@ class ProcessUserInteractionJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct($userId, $businessId, $action, $source = null, $context = [])
+    public function __construct($userId, $businessId, $action, $source = null, $context = [], $userLatitude = null, $userLongitude = null)
     {
         $this->userId = $userId;
         $this->businessId = $businessId;
         $this->action = $action;
         $this->source = $source;
         $this->context = $context;
+        $this->userLatitude = $userLatitude;
+        $this->userLongitude = $userLongitude;
 
         // Set queue priority based on action importance
         $highPriorityActions = ['phone_call', 'favorite', 'collection_add', 'offer_use'];
@@ -54,13 +58,16 @@ class ProcessUserInteractionJob implements ShouldQueue
                 'action' => $this->action
             ]);
 
-            // 1. Store the interaction
+            // 1. Store the interaction with location data
             UserInteraction::track(
                 $this->userId,
                 $this->businessId,
                 $this->action,
                 $this->source,
-                $this->context
+                $this->context,
+                null, // custom weight
+                $this->userLatitude,
+                $this->userLongitude
             );
 
             // 2. Update user profile cache asynchronously
