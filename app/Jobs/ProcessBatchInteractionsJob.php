@@ -40,38 +40,60 @@ class ProcessBatchInteractionsJob implements ShouldQueue
 
             foreach ($this->interactions as $index => $interaction) {
                 try {
-                    // Dispatch individual interaction job for each item
-                    ProcessUserInteractionJob::dispatch(
+                    // Directly save the interaction instead of dispatching another job
+                    UserInteraction::track(
                         $this->userId,
                         $interaction['business_id'],
                         $interaction['action'],
                         $interaction['source'] ?? null,
                         $interaction['context'] ?? []
-                    )->onQueue('high'); // Process individual items with high priority
+                    );
 
                     $processedCount++;
 
+                    Log::debug('Batch interaction saved', [
+                        'user_id' => $this->userId,
+                        'business_id' => $interaction['business_id'],
+                        'action' => $interaction['action'],
+                        'index' => $index
+                    ]);
+
                 } catch (\Exception $e) {
                     $errors[] = "Interaction {$index}: " . $e->getMessage();
-                    Log::warning('Failed to dispatch individual interaction job', [
+                    Log::warning('Failed to save batch interaction', [
                         'user_id' => $this->userId,
                         'interaction_index' => $index,
+                        'business_id' => $interaction['business_id'] ?? 'unknown',
+                        'action' => $interaction['action'] ?? 'unknown',
                         'error' => $e->getMessage()
                     ]);
                 }
             }
 
+            // Clear user profile cache after batch processing
+            \Illuminate\Support\Facades\Cache::forget("user_profile_fast:{$this->userId}");
+            \Illuminate\Support\Facades\Cache::forget("user_profile_full:{$this->userId}");
+
             Log::info('Batch interactions processing completed', [
                 'user_id' => $this->userId,
                 'processed_count' => $processedCount,
                 'total_count' => count($this->interactions),
-                'error_count' => count($errors)
+                'error_count' => count($errors),
+                'errors' => $errors
             ]);
+
+            // For high-value batch processing, trigger recommendation updates
+            if ($processedCount > 0) {
+                UpdateUserRecommendationCacheJob::dispatch($this->userId)
+                    ->onQueue('low')
+                    ->delay(now()->addSeconds(10));
+            }
 
         } catch (\Exception $e) {
             Log::error('Batch interactions job failed', [
                 'user_id' => $this->userId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             throw $e;
         }
