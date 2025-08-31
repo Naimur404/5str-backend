@@ -971,16 +971,45 @@ class RecommendationService
     }
 
     /**
-     * Track personalization metrics for A/B testing
+     * Track personalization metrics for analytics and A/B testing
      */
-    private function trackPersonalizationMetrics(int $userId, string $personalizationLevel, float $responseTime, int $count): void
-    {
-        dispatch(function () use ($userId, $personalizationLevel, $responseTime, $count) {
-            app(ABTestingService::class)->trackExperiment($userId, 'personalization_level', $personalizationLevel, [
-                'response_time_ms' => $responseTime,
-                'recommendation_count' => $count,
-                'timestamp' => now()->toISOString()
+    private function trackPersonalizationMetrics(
+        int $userId,
+        string $personalizationLevel,
+        float $responseTimeMs,
+        int $recommendationCount,
+        array $additionalMetrics = []
+    ): void {
+        try {
+            // Record detailed metrics in the database
+            \App\Models\PersonalizationMetrics::record(
+                $userId,
+                $personalizationLevel,
+                $responseTimeMs,
+                $recommendationCount,
+                array_merge([
+                    'timestamp' => now()->toISOString(),
+                    'cache_hit' => false, // This was a fresh generation
+                    'source' => 'recommendation_service'
+                ], $additionalMetrics),
+                session()->getId()
+            );
+
+            // Also track for A/B testing service
+            dispatch(function () use ($userId, $personalizationLevel, $responseTimeMs, $recommendationCount) {
+                app(ABTestingService::class)->trackExperiment('personalization_level', $userId, $personalizationLevel, [
+                    'response_time_ms' => $responseTimeMs,
+                    'recommendation_count' => $recommendationCount,
+                    'timestamp' => now()->toISOString()
+                ]);
+            })->afterResponse();
+
+        } catch (\Exception $e) {
+            // Don't let metrics tracking break recommendations
+            \Illuminate\Support\Facades\Log::warning('Failed to track personalization metrics', [
+                'user_id' => $userId,
+                'error' => $e->getMessage()
             ]);
-        })->afterResponse();
+        }
     }
 }

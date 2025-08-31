@@ -245,6 +245,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::prefix('personalization-test')->group(function () {
         Route::get('/ab-testing', [\App\Http\Controllers\Api\PersonalizationTestController::class, 'testABTesting']);
         Route::get('/metrics', [\App\Http\Controllers\Api\PersonalizationTestController::class, 'getMetrics']);
+        Route::get('/personalization-metrics', [\App\Http\Controllers\Api\PersonalizationTestController::class, 'getPersonalizationMetrics']);
     });
 });
 

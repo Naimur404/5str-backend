@@ -16,7 +16,7 @@ return new class extends Migration
             $table->integer('recommendation_count');
             $table->json('metrics')->nullable();
             $table->string('session_id')->nullable();
-            $table->timestamp('created_at');
+            $table->timestamp('created_at')->useCurrent();
 
             $table->index(['created_at', 'personalization_level']);
             $table->index(['user_id', 'created_at']);
