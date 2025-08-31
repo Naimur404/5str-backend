@@ -77,7 +77,7 @@ class UserInteraction extends Model
             'source' => $source,
             'context_data' => $contextData,
             'weight' => $weight,
-            'interaction_time' => now()
+            'interaction_time' => now(),
         ];
 
         // Add location data if provided

@@ -14,9 +14,16 @@ class UserInteractionController extends Controller
 {
     /**
      * Track user interaction with a business
+     * Supports both direct tracking and batch-style payload format
      */
     public function track(Request $request): JsonResponse
     {
+        // Check if this is a batch-style payload with interactions array
+        if ($request->has('interactions')) {
+            // Redirect to batch method for consistency
+            return $this->batch($request);
+        }
+
         $request->validate([
             'business_id' => 'required|exists:businesses,id',
             'action' => 'required|in:view,click,save,share,visit,call,direction,search_click,phone_call,favorite,unfavorite,review,collection_add,collection_remove,offer_view,offer_use,direction_request,website_click',
@@ -81,24 +88,51 @@ class UserInteractionController extends Controller
             'interactions.*.source' => 'nullable|string|max:100',
             'interactions.*.context' => 'nullable|array',
             'interactions.*.timestamp' => 'nullable|integer',
+            // Support both individual and global location data
             'interactions.*.user_latitude' => 'nullable|numeric|between:-90,90',
-            'interactions.*.user_longitude' => 'nullable|numeric|between:-180,180'
+            'interactions.*.user_longitude' => 'nullable|numeric|between:-180,180',
+            // Global location data at root level
+            'user_latitude' => 'nullable|numeric|between:-90,90',
+            'user_longitude' => 'nullable|numeric|between:-180,180',
+            'source' => 'nullable|string|max:100'
         ]);
 
         $user = Auth::user();
         $interactions = $request->input('interactions');
-        $processedCount = 0;
-        $errors = [];
+        $globalLatitude = $request->input('user_latitude');
+        $globalLongitude = $request->input('user_longitude');
+        $globalSource = $request->input('source');
+
+        // Add global location and source to each interaction if not individually specified
+        $processedInteractions = array_map(function ($interaction) use ($globalLatitude, $globalLongitude, $globalSource) {
+            // Use individual location if provided, otherwise use global
+            if (!isset($interaction['user_latitude']) && $globalLatitude !== null) {
+                $interaction['user_latitude'] = $globalLatitude;
+            }
+            if (!isset($interaction['user_longitude']) && $globalLongitude !== null) {
+                $interaction['user_longitude'] = $globalLongitude;
+            }
+            // Use individual source if provided, otherwise use global
+            if (!isset($interaction['source']) && $globalSource !== null) {
+                $interaction['source'] = $globalSource;
+            }
+            return $interaction;
+        }, $interactions);
 
         try {
-            // Use job queue for batch processing
-            \App\Jobs\ProcessBatchInteractionsJob::dispatch($user->id, $interactions);
+            // Use job queue for batch processing with processed interactions
+            \App\Jobs\ProcessBatchInteractionsJob::dispatch($user->id, $processedInteractions);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Batch interactions processed successfully',
-                'processed_count' => count($interactions), // Will be processed async
+                'processed_count' => count($processedInteractions),
                 'submitted_count' => count($interactions),
+                'global_location' => [
+                    'latitude' => $globalLatitude,
+                    'longitude' => $globalLongitude,
+                    'source' => $globalSource
+                ],
                 'errors' => [] // Errors will be logged, not returned to avoid blocking
             ]);
 
