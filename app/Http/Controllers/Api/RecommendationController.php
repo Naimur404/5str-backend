@@ -290,16 +290,6 @@ class RecommendationController extends Controller
         try {
             $similarBusinesses = $this->recommendationService->getSimilarBusinesses($business, $count);
 
-            // Load complete business data for similar businesses
-            $similarBusinesses->load([
-                'category:id,name,icon_image',
-                'subcategory:id,name',
-                'logoImage:id,business_id,image_url,image_type',
-                'coverImage:id,business_id,image_url,image_type',
-                'galleryImages:id,business_id,image_url,image_type',
-                'activeOffers:id,business_id,title,description,discount_percentage,valid_to'
-            ]);
-
             // Transform similar businesses with complete data
             $transformedSimilar = $similarBusinesses->map(function ($similarBusiness) {
                 return [
