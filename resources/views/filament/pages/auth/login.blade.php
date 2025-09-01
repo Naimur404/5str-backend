@@ -62,15 +62,15 @@
             width: auto;
         }
         
-        /* Center the login form better */
+        /* Simple white background */
         .fi-simple-page {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: white;
         }
         
         .fi-simple-main {
             background: white;
             border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
     </style>
     @endpush
