@@ -27,6 +27,18 @@ class Kernel extends ConsoleKernel
                  ->monthlyOn(1, '03:00') // First day of month at 3 AM
                  ->withoutOverlapping()
                  ->runInBackground();
+
+        // Calculate business similarities - every 6 hours to keep recommendations fresh
+        $schedule->command('business:calculate-similarities')
+                 ->everySixHours()
+                 ->withoutOverlapping()
+                 ->runInBackground();
+
+        // Update user recommendation cache - every hour for personalized recommendations
+        $schedule->command('queue:work --stop-when-empty')
+                 ->everyMinute()
+                 ->withoutOverlapping()
+                 ->runInBackground();
     }
 
     /**

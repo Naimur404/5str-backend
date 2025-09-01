@@ -36,7 +36,7 @@ class BusinessSimilarity extends Model
         return $this->belongsTo(Business::class, 'business_b_id');
     }
 
-    public static function getSimilarBusinesses(int $businessId, string $type = null, float $minScore = 0.5): Collection
+    public static function getSimilarBusinesses(int $businessId, string $type = null, float $minScore = 0.5): \Illuminate\Support\Collection
     {
         $query = self::query()
             ->where(function ($q) use ($businessId) {
