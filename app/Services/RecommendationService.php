@@ -253,10 +253,11 @@ class RecommendationService
     public function getSimilarBusinesses(Business $business, int $count = 10): Collection
     {
         // First try to get pre-calculated similarities
-        $businesses = BusinessSimilarity::getSimilarBusinesses($business->id)
-            ->take($count)
+        $similarities = BusinessSimilarity::getSimilarBusinesses($business->id);
+        
+        $businesses = $similarities->take($count)
             ->map(function ($similarity) {
-                $foundBusiness = Business::with(['categories', 'images'])
+                $foundBusiness = Business::with(['category:id,name,icon_image', 'subcategory:id,name', 'logoImage', 'coverImage'])
                     ->find($similarity['business_id']);
                 
                 if ($foundBusiness) {
