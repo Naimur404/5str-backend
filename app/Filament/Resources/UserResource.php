@@ -43,6 +43,31 @@ class UserResource extends Resource
                             ->required()
                             ->maxLength(255)
                             ->unique(ignoreRecord: true),
+                        Forms\Components\TextInput::make('password')
+                            ->password()
+                            ->required(fn (string $context): bool => $context === 'create')
+                            ->minLength(8)
+                            ->maxLength(255)
+                            ->revealable()
+                            ->live(debounce: 500)
+                            ->helperText(fn (string $context): string => 
+                                $context === 'create' 
+                                    ? 'Minimum 8 characters required' 
+                                    : 'Leave blank to keep current password'
+                            ),
+                        Forms\Components\TextInput::make('password_confirmation')
+                            ->password()
+                            ->required(function (string $context, callable $get): bool {
+                                if ($context === 'create') return true;
+                                return !empty($get('password'));
+                            })
+                            ->minLength(8)
+                            ->maxLength(255)
+                            ->dehydrated(false)
+                            ->revealable()
+                            ->same('password')
+                            ->live(debounce: 500)
+                            ->helperText('Must match the password above'),
                         Forms\Components\TextInput::make('phone')
                             ->tel()
                             ->maxLength(255),

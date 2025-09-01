@@ -3,6 +3,8 @@
 namespace App\Filament\Pages\Auth;
 
 use Filament\Pages\Auth\Login as BaseLogin;
+use Filament\Http\Responses\Auth\Contracts\LoginResponse;
+use Illuminate\Http\Request;
 
 class Login extends BaseLogin
 {
@@ -31,5 +33,10 @@ class Login extends BaseLogin
     protected function hasFullWidthFormActions(): bool
     {
         return true;
+    }
+
+    public function getView(): string
+    {
+        return 'filament.pages.auth.login';
     }
 }

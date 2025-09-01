@@ -29,8 +29,9 @@ class AdminPanelProvider extends PanelProvider
             ->login(\App\Filament\Pages\Auth\Login::class)
             ->brandName('5SRT Business Discovery')
             ->brandLogo(asset('images/logo.png'))
-            ->brandLogoHeight('2rem')
-            ->favicon(asset('favicon.ico'))
+            ->darkModeBrandLogo(asset('images/logo.png'))
+            ->brandLogoHeight('2.5rem')
+            ->favicon(asset('images/logo.png'))
             ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
                 'Business Management',
