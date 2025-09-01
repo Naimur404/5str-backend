@@ -1368,7 +1368,7 @@ class HomeController extends Controller
                     ],
                     'category' => [
                         'name' => $business->category->name ?? null,
-                        'icon' => $business->category->icon ?? null
+                        'icon' => $business->category->icon_image ?? null
                     ],
                     'images' => [
                         'logo' => $business->logoImage->image_url ?? null,

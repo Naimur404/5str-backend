@@ -48,7 +48,7 @@ class RecommendationController extends Controller
 
             // Load complete business data with relationships
             $recommendations->load([
-                'category:id,name,icon',
+                'category:id,name,icon_image',
                 'subcategory:id,name',
                 'logoImage:id,business_id,image_url,image_type',
                 'coverImage:id,business_id,image_url,image_type',
@@ -109,7 +109,7 @@ class RecommendationController extends Controller
                     'category' => $business->category ? [
                         'id' => $business->category->id,
                         'name' => $business->category->name,
-                        'icon' => $business->category->icon,
+                        'icon' => $business->category->icon_image,
                     ] : null,
                     'subcategory' => $business->subcategory ? [
                         'id' => $business->subcategory->id,
@@ -272,7 +272,7 @@ class RecommendationController extends Controller
         ]);
 
         $business = Business::with([
-            'category:id,name,icon',
+            'category:id,name,icon_image',
             'subcategory:id,name',
             'logoImage:id,business_id,image_url,image_type',
             'coverImage:id,business_id,image_url,image_type'
@@ -292,7 +292,7 @@ class RecommendationController extends Controller
 
             // Load complete business data for similar businesses
             $similarBusinesses->load([
-                'category:id,name,icon',
+                'category:id,name,icon_image',
                 'subcategory:id,name',
                 'logoImage:id,business_id,image_url,image_type',
                 'coverImage:id,business_id,image_url,image_type',
@@ -341,7 +341,7 @@ class RecommendationController extends Controller
                     'category' => $similarBusiness->category ? [
                         'id' => $similarBusiness->category->id,
                         'name' => $similarBusiness->category->name,
-                        'icon' => $similarBusiness->category->icon,
+                        'icon' => $similarBusiness->category->icon_image,
                     ] : null,
                     'subcategory' => $similarBusiness->subcategory ? [
                         'id' => $similarBusiness->subcategory->id,
@@ -378,7 +378,7 @@ class RecommendationController extends Controller
                 'category' => $business->category ? [
                     'id' => $business->category->id,
                     'name' => $business->category->name,
-                    'icon' => $business->category->icon,
+                    'icon' => $business->category->icon_image,
                 ] : null,
             ];
 
@@ -504,7 +504,7 @@ class RecommendationController extends Controller
 
             // Load complete business data with relationships
             $trendingBusinesses->load([
-                'category:id,name,icon',
+                'category:id,name,icon_image',
                 'subcategory:id,name',
                 'logoImage:id,business_id,image_url,image_type',
                 'coverImage:id,business_id,image_url,image_type',
@@ -556,7 +556,7 @@ class RecommendationController extends Controller
                     'category' => $business->category ? [
                         'id' => $business->category->id,
                         'name' => $business->category->name,
-                        'icon' => $business->category->icon,
+                        'icon' => $business->category->icon_image,
                     ] : null,
                     'subcategory' => $business->subcategory ? [
                         'id' => $business->subcategory->id,
