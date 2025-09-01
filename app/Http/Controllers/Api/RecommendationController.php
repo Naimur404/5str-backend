@@ -46,6 +46,19 @@ class RecommendationController extends Controller
                 $count
             );
 
+            // Load complete business data with relationships
+            $recommendations->load([
+                'category:id,name,icon',
+                'subcategory:id,name',
+                'logoImage:id,business_id,image_url,image_type',
+                'coverImage:id,business_id,image_url,image_type',
+                'galleryImages:id,business_id,image_url,image_type',
+                'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
+                'reviews' => function($query) {
+                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
+                }
+            ]);
+
             $responseTime = round((microtime(true) - $startTime) * 1000, 2);
             
             // Get personalization level for this user
@@ -55,10 +68,79 @@ class RecommendationController extends Controller
             // Calculate personalization stats
             $personalizedCount = $recommendations->where('personalization_applied', true)->count();
 
+            // Transform recommendations with complete data
+            $transformedRecommendations = $recommendations->map(function ($business) {
+                return [
+                    'id' => $business->id,
+                    'name' => $business->business_name,
+                    'slug' => $business->slug,
+                    'description' => $business->description,
+                    'phone' => $business->business_phone,
+                    'email' => $business->business_email,
+                    'website' => $business->website_url,
+                    'address' => [
+                        'full_address' => $business->full_address,
+                        'city' => $business->city,
+                        'area' => $business->area,
+                        'landmark' => $business->landmark,
+                    ],
+                    'location' => [
+                        'latitude' => $business->latitude,
+                        'longitude' => $business->longitude,
+                    ],
+                    'rating' => [
+                        'overall_rating' => $business->overall_rating,
+                        'total_reviews' => $business->total_reviews,
+                    ],
+                    'price_range' => $business->price_range,
+                    'features' => [
+                        'has_delivery' => $business->has_delivery,
+                        'has_pickup' => $business->has_pickup,
+                        'has_parking' => $business->has_parking,
+                        'is_verified' => $business->is_verified,
+                        'is_featured' => $business->is_featured,
+                    ],
+                    'opening_hours' => $business->opening_hours,
+                    'images' => [
+                        'logo' => $business->logoImage?->image_url,
+                        'cover' => $business->coverImage?->image_url,
+                        'gallery' => $business->galleryImages->pluck('image_url')->toArray(),
+                    ],
+                    'category' => $business->category ? [
+                        'id' => $business->category->id,
+                        'name' => $business->category->name,
+                        'icon' => $business->category->icon,
+                    ] : null,
+                    'subcategory' => $business->subcategory ? [
+                        'id' => $business->subcategory->id,
+                        'name' => $business->subcategory->name,
+                    ] : null,
+                    'offers' => $business->activeOffers->map(function ($offer) {
+                        return [
+                            'id' => $offer->id,
+                            'title' => $offer->title,
+                            'description' => $offer->description,
+                            'discount_percentage' => $offer->discount_percentage,
+                            'valid_to' => $offer->valid_to,
+                        ];
+                    }),
+                    'recent_reviews' => $business->reviews->map(function ($review) {
+                        return [
+                            'id' => $review->id,
+                            'rating' => $review->rating,
+                            'comment' => $review->comment,
+                            'created_at' => $review->created_at,
+                        ];
+                    }),
+                    'personalization_score' => $business->personalization_applied ?? 0,
+                    'distance_km' => $business->distance ?? null,
+                ];
+            });
+
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'recommendations' => $recommendations,
+                    'recommendations' => $transformedRecommendations,
                     'total_count' => $recommendations->count(),
                     'location_used' => $latitude && $longitude,
                     'categories_filtered' => !empty($categories),
@@ -189,7 +271,13 @@ class RecommendationController extends Controller
             'count' => 'nullable|integer|min:1|max:20'
         ]);
 
-        $business = Business::find($businessId);
+        $business = Business::with([
+            'category:id,name,icon',
+            'subcategory:id,name',
+            'logoImage:id,business_id,image_url,image_type',
+            'coverImage:id,business_id,image_url,image_type'
+        ])->find($businessId);
+        
         if (!$business) {
             return response()->json([
                 'success' => false,
@@ -202,12 +290,104 @@ class RecommendationController extends Controller
         try {
             $similarBusinesses = $this->recommendationService->getSimilarBusinesses($business, $count);
 
+            // Load complete business data for similar businesses
+            $similarBusinesses->load([
+                'category:id,name,icon',
+                'subcategory:id,name',
+                'logoImage:id,business_id,image_url,image_type',
+                'coverImage:id,business_id,image_url,image_type',
+                'galleryImages:id,business_id,image_url,image_type',
+                'activeOffers:id,business_id,title,description,discount_percentage,valid_to'
+            ]);
+
+            // Transform similar businesses with complete data
+            $transformedSimilar = $similarBusinesses->map(function ($similarBusiness) {
+                return [
+                    'id' => $similarBusiness->id,
+                    'name' => $similarBusiness->business_name,
+                    'slug' => $similarBusiness->slug,
+                    'description' => $similarBusiness->description,
+                    'phone' => $similarBusiness->business_phone,
+                    'email' => $similarBusiness->business_email,
+                    'website' => $similarBusiness->website_url,
+                    'address' => [
+                        'full_address' => $similarBusiness->full_address,
+                        'city' => $similarBusiness->city,
+                        'area' => $similarBusiness->area,
+                        'landmark' => $similarBusiness->landmark,
+                    ],
+                    'location' => [
+                        'latitude' => $similarBusiness->latitude,
+                        'longitude' => $similarBusiness->longitude,
+                    ],
+                    'rating' => [
+                        'overall_rating' => $similarBusiness->overall_rating,
+                        'total_reviews' => $similarBusiness->total_reviews,
+                    ],
+                    'price_range' => $similarBusiness->price_range,
+                    'features' => [
+                        'has_delivery' => $similarBusiness->has_delivery,
+                        'has_pickup' => $similarBusiness->has_pickup,
+                        'has_parking' => $similarBusiness->has_parking,
+                        'is_verified' => $similarBusiness->is_verified,
+                        'is_featured' => $similarBusiness->is_featured,
+                    ],
+                    'opening_hours' => $similarBusiness->opening_hours,
+                    'images' => [
+                        'logo' => $similarBusiness->logoImage?->image_url,
+                        'cover' => $similarBusiness->coverImage?->image_url,
+                        'gallery' => $similarBusiness->galleryImages->pluck('image_url')->toArray(),
+                    ],
+                    'category' => $similarBusiness->category ? [
+                        'id' => $similarBusiness->category->id,
+                        'name' => $similarBusiness->category->name,
+                        'icon' => $similarBusiness->category->icon,
+                    ] : null,
+                    'subcategory' => $similarBusiness->subcategory ? [
+                        'id' => $similarBusiness->subcategory->id,
+                        'name' => $similarBusiness->subcategory->name,
+                    ] : null,
+                    'offers' => $similarBusiness->activeOffers->map(function ($offer) {
+                        return [
+                            'id' => $offer->id,
+                            'title' => $offer->title,
+                            'description' => $offer->description,
+                            'discount_percentage' => $offer->discount_percentage,
+                            'valid_to' => $offer->valid_to,
+                        ];
+                    }),
+                    'similarity_score' => $similarBusiness->similarity_score ?? 0,
+                    'distance_km' => $similarBusiness->distance ?? null,
+                ];
+            });
+
+            // Transform the main business data
+            $transformedBusiness = [
+                'id' => $business->id,
+                'name' => $business->business_name,
+                'slug' => $business->slug,
+                'description' => $business->description,
+                'rating' => [
+                    'overall_rating' => $business->overall_rating,
+                    'total_reviews' => $business->total_reviews,
+                ],
+                'images' => [
+                    'logo' => $business->logoImage?->image_url,
+                    'cover' => $business->coverImage?->image_url,
+                ],
+                'category' => $business->category ? [
+                    'id' => $business->category->id,
+                    'name' => $business->category->name,
+                    'icon' => $business->category->icon,
+                ] : null,
+            ];
+
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'business' => $business,
-                    'similar_businesses' => $similarBusinesses,
-                    'total_count' => $similarBusinesses->count()
+                    'business' => $transformedBusiness,
+                    'similar_businesses' => $transformedSimilar,
+                    'total_count' => $transformedSimilar->count()
                 ]
             ]);
 
@@ -322,14 +502,123 @@ class RecommendationController extends Controller
                 })->values();
             }
 
+            // Load complete business data with relationships
+            $trendingBusinesses->load([
+                'category:id,name,icon',
+                'subcategory:id,name',
+                'logoImage:id,business_id,image_url,image_type',
+                'coverImage:id,business_id,image_url,image_type',
+                'galleryImages:id,business_id,image_url,image_type',
+                'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
+                'reviews' => function($query) {
+                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
+                }
+            ]);
+
+            // Transform trending businesses with complete data
+            $transformedTrending = $trendingBusinesses->map(function ($business) {
+                return [
+                    'id' => $business->id,
+                    'name' => $business->business_name,
+                    'slug' => $business->slug,
+                    'description' => $business->description,
+                    'phone' => $business->business_phone,
+                    'email' => $business->business_email,
+                    'website' => $business->website_url,
+                    'address' => [
+                        'full_address' => $business->full_address,
+                        'city' => $business->city,
+                        'area' => $business->area,
+                        'landmark' => $business->landmark,
+                    ],
+                    'location' => [
+                        'latitude' => $business->latitude,
+                        'longitude' => $business->longitude,
+                    ],
+                    'rating' => [
+                        'overall_rating' => $business->overall_rating,
+                        'total_reviews' => $business->total_reviews,
+                    ],
+                    'price_range' => $business->price_range,
+                    'features' => [
+                        'has_delivery' => $business->has_delivery,
+                        'has_pickup' => $business->has_pickup,
+                        'has_parking' => $business->has_parking,
+                        'is_verified' => $business->is_verified,
+                        'is_featured' => $business->is_featured,
+                    ],
+                    'opening_hours' => $business->opening_hours,
+                    'images' => [
+                        'logo' => $business->logoImage?->image_url,
+                        'cover' => $business->coverImage?->image_url,
+                        'gallery' => $business->galleryImages->pluck('image_url')->toArray(),
+                    ],
+                    'category' => $business->category ? [
+                        'id' => $business->category->id,
+                        'name' => $business->category->name,
+                        'icon' => $business->category->icon,
+                    ] : null,
+                    'subcategory' => $business->subcategory ? [
+                        'id' => $business->subcategory->id,
+                        'name' => $business->subcategory->name,
+                    ] : null,
+                    'offers' => $business->activeOffers->map(function ($offer) {
+                        return [
+                            'id' => $offer->id,
+                            'title' => $offer->title,
+                            'description' => $offer->description,
+                            'discount_percentage' => $offer->discount_percentage,
+                            'valid_to' => $offer->valid_to,
+                        ];
+                    }),
+                    'recent_reviews' => $business->reviews->map(function ($review) {
+                        return [
+                            'id' => $review->id,
+                            'rating' => $review->rating,
+                            'comment' => $review->comment,
+                            'created_at' => $review->created_at,
+                        ];
+                    }),
+                    'trending_score' => $business->trending_score ?? 0,
+                    'trending_growth' => $business->trending_growth ?? '0%',
+                    'distance_km' => $business->distance ?? null,
+                ];
+            });
+
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'trending_businesses' => $trendingBusinesses,
-                    'total_count' => $trendingBusinesses->count(),
-                    'location' => compact('latitude', 'longitude', 'radius'),
-                    'time_period_days' => $days,
-                    'categories_filtered' => !empty($categories)
+                    'trending_businesses' => $transformedTrending,
+                    'total_count' => $transformedTrending->count(),
+                    'trending_analytics' => [
+                        'trending_period' => "{$days} days",
+                        'last_updated' => now()->toISOString(),
+                        'geographical_scope' => [
+                            'center' => compact('latitude', 'longitude'),
+                            'radius_km' => $radius,
+                            'coverage_area' => $radius > 25 ? 'city_wide' : 'local'
+                        ],
+                        'data_source' => 'real_time_analytics',
+                        'algorithm_version' => 'v2.1'
+                    ],
+                    'filters' => [
+                        'applied' => [
+                            'location' => true,
+                            'time_period' => $days,
+                            'categories' => !empty($categories) ? $categories : null
+                        ],
+                        'available' => [
+                            'time_periods' => ['1 day', '7 days', '14 days', '30 days'],
+                            'max_radius' => 100,
+                            'sortable_by' => ['trending_score', 'rating', 'distance', 'recent_activity']
+                        ]
+                    ],
+                    'metadata' => [
+                        'page_type' => 'full_trending_list',
+                        'differs_from_home' => 'Complete business data with analytics',
+                        'use_case' => 'Dedicated trending exploration',
+                        'performance_notes' => 'Real-time trending calculations'
+                    ]
                 ]
             ]);
 
