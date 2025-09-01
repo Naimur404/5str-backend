@@ -2,11 +2,11 @@
     @if (filament()->hasLogin())
         <x-slot name="heading">
             <div class="flex flex-col items-center">
-                {{-- Custom Logo Display --}}
+                {{-- Custom Logo Display (this replaces the default brand logo) --}}
                 <div class="mb-6">
                     <img src="{{ asset('images/logo.png') }}" 
                          alt="5SRT Business Discovery" 
-                         class="h-16 w-auto mx-auto">
+                         class="h-16 w-auto mx-auto login-custom-logo">
                 </div>
                 
                 {{-- Heading --}}
@@ -36,4 +36,42 @@
 
         {{ \Filament\Support\Facades\FilamentView::renderHook('panels::auth.login.form.after') }}
     @endif
+
+    {{-- Custom CSS to hide the default brand logo --}}
+    @push('styles')
+    <style>
+        /* Hide the default Filament brand logo on login page */
+        .fi-simple-page .fi-logo,
+        .fi-simple-layout .fi-logo,
+        .fi-brand,
+        .fi-sidebar-header,
+        .fi-topbar-brand,
+        .fi-brand-logo {
+            display: none !important;
+        }
+        
+        /* Hide any brand-related elements */
+        [class*="brand"],
+        [class*="logo"]:not(.login-custom-logo) {
+            display: none !important;
+        }
+        
+        /* Ensure our custom logo is prominent */
+        .login-custom-logo {
+            max-height: 4rem;
+            width: auto;
+        }
+        
+        /* Center the login form better */
+        .fi-simple-page {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        
+        .fi-simple-main {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    @endpush
 </x-filament-panels::page.simple>
