@@ -119,7 +119,7 @@ class RecommendationController extends Controller
                         ];
                     }),
                     'personalization_score' => $business->personalization_applied ?? 0,
-                    'distance_km' => $business->distance ?? null,
+                    'distance' => $this->formatDistance($business->distance ?? null),
                 ];
             });
 
@@ -333,7 +333,7 @@ class RecommendationController extends Controller
                         ];
                     }),
                     'similarity_score' => $similarBusiness->similarity_score ?? 0,
-                    'distance_km' => $similarBusiness->distance ?? null,
+                    'distance' => $this->formatDistance($similarBusiness->distance ?? null),
                 ];
             });
 
@@ -557,7 +557,7 @@ class RecommendationController extends Controller
                     }),
                     'trending_score' => $business->trending_score ?? 0,
                     'trending_growth' => $business->trending_growth ?? '0%',
-                    'distance_km' => $business->distance ?? null,
+                    'distance' => $this->formatDistance($business->distance ?? null),
                 ];
             });
 
@@ -678,6 +678,31 @@ class RecommendationController extends Controller
                 'message' => 'Failed to get interaction history',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
+        }
+    }
+
+    /**
+     * Format distance from meters to readable format
+     */
+    private function formatDistance(?float $distanceInMeters): ?array
+    {
+        if ($distanceInMeters === null) {
+            return null;
+        }
+
+        if ($distanceInMeters < 1000) {
+            return [
+                'value' => round($distanceInMeters),
+                'unit' => 'm',
+                'formatted' => round($distanceInMeters) . ' m'
+            ];
+        } else {
+            $km = $distanceInMeters / 1000;
+            return [
+                'value' => round($km, 1),
+                'unit' => 'km',
+                'formatted' => round($km, 1) . ' km'
+            ];
         }
     }
 }
