@@ -38,8 +38,8 @@ class RecommendationController extends Controller
         $startTime = microtime(true);
 
         try {
-            // Use light personalization by default (removed A/B testing complexity)
-            $personalizationLevel = 'light'; // You can change this to 'none', 'light', or 'full'
+            // Get personalization level from config (no more A/B testing!)
+            $personalizationLevel = config('recommendations.personalization_level', 'light');
             
             $recommendations = $this->recommendationService->getRecommendations(
                 $user,
