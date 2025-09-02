@@ -286,14 +286,14 @@ class RecommendationService
     {
         $similarBusinesses = collect();
 
-        // Find businesses in the same category
+        // PRIORITY 1: Find businesses in the EXACT same category
         $sameCategoryBusinesses = Business::where('id', '!=', $business->id)
             ->where('category_id', $business->category_id)
             ->where('is_active', true)
             ->with(['category:id,name,icon_image', 'subcategory:id,name', 'logoImage', 'coverImage'])
             ->orderByDesc('overall_rating')
             ->orderByDesc('total_reviews')
-            ->take($count)
+            ->take($count * 2) // Get more to have better selection
             ->get();
 
         foreach ($sameCategoryBusinesses as $similarBusiness) {
@@ -303,50 +303,55 @@ class RecommendationService
             $similarBusinesses->push($similarBusiness);
         }
 
-        // If we still don't have enough, find businesses with similar ratings in nearby area
+        // PRIORITY 2: Only if we have very few same-category businesses, 
+        // find businesses in the same category but nearby (prioritize category over location)
         if ($similarBusinesses->count() < $count && $business->latitude && $business->longitude) {
-            $nearbyBusinesses = Business::where('id', '!=', $business->id)
+            $nearbySameCategoryBusinesses = Business::where('id', '!=', $business->id)
+                ->where('category_id', $business->category_id) // SAME CATEGORY ONLY
                 ->where('is_active', true)
                 ->whereNotIn('id', $similarBusinesses->pluck('id'))
                 ->whereRaw(
                     "ST_Distance_Sphere(POINT(longitude, latitude), POINT(?, ?)) <= ?",
-                    [$business->longitude, $business->latitude, 10000] // 10km radius
+                    [$business->longitude, $business->latitude, 20000] // Expand to 20km radius for same category
                 )
-                ->where('overall_rating', '>=', max(3.0, $business->overall_rating - 1))
                 ->with(['category:id,name,icon_image', 'subcategory:id,name', 'logoImage', 'coverImage'])
                 ->orderByDesc('overall_rating')
                 ->take($count - $similarBusinesses->count())
                 ->get();
 
-            foreach ($nearbyBusinesses as $nearbyBusiness) {
+            foreach ($nearbySameCategoryBusinesses as $nearbyBusiness) {
                 $nearbyBusiness->similarity_score = $this->calculateRealTimeSimilarity($business, $nearbyBusiness);
-                $nearbyBusiness->similarity_type = 'location_similar';
-                $nearbyBusiness->similarity_reasons = ['Nearby location', 'Similar ratings'];
+                $nearbyBusiness->similarity_type = 'category_location_similar';
+                $nearbyBusiness->similarity_reasons = ['Same category', 'Nearby location'];
                 $similarBusinesses->push($nearbyBusiness);
             }
         }
 
-        // If still not enough, get highly rated businesses from any category
-        if ($similarBusinesses->count() < $count) {
-            $topRatedBusinesses = Business::where('id', '!=', $business->id)
+        // PRIORITY 3: Only if we STILL don't have enough from the same category,
+        // then look for businesses in related subcategories (if available)
+        if ($similarBusinesses->count() < $count && $business->subcategory_id) {
+            $sameSubcategoryBusinesses = Business::where('id', '!=', $business->id)
+                ->where('subcategory_id', $business->subcategory_id)
                 ->where('is_active', true)
                 ->whereNotIn('id', $similarBusinesses->pluck('id'))
-                ->where('overall_rating', '>=', 4.0)
                 ->with(['category:id,name,icon_image', 'subcategory:id,name', 'logoImage', 'coverImage'])
                 ->orderByDesc('overall_rating')
-                ->orderByDesc('total_reviews')
                 ->take($count - $similarBusinesses->count())
                 ->get();
 
-            foreach ($topRatedBusinesses as $topBusiness) {
-                $topBusiness->similarity_score = $this->calculateRealTimeSimilarity($business, $topBusiness);
-                $topBusiness->similarity_type = 'general_similar';
-                $topBusiness->similarity_reasons = ['Highly rated', 'Popular choice'];
-                $similarBusinesses->push($topBusiness);
+            foreach ($sameSubcategoryBusinesses as $subcategoryBusiness) {
+                $subcategoryBusiness->similarity_score = $this->calculateRealTimeSimilarity($business, $subcategoryBusiness);
+                $subcategoryBusiness->similarity_type = 'subcategory_similar';
+                $subcategoryBusiness->similarity_reasons = ['Same subcategory', 'Similar service type'];
+                $similarBusinesses->push($subcategoryBusiness);
             }
         }
 
-        return $similarBusinesses->take($count);
+        // Sort by similarity score and return the best matches
+        return $similarBusinesses
+            ->sortByDesc('similarity_score')
+            ->take($count)
+            ->values();
     }
 
     /**
@@ -356,32 +361,31 @@ class RecommendationService
     {
         $score = 0.0;
 
-        // Category similarity (40% weight)
+        // Category similarity (70% weight) - This is the most important factor
         if ($businessA->category_id === $businessB->category_id) {
-            $score += 0.4;
+            $score += 0.7;
         }
 
-        // Rating similarity (30% weight)
+        // Subcategory similarity (additional 10% if same subcategory)
+        if ($businessA->subcategory_id && $businessB->subcategory_id && 
+            $businessA->subcategory_id === $businessB->subcategory_id) {
+            $score += 0.1;
+        }
+
+        // Rating similarity (15% weight)
         $ratingDiff = abs($businessA->overall_rating - $businessB->overall_rating);
         $ratingScore = max(0, 1 - ($ratingDiff / 5));
-        $score += $ratingScore * 0.3;
+        $score += $ratingScore * 0.15;
 
-        // Location proximity (20% weight) - if both have coordinates
+        // Location proximity (5% weight) - Less important for similarity
         if ($businessA->latitude && $businessA->longitude && 
             $businessB->latitude && $businessB->longitude) {
             $distance = $this->calculateDistance(
                 $businessA->latitude, $businessA->longitude,
                 $businessB->latitude, $businessB->longitude
             );
-            $locationScore = max(0, 1 - ($distance / 10)); // 10km max for full score
-            $score += $locationScore * 0.2;
-        }
-
-        // Price range similarity (10% weight)
-        if ($businessA->price_range && $businessB->price_range) {
-            $priceDiff = abs($businessA->price_range - $businessB->price_range);
-            $priceScore = max(0, 1 - ($priceDiff / 3)); // Assuming price range 1-4
-            $score += $priceScore * 0.1;
+            $locationScore = max(0, 1 - ($distance / 50)); // 50km max for any location score
+            $score += $locationScore * 0.05;
         }
 
         return round($score, 2);
