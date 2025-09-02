@@ -1351,30 +1351,25 @@ class HomeController extends Controller
             $business = $allBusinesses->where('id', $trend->item_id)->first();
             
             if ($business && !in_array($business->id, $usedBusinessIds)) {
-                // Lightweight data for home screen preview
                 $trendingBusinesses[] = [
                     'id' => $business->id,
-                    'name' => $business->business_name,
+                    'business_name' => $business->business_name,
                     'slug' => $business->slug,
-                    'rating' => [
-                        'overall_rating' => $business->overall_rating,
-                        'total_reviews' => $business->total_reviews
-                    ],
-                    'category' => [
-                        'name' => $business->category->name ?? null,
-                        'icon' => $business->category->icon_image ?? null
-                    ],
+                    'landmark' => $business->landmark,
+                    'overall_rating' => $business->overall_rating,
+                    'price_range' => $business->price_range,
+                    'category_name' => $business->category->name ?? null,
+                    'subcategory_name' => $business->subcategory->name ?? null,
                     'images' => [
                         'logo' => $business->logoImage->image_url ?? null,
+                        'cover' => $business->coverImage->image_url ?? null,
                     ],
-                    'distance_km' => $business->distance ? round($business->distance / 1000, 1) : null,
-                    'trending_indicator' => $this->getTrendingIndicator($trend->trend_score),
-                    'price_range' => str_repeat('$', $business->price_range),
-                    'features' => [
-                        'has_delivery' => $business->has_delivery,
-                        'is_verified' => $business->is_verified,
-                    ],
-                    'trend_rank' => $trend->trend_rank ?? null
+                    'distance' => $business->distance ?? null,
+                    'trend_score' => $trend->trend_score,
+                    'hybrid_score' => $trend->hybrid_score ?? ($trend->trend_score * 0.6 + ($business->overall_rating * 20) * 0.4),
+                    'view_count' => $trend->view_count ?? 0,
+                    'search_count' => $trend->search_count ?? 0,
+                    'section_priority' => 'trending'
                 ];
                 
                 $usedBusinessIds[] = $business->id;
@@ -1382,17 +1377,6 @@ class HomeController extends Controller
         }
 
         return $trendingBusinesses;
-    }
-
-    /**
-     * Get trending indicator emoji based on trend score
-     */
-    private function getTrendingIndicator($trendScore)
-    {
-        if ($trendScore >= 80) return '🔥'; // Very hot
-        if ($trendScore >= 60) return '⚡'; // Hot  
-        if ($trendScore >= 40) return '📈'; // Rising
-        return '✨'; // New/Trending
     }
 
     /**
