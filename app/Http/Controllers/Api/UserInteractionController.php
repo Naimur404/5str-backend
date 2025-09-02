@@ -214,9 +214,8 @@ class UserInteractionController extends Controller
         $user = Auth::user();
 
         try {
-            // Get current personalization level
-            $personalizationLevel = app(\App\Services\ABTestingService::class)
-                ->getVariantForUser('personalization_level', $user->id);
+            // Use light personalization by default
+            $personalizationLevel = 'light';
 
             // Get user profile data
             $userProfile = Cache::get("user_profile_fast:{$user->id}", []);

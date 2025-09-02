@@ -38,6 +38,9 @@ class RecommendationController extends Controller
         $startTime = microtime(true);
 
         try {
+            // Use light personalization by default (removed A/B testing complexity)
+            $personalizationLevel = 'light'; // You can change this to 'none', 'light', or 'full'
+            
             $recommendations = $this->recommendationService->getRecommendations(
                 $user,
                 $latitude,
@@ -46,24 +49,7 @@ class RecommendationController extends Controller
                 $count
             );
 
-            // Load complete business data with relationships
-            $recommendations->load([
-                'category:id,name,icon_image',
-                'subcategory:id,name',
-                'logoImage:id,business_id,image_url,image_type',
-                'coverImage:id,business_id,image_url,image_type',
-                'galleryImages:id,business_id,image_url,image_type',
-                'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
-                'reviews' => function($query) {
-                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
-                }
-            ]);
-
             $responseTime = round((microtime(true) - $startTime) * 1000, 2);
-            
-            // Get personalization level for this user
-            $personalizationLevel = app(\App\Services\ABTestingService::class)
-                ->getVariantForUser('personalization_level', $user->id);
 
             // Calculate personalization stats
             $personalizedCount = $recommendations->where('personalization_applied', true)->count();
@@ -147,7 +133,7 @@ class RecommendationController extends Controller
                     'algorithm' => 'fast_personalized',
                     'personalization_level' => $personalizationLevel,
                     'personalized_results' => $personalizedCount,
-                    'response_time_ms' => $responseTime
+                    'response_time_ms' => $responseTime,
                 ]
             ]);
 

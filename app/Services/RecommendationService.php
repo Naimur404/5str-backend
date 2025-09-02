@@ -34,9 +34,8 @@ class RecommendationService
         ?array $categories = null,
         int $count = self::DEFAULT_RECOMMENDATIONS_COUNT
     ): Collection {
-        // A/B test personalization levels
-        $personalizationLevel = app(ABTestingService::class)
-            ->getVariantForUser('personalization_level', $user->id);
+        // Get personalization level from config (no more A/B testing!)
+        $personalizationLevel = config('recommendations.personalization_level', 'light');
         
         // Generate cache key with personalization level
         $cacheKey = $this->generateCacheKey($user->id, $latitude, $longitude, $categories, $count, $personalizationLevel);
@@ -1114,14 +1113,14 @@ class RecommendationService
                 session()->getId()
             );
 
-            // Also track for A/B testing service
-            dispatch(function () use ($userId, $personalizationLevel, $responseTimeMs, $recommendationCount) {
-                app(ABTestingService::class)->trackExperiment('personalization_level', $userId, $personalizationLevel, [
-                    'response_time_ms' => $responseTimeMs,
-                    'recommendation_count' => $recommendationCount,
-                    'timestamp' => now()->toISOString()
-                ]);
-            })->afterResponse();
+            // Log metrics for monitoring (removed A/B testing tracking)
+            \Illuminate\Support\Facades\Log::info('Personalization metrics', [
+                'user_id' => $userId,
+                'personalization_level' => $personalizationLevel,
+                'response_time_ms' => $responseTimeMs,
+                'recommendation_count' => $recommendationCount,
+                'timestamp' => now()->toISOString()
+            ]);
 
         } catch (\Exception $e) {
             // Don't let metrics tracking break recommendations

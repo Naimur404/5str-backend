@@ -76,9 +76,6 @@ class ProcessUserInteractionJob implements ShouldQueue
             // 3. Trigger recommendation updates for high-value actions
             $this->triggerRecommendationUpdates();
 
-            // 4. Update A/B testing metrics
-            $this->updateABTestingMetrics();
-
             Log::info('User interaction job completed successfully', [
                 'user_id' => $this->userId,
                 'action' => $this->action
@@ -141,36 +138,6 @@ class ProcessUserInteractionJob implements ShouldQueue
             UpdateTrendingDataJob::dispatch($this->businessId, $this->action)
                 ->onQueue('low')
                 ->delay(now()->addSeconds(30));
-        }
-    }
-
-    /**
-     * Update A/B testing metrics
-     */
-    private function updateABTestingMetrics(): void
-    {
-        try {
-            $abTestingService = app(\App\Services\ABTestingService::class);
-            $variant = $abTestingService->getVariantForUser('personalization_level', $this->userId);
-            
-            // Track conversion metrics
-            $abTestingService->trackExperiment(
-                'personalization_level',
-                $this->userId,
-                $variant,
-                [
-                    'event_type' => 'interaction',
-                    'action' => $this->action,
-                    'business_id' => $this->businessId,
-                    'source' => $this->source
-                ]
-            );
-
-        } catch (\Exception $e) {
-            Log::warning('Failed to update A/B testing metrics', [
-                'user_id' => $this->userId,
-                'error' => $e->getMessage()
-            ]);
         }
     }
 

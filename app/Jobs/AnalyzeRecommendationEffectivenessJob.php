@@ -38,17 +38,14 @@ class AnalyzeRecommendationEffectivenessJob implements ShouldQueue
 
             $timeframeDates = $this->getTimeframeDates();
             
-            // Analyze A/B testing effectiveness
-            $abTestingMetrics = $this->analyzeABTestingMetrics($timeframeDates);
-            
-            // Analyze conversion rates by personalization level
+            // Analyze conversion rates (simplified without A/B testing)
             $conversionMetrics = $this->analyzeConversionMetrics($timeframeDates);
             
             // Analyze user engagement patterns
             $engagementMetrics = $this->analyzeEngagementMetrics($timeframeDates);
             
-            // Store comprehensive analytics
-            $this->storeAnalyticsResults($abTestingMetrics, $conversionMetrics, $engagementMetrics);
+            // Store comprehensive analytics (simplified without A/B testing)
+            $this->storeAnalyticsResults($conversionMetrics, $engagementMetrics);
             
             Log::info('Recommendation effectiveness analysis completed', [
                 'timeframe' => $this->timeframe,
@@ -86,41 +83,6 @@ class AnalyzeRecommendationEffectivenessJob implements ShouldQueue
         }
 
         return [$startDate, $endDate];
-    }
-
-    private function analyzeABTestingMetrics(array $timeframeDates): array
-    {
-        [$startDate, $endDate] = $timeframeDates;
-
-        // Get A/B testing distribution
-        $abTestingService = app(ABTestingService::class);
-        
-        $variants = ['none', 'light', 'full'];
-        $metrics = [];
-
-        foreach ($variants as $variant) {
-            // Get users in this variant who had interactions
-            $userInteractions = UserInteraction::whereBetween('created_at', [$startDate, $endDate])
-                ->whereHas('user', function ($query) use ($variant, $abTestingService) {
-                    // Note: This is a simplified approach - in reality you'd need to store variant assignments
-                })
-                ->get();
-
-            $totalInteractions = $userInteractions->count();
-            $uniqueUsers = $userInteractions->pluck('user_id')->unique()->count();
-            $highValueActions = $userInteractions->whereIn('interaction_type', 
-                ['favorite', 'phone_call', 'review', 'collection_add'])->count();
-
-            $metrics[$variant] = [
-                'total_interactions' => $totalInteractions,
-                'unique_users' => $uniqueUsers,
-                'high_value_actions' => $highValueActions,
-                'avg_interactions_per_user' => $uniqueUsers > 0 ? $totalInteractions / $uniqueUsers : 0,
-                'conversion_rate' => $totalInteractions > 0 ? $highValueActions / $totalInteractions : 0
-            ];
-        }
-
-        return $metrics;
     }
 
     private function analyzeConversionMetrics(array $timeframeDates): array
@@ -188,7 +150,7 @@ class AnalyzeRecommendationEffectivenessJob implements ShouldQueue
         ];
     }
 
-    private function storeAnalyticsResults($abTestingMetrics, $conversionMetrics, $engagementMetrics): void
+    private function storeAnalyticsResults($conversionMetrics, $engagementMetrics): void
     {
         PersonalizationMetrics::create([
             'experiment_name' => 'recommendation_effectiveness',
@@ -197,7 +159,6 @@ class AnalyzeRecommendationEffectivenessJob implements ShouldQueue
             'event_type' => 'analytics_report',
             'event_data' => [
                 'timeframe' => $this->timeframe,
-                'ab_testing_metrics' => $abTestingMetrics,
                 'conversion_metrics' => $conversionMetrics,
                 'engagement_metrics' => $engagementMetrics,
                 'generated_at' => now()->toISOString()

@@ -241,12 +241,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('/personalization-summary', [\App\Http\Controllers\Api\UserInteractionController::class, 'personalizationSummary']);
     });
 
-    // Personalization Testing (for development/admin)
-    Route::prefix('personalization-test')->group(function () {
-        Route::get('/ab-testing', [\App\Http\Controllers\Api\PersonalizationTestController::class, 'testABTesting']);
-        Route::get('/metrics', [\App\Http\Controllers\Api\PersonalizationTestController::class, 'getMetrics']);
-        Route::get('/personalization-metrics', [\App\Http\Controllers\Api\PersonalizationTestController::class, 'getPersonalizationMetrics']);
-    });
+    // Note: A/B testing routes removed to simplify the system
 });
 
 // Public Collection Discovery Routes (no authentication required)
