@@ -148,13 +148,7 @@ class HomeController extends Controller
                 'data' => [
                     'banners' => $banners,
                     'top_services' => $topServices,
-                    'trending_businesses' => [
-                        'data' => $sectionData['trending_businesses'],
-                        'count' => count($sectionData['trending_businesses']),
-                        'view_all_url' => '/api/v1/recommendations/trending',
-                        'section_type' => 'trending_preview',
-                        'last_updated' => now()->toISOString()
-                    ],
+                    'trending_businesses' => $sectionData['trending_businesses'],
                     'featured_businesses' => $sectionData['featured_businesses'],
                     'popular_nearby' => $sectionData['popular_nearby'],
                     'dynamic_sections' => $sectionData['dynamic_sections'],
