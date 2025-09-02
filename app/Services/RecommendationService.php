@@ -42,23 +42,29 @@ class RecommendationService
         
         $startTime = microtime(true);
         
-        // Try to get from cache first
-        $cached = Cache::get($cacheKey);
-        if ($cached) {
-            // Return cached Business IDs and re-query for fresh relationships
-            $businessIds = collect($cached);
-            return Business::with([
-                'category:id,name,icon_image',
-                'subcategory:id,name', 
-                'logoImage:id,business_id,image_url,image_type',
-                'coverImage:id,business_id,image_url,image_type',
-                'galleryImages:id,business_id,image_url,image_type',
-                'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
-                'reviews' => function($query) {
-                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
-                }
-            ])->whereIn('id', $businessIds)->get();
-        }
+        // Try to get from cache first (temporarily disabled for debugging)
+        // $cached = Cache::get($cacheKey);
+        // if ($cached) {
+        //     // Return cached Business IDs and re-query for fresh relationships
+        //     $businessIds = is_array($cached) ? $cached : collect($cached)->toArray();
+        //     
+        //     // Ensure we only have simple IDs, not nested arrays
+        //     $businessIds = array_filter($businessIds, 'is_numeric');
+        //     
+        //     if (!empty($businessIds)) {
+        //         return Business::with([
+        //             'category:id,name,icon_image',
+        //             'subcategory:id,name', 
+        //             'logoImage:id,business_id,image_url,image_type',
+        //             'coverImage:id,business_id,image_url,image_type',
+        //             'galleryImages:id,business_id,image_url,image_type',
+        //             'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
+        //             'reviews' => function($query) {
+        //                 $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
+        //             }
+        //         ])->whereIn('id', $businessIds)->get();
+        //     }
+        // }
 
         // Get recommendations based on personalization level
         $recommendations = match($personalizationLevel) {
@@ -68,8 +74,8 @@ class RecommendationService
             default => $this->getFastRecommendations($user, $latitude, $longitude, $categories, $count)
         };
         
-        // Cache only the business IDs for better performance
-        Cache::put($cacheKey, $recommendations->pluck('id')->toArray(), self::CACHE_TTL);
+        // Cache only the business IDs for better performance (temporarily disabled)
+        // Cache::put($cacheKey, $recommendations->pluck('id')->toArray(), self::CACHE_TTL);
         
         // Track A/B testing metrics
         $responseTime = round((microtime(true) - $startTime) * 1000, 2);
