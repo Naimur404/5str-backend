@@ -103,7 +103,7 @@ class RecommendationService
             'galleryImages:id,business_id,image_url,image_type',
             'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
             'reviews' => function($query) {
-                $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
+                $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'overall_rating', 'review_text', 'created_at');
             }
         ]);
 
@@ -844,7 +844,7 @@ class RecommendationService
                 'galleryImages:id,business_id,image_url,image_type',
                 'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
                 'reviews' => function($query) {
-                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
+                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'overall_rating', 'review_text', 'created_at');
                 }
             ]);
 
@@ -885,7 +885,7 @@ class RecommendationService
                 'galleryImages:id,business_id,image_url,image_type',
                 'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
                 'reviews' => function($query) {
-                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
+                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'overall_rating', 'review_text', 'created_at');
                 }
             ]);
 

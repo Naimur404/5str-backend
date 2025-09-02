@@ -113,8 +113,8 @@ class RecommendationController extends Controller
                     'recent_reviews' => $business->reviews->map(function ($review) {
                         return [
                             'id' => $review->id,
-                            'rating' => $review->rating,
-                            'comment' => $review->comment,
+                            'rating' => $review->overall_rating,
+                            'comment' => $review->review_text,
                             'created_at' => $review->created_at,
                         ];
                     }),
@@ -550,8 +550,8 @@ class RecommendationController extends Controller
                     'recent_reviews' => $business->reviews->map(function ($review) {
                         return [
                             'id' => $review->id,
-                            'rating' => $review->rating,
-                            'comment' => $review->comment,
+                            'rating' => $review->overall_rating,
+                            'comment' => $review->review_text,
                             'created_at' => $review->created_at,
                         ];
                     }),
