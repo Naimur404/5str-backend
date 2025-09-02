@@ -95,9 +95,17 @@ class RecommendationService
         // Priority: Location-based (if coordinates provided) + Content-based + Simple scoring
         
         $businesses = Business::where('is_active', true)
-        ->with(['categories:id,name', 'images' => function($query) {
-            $query->where('is_primary', true)->select('id', 'business_id', 'image_url', 'image_type');
-        }]);
+        ->with([
+            'category:id,name,icon_image',
+            'subcategory:id,name',
+            'logoImage:id,business_id,image_url,image_type',
+            'coverImage:id,business_id,image_url,image_type',
+            'galleryImages:id,business_id,image_url,image_type',
+            'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
+            'reviews' => function($query) {
+                $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
+            }
+        ]);
 
         // Apply location filter if coordinates provided
         if ($latitude && $longitude) {
@@ -125,12 +133,10 @@ class RecommendationService
         $results = $businesses->take($count * 2) // Get more for scoring
             ->get()
             ->map(function ($business) use ($user, $latitude, $longitude) {
-                return [
-                    'business_id' => $business->id,
-                    'business' => $business,
-                    'final_score' => $this->calculateSimpleScore($business, $user, $latitude, $longitude),
-                    'contributing_algorithms' => ['fast']
-                ];
+                $business->final_score = $this->calculateSimpleScore($business, $user, $latitude, $longitude);
+                $business->contributing_algorithms = ['fast'];
+                $business->personalization_applied = false;
+                return $business;
             })
             ->sortByDesc('final_score')
             ->take($count)
@@ -787,13 +793,11 @@ class RecommendationService
             $baseScore = $this->calculateSimpleScore($business, $user, $latitude, $longitude);
             $personalBoost = $this->calculateLightPersonalBoost($business, $userProfile);
             
-            return [
-                'business_id' => $business->id,
-                'business' => $business,
-                'final_score' => $baseScore + $personalBoost,
-                'contributing_algorithms' => ['fast', 'light_personal'],
-                'personalization_applied' => $personalBoost > 0
-            ];
+            $business->final_score = $baseScore + $personalBoost;
+            $business->contributing_algorithms = ['fast', 'light_personal'];
+            $business->personalization_applied = $personalBoost > 0;
+            
+            return $business;
         })->sortByDesc('final_score')->take($count)->values();
     }
 
@@ -817,14 +821,12 @@ class RecommendationService
             $baseScore = $this->calculateSimpleScore($business, $user, $latitude, $longitude);
             $personalScore = $this->calculateFullPersonalScore($business, $userProfile);
             
-            return [
-                'business_id' => $business->id,
-                'business' => $business,
-                'final_score' => ($baseScore * 0.6) + ($personalScore * 0.4),
-                'contributing_algorithms' => ['fast', 'full_personal'],
-                'personalization_applied' => true,
-                'personalization_factors' => $this->getPersonalizationFactors($business, $userProfile)
-            ];
+            $business->final_score = ($baseScore * 0.6) + ($personalScore * 0.4);
+            $business->contributing_algorithms = ['fast', 'full_personal'];
+            $business->personalization_applied = true;
+            $business->personalization_factors = $this->getPersonalizationFactors($business, $userProfile);
+            
+            return $business;
         })->sortByDesc('final_score')->take($count)->values();
     }
 
@@ -834,9 +836,17 @@ class RecommendationService
     private function getBaseBusinessQuery(?float $latitude, ?float $longitude, ?array $categories, int $count): Collection
     {
         $businesses = Business::where('is_active', true)
-            ->with(['categories:id,name', 'images' => function($query) {
-                $query->where('is_primary', true)->select('id', 'business_id', 'image_url', 'image_type');
-            }]);
+            ->with([
+                'category:id,name,icon_image',
+                'subcategory:id,name',
+                'logoImage:id,business_id,image_url,image_type',
+                'coverImage:id,business_id,image_url,image_type',
+                'galleryImages:id,business_id,image_url,image_type',
+                'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
+                'reviews' => function($query) {
+                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
+                }
+            ]);
 
         if ($latitude && $longitude) {
             $businesses = $businesses->selectRaw(
@@ -867,9 +877,17 @@ class RecommendationService
     private function getPersonalizedBusinessQuery(User $user, array $userProfile, ?float $latitude, ?float $longitude, ?array $categories, int $count): Collection
     {
         $businesses = Business::where('is_active', true)
-            ->with(['categories:id,name', 'images' => function($query) {
-                $query->where('is_primary', true)->select('id', 'business_id', 'image_url', 'image_type');
-            }]);
+            ->with([
+                'category:id,name,icon_image',
+                'subcategory:id,name',
+                'logoImage:id,business_id,image_url,image_type',
+                'coverImage:id,business_id,image_url,image_type',
+                'galleryImages:id,business_id,image_url,image_type',
+                'activeOffers:id,business_id,title,description,discount_percentage,valid_to',
+                'reviews' => function($query) {
+                    $query->latest()->limit(3)->select('id', 'reviewable_id', 'user_id', 'rating', 'comment', 'created_at');
+                }
+            ]);
 
         // Apply location filter
         if ($latitude && $longitude) {
