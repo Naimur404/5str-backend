@@ -829,11 +829,9 @@ class BusinessController extends Controller
                 $query->where('category_id', $request->category_id);
             }
 
-            // Always sort by highest rating first, then by total reviews
+            // Sort by highest rating only
             $offerings = $query->with(['category', 'variants'])
                 ->orderByDesc('average_rating')
-                ->orderByDesc('total_reviews')
-                ->orderBy('name')
                 ->get();
 
             // Add is_favorite flag to each offering
