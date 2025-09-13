@@ -193,7 +193,8 @@ class BusinessResource extends Resource
                             ])
                             ->default('local')
                             ->helperText('Geographic scope of business operations')
-                            ->visible(fn (Forms\Get $get): bool => $get('is_national') === true),
+                            ->visible(fn (Forms\Get $get): bool => $get('is_national') === true)
+                            ->live(),
                         Forms\Components\Select::make('business_model')
                             ->label('Business Model')
                             ->options([
@@ -209,13 +210,22 @@ class BusinessResource extends Resource
                         Forms\Components\TagsInput::make('service_areas')
                             ->label('Service Areas')
                             ->placeholder('Add cities/regions served')
-                            ->helperText('List the major cities or regions this business serves (e.g., Dhaka, Chittagong, Sylhet)')
+                            ->helperText(fn (Forms\Get $get): string => match($get('service_coverage')) {
+                                'local' => 'List the specific areas/neighborhoods within the city where this business operates',
+                                'regional' => 'List the districts/divisions where this business operates (e.g., Dhaka, Chittagong, Sylhet)',
+                                'national' => 'List the major cities/divisions this business serves nationwide',
+                                default => 'List the areas where this business operates'
+                            })
                             ->suggestions([
+                                // Local areas (Dhaka neighborhoods)
+                                'Dhanmondi', 'Gulshan', 'Banani', 'Uttara', 'Mirpur', 'Wari', 'Old Dhaka', 'Tejgaon',
+                                'Mohammadpur', 'Ramna', 'Motijheel', 'Paltan', 'Farmgate', 'Panthapath',
+                                // Major cities/divisions
                                 'Dhaka', 'Chittagong', 'Sylhet', 'Rajshahi', 'Khulna', 'Barisal', 'Rangpur', 
                                 'Mymensingh', 'Comilla', 'Gazipur', 'Narayanganj', 'Tangail', 'Jessore', 
                                 'Bogra', 'Pabna', 'Dinajpur', 'Cox\'s Bazar', 'Faridpur', 'Brahmanbaria'
                             ])
-                            ->visible(fn (Forms\Get $get): bool => $get('is_national') === true && in_array($get('service_coverage'), ['regional', 'national'])),
+                            ->visible(fn (Forms\Get $get): bool => $get('is_national') === true),
                     ])
                     ->columns(2)
                     ->collapsed()
