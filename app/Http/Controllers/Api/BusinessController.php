@@ -503,6 +503,42 @@ class BusinessController extends Controller
                 $query->byBusinessModel($request->business_model);
             }
 
+            // Product tag filters - NEW
+            if ($request->has('product_tag')) {
+                $query->withProductTag($request->product_tag);
+            }
+
+            if ($request->has('product_tags')) {
+                $tags = is_array($request->product_tags) 
+                    ? $request->product_tags 
+                    : explode(',', $request->product_tags);
+                $query->withAnyProductTag($tags);
+            }
+
+            // Business tag filters - NEW
+            if ($request->has('business_tag')) {
+                $query->withBusinessTag($request->business_tag);
+            }
+
+            // Specific item type filters - NEW
+            if ($request->has('item_type')) {
+                $itemType = $request->item_type;
+                switch ($itemType) {
+                    case 'ice_cream':
+                        $query->withAnyProductTag(['ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi']);
+                        break;
+                    case 'biscuits_snacks':
+                        $query->withAnyProductTag(['biscuit', 'cookie', 'snack', 'chips', 'crackers', 'wafer']);
+                        break;
+                    case 'beverages':
+                        $query->withAnyProductTag(['beverage', 'soft drink', 'juice', 'water', 'tea', 'coffee']);
+                        break;
+                    case 'food_processing':
+                        $query->withAnyProductTag(['food processing', 'manufacturing', 'packaged food', 'ready meals']);
+                        break;
+                }
+            }
+
             // Rating filter
             if ($request->has('min_rating')) {
                 $query->where('overall_rating', '>=', $request->min_rating);
@@ -541,6 +577,8 @@ class BusinessController extends Controller
                 $businessData['service_coverage'] = $business->service_coverage;
                 $businessData['business_model'] = $business->business_model;
                 $businessData['service_areas'] = $business->service_areas;
+                $businessData['product_tags'] = $business->product_tags; // NEW - Include tags in response
+                $businessData['business_tags'] = $business->business_tags; // NEW - Include tags in response
                 
                 // Add free map alternatives (national businesses may not have specific location)
                 if ($business->latitude && $business->longitude) {
@@ -566,6 +604,16 @@ class BusinessController extends Controller
                         'per_page' => $businesses->perPage(),
                         'total' => $businesses->total(),
                         'has_more' => $businesses->hasMorePages()
+                    ],
+                    'available_filters' => [ // NEW - Show available filter options
+                        'item_types' => [
+                            'ice_cream' => 'Ice Cream & Dairy',
+                            'biscuits_snacks' => 'Biscuits & Snacks', 
+                            'beverages' => 'Beverages',
+                            'food_processing' => 'Food Processing'
+                        ],
+                        'business_models' => ['manufacturing', 'brand', 'delivery_only', 'online_service'],
+                        'sort_options' => ['rating', 'popular', 'name', 'featured']
                     ]
                 ]
             ]);
@@ -574,6 +622,94 @@ class BusinessController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch national businesses',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get national business filter options and statistics
+     */
+    public function nationalFilters(Request $request)
+    {
+        try {
+            // Get available product tags from existing national businesses
+            $productTags = Business::active()
+                ->national()
+                ->whereNotNull('product_tags')
+                ->pluck('product_tags')
+                ->flatten()
+                ->unique()
+                ->sort()
+                ->values();
+
+            // Get available business tags from existing national businesses  
+            $businessTags = Business::active()
+                ->national()
+                ->whereNotNull('business_tags')
+                ->pluck('business_tags')
+                ->flatten()
+                ->unique()
+                ->sort()
+                ->values();
+
+            // Get counts for each item type
+            $itemTypeCounts = [
+                'ice_cream' => Business::active()->national()->withAnyProductTag(['ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi'])->count(),
+                'biscuits_snacks' => Business::active()->national()->withAnyProductTag(['biscuit', 'cookie', 'snack', 'chips', 'crackers', 'wafer'])->count(),
+                'beverages' => Business::active()->national()->withAnyProductTag(['beverage', 'soft drink', 'juice', 'water', 'tea', 'coffee'])->count(),
+                'food_processing' => Business::active()->national()->withAnyProductTag(['food processing', 'manufacturing', 'packaged food', 'ready meals'])->count(),
+            ];
+
+            // Get business model counts
+            $businessModelCounts = Business::active()
+                ->national()
+                ->selectRaw('business_model, COUNT(*) as count')
+                ->groupBy('business_model')
+                ->pluck('count', 'business_model');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'item_types' => [
+                        'ice_cream' => [
+                            'label' => 'Ice Cream & Dairy',
+                            'count' => $itemTypeCounts['ice_cream'],
+                            'tags' => ['ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi']
+                        ],
+                        'biscuits_snacks' => [
+                            'label' => 'Biscuits & Snacks',
+                            'count' => $itemTypeCounts['biscuits_snacks'],
+                            'tags' => ['biscuit', 'cookie', 'snack', 'chips', 'crackers', 'wafer']
+                        ],
+                        'beverages' => [
+                            'label' => 'Beverages',
+                            'count' => $itemTypeCounts['beverages'],
+                            'tags' => ['beverage', 'soft drink', 'juice', 'water', 'tea', 'coffee']
+                        ],
+                        'food_processing' => [
+                            'label' => 'Food Processing',
+                            'count' => $itemTypeCounts['food_processing'],
+                            'tags' => ['food processing', 'manufacturing', 'packaged food', 'ready meals']
+                        ]
+                    ],
+                    'available_product_tags' => $productTags,
+                    'available_business_tags' => $businessTags,
+                    'business_models' => $businessModelCounts,
+                    'sort_options' => [
+                        'rating' => 'Highest Rated',
+                        'popular' => 'Most Popular',
+                        'name' => 'Alphabetical',
+                        'featured' => 'Featured First'
+                    ],
+                    'total_national_businesses' => Business::active()->national()->count()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch national business filters',
                 'error' => $e->getMessage()
             ], 500);
         }

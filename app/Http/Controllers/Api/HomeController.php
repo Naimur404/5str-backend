@@ -2845,9 +2845,30 @@ class HomeController extends Controller
      * 
      * @return \Illuminate\Http\JsonResponse
      */
-    public function nationalBrands()
+    public function nationalBrands(Request $request)
     {
         try {
+            // If specific section type is requested, provide redirect information
+            if ($request->has('section_type') || $request->has('item_type')) {
+                $itemType = $request->input('section_type') ?: $request->input('item_type');
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Use the businesses/national endpoint for filtered results',
+                    'redirect' => [
+                        'endpoint' => '/api/v1/businesses/national',
+                        'parameters' => [
+                            'item_type' => $itemType,
+                            'page' => $request->input('page', 1),
+                            'limit' => $request->input('limit', 20),
+                            'sort' => $request->input('sort', 'rating')
+                        ],
+                        'full_url' => "/api/v1/businesses/national?item_type={$itemType}&page=" . $request->input('page', 1) . "&limit=" . $request->input('limit', 20)
+                    ]
+                ]);
+            }
+            
+            // Default behavior: return all sections summary
             $nationalBrands = $this->getTopNationalBrandsForHome();
 
             return response()->json([
@@ -2858,7 +2879,13 @@ class HomeController extends Controller
                     'total_sections' => count($nationalBrands),
                     'total_businesses' => collect($nationalBrands)->sum(function($section) {
                         return count($section['businesses']);
-                    })
+                    }),
+                    'view_all_endpoints' => [
+                        'ice_cream' => '/api/v1/businesses/national?item_type=ice_cream',
+                        'biscuits_snacks' => '/api/v1/businesses/national?item_type=biscuits_snacks',
+                        'beverages' => '/api/v1/businesses/national?item_type=beverages', 
+                        'food_processing' => '/api/v1/businesses/national?item_type=food_processing'
+                    ]
                 ]
             ]);
 

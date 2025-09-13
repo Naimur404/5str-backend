@@ -96,6 +96,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/nearby', [BusinessController::class, 'nearby']);
         Route::get('/featured', [BusinessController::class, 'featured']);
         Route::get('/national', [BusinessController::class, 'national']); // New national businesses endpoint
+        Route::get('/national/filters', [BusinessController::class, 'nationalFilters']); // New national business filters endpoint
         Route::get('/{business}', [BusinessController::class, 'show']);
         Route::post('/{business}/track-click', [BusinessController::class, 'trackClick']);
         Route::post('/{business}/track-view', [BusinessController::class, 'trackBusinessView']);
