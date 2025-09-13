@@ -128,7 +128,7 @@ class OfferingController extends Controller
             }
 
             // Sort options
-            $sortBy = $request->input('sort', 'sort_order');
+            $sortBy = $request->input('sort', 'rating');
             switch ($sortBy) {
                 case 'rating':
                     $query->orderBy('average_rating', 'desc');

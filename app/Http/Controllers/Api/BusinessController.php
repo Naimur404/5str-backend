@@ -828,9 +828,6 @@ public function offerings(Request $request, $businessId)
         if ($request->has('category_id')) {
             $query->where('category_id', $request->category_id);
         }
-
-                // Sort by highest rating (rated items first, then by rating value DESC)
-                // This handles NULL values properly by putting them last
                 $query->orderByRaw('CASE WHEN average_rating IS NULL THEN 1 ELSE 0 END, average_rating DESC');
         
         $offerings = $query->with(['category', 'variants'])->get();
