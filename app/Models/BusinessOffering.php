@@ -38,6 +38,7 @@ class BusinessOffering extends Model
     ];
 
     protected $casts = [
+        'offering_type' => 'string',
         'price' => 'decimal:2',
         'price_max' => 'decimal:2',
         'is_available' => 'boolean',

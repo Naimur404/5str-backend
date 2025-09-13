@@ -51,7 +51,8 @@ class Business extends Model
 
     protected $appends = [
         'image_url',
-        'name'
+        'name',
+        'google_maps_url'
     ];
 
     protected $casts = [
@@ -77,6 +78,52 @@ class Business extends Model
     public function getImageUrlAttribute()
     {
         return $this->logoImage?->image_url;
+    }
+
+    /**
+     * Get Google Maps URL for this business
+     */
+    public function getGoogleMapsUrlAttribute()
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+        
+        // Google Maps URL with coordinates and business name
+        return "https://www.google.com/maps/search/" . urlencode($this->business_name) . "/@" . $this->latitude . "," . $this->longitude . ",15z";
+    }
+
+    /**
+     * Get Google Maps directions URL
+     */
+    public function getGoogleMapsDirectionsUrl($fromLatitude = null, $fromLongitude = null)
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+        
+        $destination = $this->latitude . "," . $this->longitude;
+        
+        if ($fromLatitude && $fromLongitude) {
+            $origin = $fromLatitude . "," . $fromLongitude;
+            return "https://www.google.com/maps/dir/" . $origin . "/" . $destination;
+        }
+        
+        // If no origin specified, let Google Maps use current location
+        return "https://www.google.com/maps/dir//" . $destination;
+    }
+
+    /**
+     * Get Google Maps place search URL
+     */
+    public function getGoogleMapsPlaceUrl()
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+        
+        $query = urlencode($this->business_name . " " . $this->full_address);
+        return "https://www.google.com/maps/search/" . $query;
     }
 
     /**

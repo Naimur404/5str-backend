@@ -207,10 +207,30 @@ class BusinessController extends Controller
 
             $businesses = $query->paginate($limit, ['*'], 'page', $page);
 
+            // Transform businesses to include Google Maps data
+            $transformedBusinesses = collect($businesses->items())->map(function($business) use ($latitude, $longitude) {
+                $businessData = $business->toArray();
+                
+                // Add Google Maps links
+                $businessData['google_maps'] = [
+                    'view_url' => $business->google_maps_url,
+                    'place_url' => $business->getGoogleMapsPlaceUrl(),
+                    'directions_url' => $business->getGoogleMapsDirectionsUrl($latitude, $longitude),
+                ];
+
+                // Add distance if location provided and business has coordinates
+                if ($latitude && $longitude && $business->latitude && $business->longitude) {
+                    $distance = $this->calculateDistance($latitude, $longitude, $business->latitude, $business->longitude);
+                    $businessData['distance'] = $this->formatDistance($distance * 1000); // Convert to meters
+                }
+                
+                return $businessData;
+            });
+
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'businesses' => $businesses->items(),
+                    'businesses' => $transformedBusinesses,
                     'pagination' => [
                         'current_page' => $businesses->currentPage(),
                         'last_page' => $businesses->lastPage(),
@@ -275,6 +295,26 @@ class BusinessController extends Controller
 
             $businesses = $query->paginate($limit, ['*'], 'page', $page);
 
+            // Transform businesses to include Google Maps data
+            $transformedBusinesses = collect($businesses->items())->map(function($business) use ($latitude, $longitude) {
+                $businessData = $business->toArray();
+                
+                // Add Google Maps links
+                $businessData['google_maps'] = [
+                    'view_url' => $business->google_maps_url,
+                    'place_url' => $business->getGoogleMapsPlaceUrl(),
+                    'directions_url' => $business->getGoogleMapsDirectionsUrl($latitude, $longitude),
+                ];
+
+                // Add distance if location provided
+                if ($latitude && $longitude && $business->latitude && $business->longitude) {
+                    $distance = $this->calculateDistance($latitude, $longitude, $business->latitude, $business->longitude);
+                    $businessData['distance'] = $this->formatDistance($distance * 1000);
+                }
+                
+                return $businessData;
+            });
+
             // Log the search
             $this->logSearch($request, $businesses->total());
 
@@ -282,7 +322,7 @@ class BusinessController extends Controller
                 'success' => true,
                 'data' => [
                     'search_term' => $searchTerm,
-                    'businesses' => $businesses->items(),
+                    'businesses' => $transformedBusinesses,
                     'pagination' => [
                         'current_page' => $businesses->currentPage(),
                         'last_page' => $businesses->lastPage(),
@@ -326,6 +366,26 @@ class BusinessController extends Controller
                 ->take($limit)
                 ->get();
 
+            // Transform businesses to include Google Maps data
+            $transformedBusinesses = $businesses->map(function($business) use ($latitude, $longitude) {
+                $businessData = $business->toArray();
+                
+                // Add Google Maps links
+                $businessData['google_maps'] = [
+                    'view_url' => $business->google_maps_url,
+                    'place_url' => $business->getGoogleMapsPlaceUrl(),
+                    'directions_url' => $business->getGoogleMapsDirectionsUrl($latitude, $longitude),
+                ];
+
+                // Add distance
+                if ($business->latitude && $business->longitude) {
+                    $distance = $this->calculateDistance($latitude, $longitude, $business->latitude, $business->longitude);
+                    $businessData['distance'] = $this->formatDistance($distance * 1000);
+                }
+                
+                return $businessData;
+            });
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -334,7 +394,7 @@ class BusinessController extends Controller
                         'longitude' => $longitude,
                         'radius_km' => $radiusKm
                     ],
-                    'businesses' => $businesses
+                    'businesses' => $transformedBusinesses
                 ]
             ]);
 
@@ -422,9 +482,25 @@ class BusinessController extends Controller
             // Check if business is in user's favorites
             $isFavorite = $this->checkIsFavorite($businessId, $request);
 
-            // Convert business to array and add is_favorite flag
+            // Convert business to array and add additional data
             $businessData = $business->toArray();
             $businessData['is_favorite'] = $isFavorite;
+            
+            // Add Google Maps links
+            $userLatitude = $request->input('latitude');
+            $userLongitude = $request->input('longitude');
+            
+            $businessData['google_maps'] = [
+                'view_url' => $business->google_maps_url,
+                'place_url' => $business->getGoogleMapsPlaceUrl(),
+                'directions_url' => $business->getGoogleMapsDirectionsUrl($userLatitude, $userLongitude),
+            ];
+
+            // Add distance information if user location provided
+            if ($userLatitude && $userLongitude && $business->latitude && $business->longitude) {
+                $distance = $this->calculateDistance($userLatitude, $userLongitude, $business->latitude, $business->longitude);
+                $businessData['distance'] = $this->formatDistance($distance * 1000); // Convert to meters
+            }
 
             return response()->json([
                 'success' => true,
@@ -1079,6 +1155,52 @@ class BusinessController extends Controller
         } catch (\Exception $e) {
             // Log error but don't fail the request
             Log::error('Failed to log search: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Calculate distance between two points in kilometers using Haversine formula
+     */
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371; // Earth's radius in kilometers
+
+        $lat1Rad = deg2rad($lat1);
+        $lon1Rad = deg2rad($lon1);
+        $lat2Rad = deg2rad($lat2);
+        $lon2Rad = deg2rad($lon2);
+
+        $deltaLat = $lat2Rad - $lat1Rad;
+        $deltaLon = $lon2Rad - $lon1Rad;
+
+        $a = sin($deltaLat/2) * sin($deltaLat/2) + cos($lat1Rad) * cos($lat2Rad) * sin($deltaLon/2) * sin($deltaLon/2);
+        $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+
+        return $earthRadius * $c;
+    }
+
+    /**
+     * Format distance from meters to readable format
+     */
+    private function formatDistance(?float $distanceInMeters): ?array
+    {
+        if ($distanceInMeters === null) {
+            return null;
+        }
+
+        if ($distanceInMeters < 1000) {
+            return [
+                'value' => round($distanceInMeters),
+                'unit' => 'm',
+                'formatted' => round($distanceInMeters) . ' m'
+            ];
+        } else {
+            $km = $distanceInMeters / 1000;
+            return [
+                'value' => round($km, 1),
+                'unit' => 'km',
+                'formatted' => round($km, 1) . ' km'
+            ];
         }
     }
 }
