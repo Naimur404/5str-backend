@@ -829,20 +829,9 @@ public function offerings(Request $request, $businessId)
             $query->where('category_id', $request->category_id);
         }
 
-        // Handle sorting
-        $sortBy = $request->get('sort_by', 'rating'); // default to rating
-        
-        switch ($sortBy) {
-            case 'name':
-                $query->orderBy('name', 'ASC');
-                break;
-            case 'rating':
-            default:
                 // Sort by highest rating (rated items first, then by rating value DESC)
                 // This handles NULL values properly by putting them last
                 $query->orderByRaw('CASE WHEN average_rating IS NULL THEN 1 ELSE 0 END, average_rating DESC');
-                break;
-        }
         
         $offerings = $query->with(['category', 'variants'])->get();
 
@@ -859,7 +848,6 @@ public function offerings(Request $request, $businessId)
                 'business_id' => (string)$business->id,
                 'business' => $business->only(['id', 'business_name']),
                 'offerings' => $offeringsWithFavorites,
-                'sort_by' => $sortBy,
                 'total_count' => $offerings->count()
             ]
         ]);
