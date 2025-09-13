@@ -127,6 +127,140 @@ class Business extends Model
     }
 
     /**
+     * Get Google Maps embed URL for iframe embedding
+     */
+    public function getGoogleMapsEmbedUrl($apiKey = null, $mapType = 'place')
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+        
+        $baseUrl = "https://www.google.com/maps/embed/v1/";
+        
+        switch ($mapType) {
+            case 'place':
+                $url = $baseUrl . "place";
+                $query = urlencode($this->business_name . " " . $this->area . " " . $this->city);
+                break;
+            case 'view':
+                $url = $baseUrl . "view";
+                $query = $this->latitude . "," . $this->longitude;
+                break;
+            default:
+                $url = $baseUrl . "place";
+                $query = urlencode($this->business_name . " " . $this->area . " " . $this->city);
+        }
+        
+        $params = [
+            'q' => $query,
+            'zoom' => '15',
+            'maptype' => 'roadmap'
+        ];
+        
+        if ($apiKey) {
+            $params['key'] = $apiKey;
+        }
+        
+        return $url . "?" . http_build_query($params);
+    }
+
+    /**
+     * Get simple Google Maps URL without embed (for direct viewing)
+     */
+    public function getGoogleMapsSimpleUrl()
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+        
+        return "https://maps.google.com/?q=" . $this->latitude . "," . $this->longitude;
+    }
+
+    /**
+     * Get OpenStreetMap URLs (Free alternative)
+     */
+    public function getOpenStreetMapUrl()
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+        
+        return "https://www.openstreetmap.org/?mlat=" . $this->latitude . "&mlon=" . $this->longitude . "&zoom=15";
+    }
+
+    /**
+     * Get Leaflet map data for frontend rendering
+     */
+    public function getLeafletMapData()
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+        
+        return [
+            'center' => [
+                'lat' => (float) $this->latitude,
+                'lng' => (float) $this->longitude
+            ],
+            'zoom' => 15,
+            'marker' => [
+                'lat' => (float) $this->latitude,
+                'lng' => (float) $this->longitude,
+                'popup' => $this->business_name . '<br>' . $this->full_address
+            ],
+            'tile_url' => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            'attribution' => '© OpenStreetMap contributors'
+        ];
+    }
+
+    /**
+     * Get MapBox URLs (free tier available)
+     */
+    public function getMapBoxUrl($accessToken = null)
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+        
+        $token = $accessToken ?? config('maps.mapbox.access_token');
+        
+        if (!$token) {
+            return null; // No token available
+        }
+        
+        $baseUrl = "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/pin-s+ff0000({$this->longitude},{$this->latitude})/{$this->longitude},{$this->latitude},15,0/600x400@2x";
+        
+        return $baseUrl . "?access_token=" . $token;
+    }
+
+    /**
+     * Get MapBox embed data for frontend
+     */
+    public function getMapBoxEmbedData()
+    {
+        if (!$this->latitude || !$this->longitude) {
+            return null;
+        }
+        
+        $token = config('maps.mapbox.access_token');
+        
+        if (!$token) {
+            return null;
+        }
+        
+        return [
+            'access_token' => $token,
+            'style' => config('maps.mapbox.style', 'mapbox://styles/mapbox/streets-v11'),
+            'center' => [(float) $this->longitude, (float) $this->latitude], // Note: lng, lat for MapBox
+            'zoom' => 15,
+            'marker' => [
+                'coordinates' => [(float) $this->longitude, (float) $this->latitude],
+                'popup' => $this->business_name . '<br>' . $this->full_address
+            ]
+        ];
+    }
+
+    /**
      * Relationships
      */
     public function category()

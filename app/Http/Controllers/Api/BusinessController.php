@@ -216,6 +216,15 @@ class BusinessController extends Controller
                     'view_url' => $business->google_maps_url,
                     'place_url' => $business->getGoogleMapsPlaceUrl(),
                     'directions_url' => $business->getGoogleMapsDirectionsUrl($latitude, $longitude),
+                    'embed_url' => $business->getGoogleMapsEmbedUrl(null, 'place'),
+                    'simple_url' => $business->getGoogleMapsSimpleUrl(),
+                ];
+
+                // Add free map alternatives
+                $businessData['free_maps'] = [
+                    'openstreetmap_url' => $business->getOpenStreetMapUrl(),
+                    'leaflet_data' => $business->getLeafletMapData(),
+                    'mapbox_url' => $business->getMapBoxUrl(), // Add your MapBox token in config if needed
                 ];
 
                 // Add distance if location provided and business has coordinates
@@ -304,6 +313,15 @@ class BusinessController extends Controller
                     'view_url' => $business->google_maps_url,
                     'place_url' => $business->getGoogleMapsPlaceUrl(),
                     'directions_url' => $business->getGoogleMapsDirectionsUrl($latitude, $longitude),
+                    'embed_url' => $business->getGoogleMapsEmbedUrl(null, 'place'),
+                    'simple_url' => $business->getGoogleMapsSimpleUrl(),
+                ];
+
+                // Add free map alternatives
+                $businessData['free_maps'] = [
+                    'openstreetmap_url' => $business->getOpenStreetMapUrl(),
+                    'leaflet_data' => $business->getLeafletMapData(),
+                    'mapbox_url' => $business->getMapBoxUrl(),
                 ];
 
                 // Add distance if location provided
@@ -375,6 +393,15 @@ class BusinessController extends Controller
                     'view_url' => $business->google_maps_url,
                     'place_url' => $business->getGoogleMapsPlaceUrl(),
                     'directions_url' => $business->getGoogleMapsDirectionsUrl($latitude, $longitude),
+                    'embed_url' => $business->getGoogleMapsEmbedUrl(null, 'place'),
+                    'simple_url' => $business->getGoogleMapsSimpleUrl(),
+                ];
+
+                // Add free map alternatives
+                $businessData['free_maps'] = [
+                    'openstreetmap_url' => $business->getOpenStreetMapUrl(),
+                    'leaflet_data' => $business->getLeafletMapData(),
+                    'mapbox_url' => $business->getMapBoxUrl(),
                 ];
 
                 // Add distance
@@ -494,6 +521,15 @@ class BusinessController extends Controller
                 'view_url' => $business->google_maps_url,
                 'place_url' => $business->getGoogleMapsPlaceUrl(),
                 'directions_url' => $business->getGoogleMapsDirectionsUrl($userLatitude, $userLongitude),
+                'embed_url' => $business->getGoogleMapsEmbedUrl(null, 'place'),
+                'simple_url' => $business->getGoogleMapsSimpleUrl(),
+            ];
+
+            // Add free map alternatives
+            $businessData['free_maps'] = [
+                'openstreetmap_url' => $business->getOpenStreetMapUrl(),
+                'leaflet_data' => $business->getLeafletMapData(),
+                'mapbox_url' => $business->getMapBoxUrl(),
             ];
 
             // Add distance information if user location provided
