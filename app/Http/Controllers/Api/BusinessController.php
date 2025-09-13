@@ -831,8 +831,7 @@ class BusinessController extends Controller
 
             // Sort by highest rating only (items with ratings > 0 first, then 0 ratings)
             $offerings = $query->with(['category', 'variants'])
-                ->orderByRaw('CASE WHEN average_rating > 0 THEN 0 ELSE 1 END')
-                ->orderByDesc('average_rating')
+                ->orderByRaw('CAST(average_rating AS DECIMAL(3,2)) DESC')
                 ->get();
 
             // Add is_favorite flag to each offering
