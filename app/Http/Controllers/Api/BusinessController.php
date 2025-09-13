@@ -807,59 +807,71 @@ class BusinessController extends Controller
     /**
      * Get business offerings (products/services)
      */
-    public function offerings(Request $request, $businessId)
-    {
-        try {
-            $business = Business::active()->findOrFail($businessId);
-            
-            $query = BusinessOffering::where('business_id', $businessId)
-                ->available();
+public function offerings(Request $request, $businessId)
+{
+    try {
+        $business = Business::active()->findOrFail($businessId);
+        
+        $query = BusinessOffering::where('business_id', $businessId)
+            ->available();
 
-            // Filter by type
-            if ($request->has('type')) {
-                if ($request->type === 'products') {
-                    $query->products();
-                } elseif ($request->type === 'services') {
-                    $query->services();
-                }
+        // Filter by type
+        if ($request->has('type')) {
+            if ($request->type === 'products') {
+                $query->products();
+            } elseif ($request->type === 'services') {
+                $query->services();
             }
-
-            // Filter by category
-            if ($request->has('category_id')) {
-                $query->where('category_id', $request->category_id);
-            }
-
-            // Sort by highest rating (rated items first, then by rating value DESC)
-            $query->orderBy('average_rating', 'DESC');
-            
-            $offerings = $query->with(['category', 'variants'])->get();
-
-            // Add is_favorite flag to each offering
-            $offeringsWithFavorites = $offerings->map(function($offering) use ($request) {
-                $offeringData = $offering->toArray();
-                $offeringData['is_favorite'] = $this->checkIsOfferingFavorite($offering->id, $request);
-                return $offeringData;
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'business_id' => (string)$business->id,
-                    'business' => $business->only(['id', 'business_name']),
-                    'offerings' => $offeringsWithFavorites,
-                    'sort_by' => 'rating',
-                    'total_count' => $offerings->count()
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch offerings',
-                'error' => $e->getMessage()
-            ], 500);
         }
+
+        // Filter by category
+        if ($request->has('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Handle sorting
+        $sortBy = $request->get('sort_by', 'rating'); // default to rating
+        
+        switch ($sortBy) {
+            case 'name':
+                $query->orderBy('name', 'ASC');
+                break;
+            case 'rating':
+            default:
+                // Sort by highest rating (rated items first, then by rating value DESC)
+                // This handles NULL values properly by putting them last
+                $query->orderByRaw('CASE WHEN average_rating IS NULL THEN 1 ELSE 0 END, average_rating DESC');
+                break;
+        }
+        
+        $offerings = $query->with(['category', 'variants'])->get();
+
+        // Add is_favorite flag to each offering
+        $offeringsWithFavorites = $offerings->map(function($offering) use ($request) {
+            $offeringData = $offering->toArray();
+            $offeringData['is_favorite'] = $this->checkIsOfferingFavorite($offering->id, $request);
+            return $offeringData;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'business_id' => (string)$business->id,
+                'business' => $business->only(['id', 'business_name']),
+                'offerings' => $offeringsWithFavorites,
+                'sort_by' => $sortBy,
+                'total_count' => $offerings->count()
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to fetch offerings',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Get business reviews
