@@ -829,8 +829,9 @@ class BusinessController extends Controller
                 $query->where('category_id', $request->category_id);
             }
 
-            // Sort by highest rating only
+            // Sort by highest rating only (items with ratings > 0 first, then 0 ratings)
             $offerings = $query->with(['category', 'variants'])
+                ->orderByRaw('CASE WHEN average_rating > 0 THEN 0 ELSE 1 END')
                 ->orderByDesc('average_rating')
                 ->get();
 
@@ -844,6 +845,7 @@ class BusinessController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
+                    'business_id' => (string)$business->id,
                     'business' => $business->only(['id', 'business_name']),
                     'offerings' => $offeringsWithFavorites,
                     'sort_by' => 'rating',
