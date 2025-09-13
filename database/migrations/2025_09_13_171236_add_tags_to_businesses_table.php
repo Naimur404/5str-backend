@@ -16,7 +16,7 @@ return new class extends Migration
             $table->json('business_tags')->nullable()->after('product_tags');
             
             // Add index for JSON searches
-            $table->index(['is_national', 'is_active']);
+            $table->index('is_national');
         });
     }
 
