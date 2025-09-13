@@ -829,8 +829,9 @@ class BusinessController extends Controller
                 $query->where('category_id', $request->category_id);
             }
 
-            // Sort by highest rating only (items with ratings > 0 first, then 0 ratings)
+            // Sort by highest rating only (rated items first, then by rating DESC)
             $offerings = $query->with(['category', 'variants'])
+                ->orderByRaw('(CAST(average_rating AS DECIMAL(3,2)) > 0) DESC')
                 ->orderByRaw('CAST(average_rating AS DECIMAL(3,2)) DESC')
                 ->get();
 
