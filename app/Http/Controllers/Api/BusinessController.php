@@ -829,11 +829,10 @@ class BusinessController extends Controller
                 $query->where('category_id', $request->category_id);
             }
 
-            // Sort by highest rating only (rated items first, then by rating DESC)
-            $offerings = $query->with(['category', 'variants'])
-                ->orderByRaw('(CAST(average_rating AS DECIMAL(3,2)) > 0) DESC')
-                ->orderByRaw('CAST(average_rating AS DECIMAL(3,2)) DESC')
-                ->get();
+            // Sort by highest rating (rated items first, then by rating value DESC)
+            $query->orderBy('average_rating', 'DESC');
+            
+            $offerings = $query->with(['category', 'variants'])->get();
 
             // Add is_favorite flag to each offering
             $offeringsWithFavorites = $offerings->map(function($offering) use ($request) {
