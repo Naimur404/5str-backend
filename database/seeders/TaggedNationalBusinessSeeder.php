@@ -181,7 +181,7 @@ class TaggedNationalBusinessSeeder extends Seeder
 
         foreach ($nationalBusinesses as $businessData) {
             $business = Business::create([
-                'user_id' => $user->id,
+                'owner_user_id' => $user->id,
                 'category_id' => $businessData['category_id'],
                 'business_name' => $businessData['business_name'],
                 'slug' => $businessData['slug'],
@@ -191,8 +191,8 @@ class TaggedNationalBusinessSeeder extends Seeder
                 'longitude' => 90.4125 + (rand(-100, 100) / 10000),
                 'city' => 'Dhaka',
                 'area' => 'Various Locations',
-                'phone' => '+880-1' . rand(100000000, 999999999),
-                'email' => strtolower(str_replace(' ', '', $businessData['business_name'])) . '@example.com',
+                'business_phone' => '+880-1' . rand(100000000, 999999999),
+                'business_email' => strtolower(str_replace(' ', '', $businessData['business_name'])) . '@example.com',
                 'website_url' => 'https://' . $businessData['slug'] . '.com',
                 'opening_hours' => [
                     'monday' => '8:00 AM - 6:00 PM',
@@ -219,8 +219,6 @@ class TaggedNationalBusinessSeeder extends Seeder
                 'approved_at' => now(),
                 'overall_rating' => rand(35, 50) / 10,
                 'total_reviews' => rand(50, 500),
-                'total_views' => rand(1000, 10000),
-                'total_visits' => rand(100, 1000),
             ]);
 
             $this->command->info("Created national business: {$business->business_name}");
