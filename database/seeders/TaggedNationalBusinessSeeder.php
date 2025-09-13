@@ -16,22 +16,34 @@ class TaggedNationalBusinessSeeder extends Seeder
     {
         // Get or create categories
         $foodCategory = Category::firstOrCreate(['name' => 'Food & Beverages'], [
+            'slug' => 'food-beverages',
             'description' => 'Food and beverage businesses',
+            'icon_image' => 'food-beverages.png',
+            'level' => 1,
             'is_active' => true
         ]);
 
         $dairyCategory = Category::firstOrCreate(['name' => 'Dairy & Ice Cream'], [
+            'slug' => 'dairy-ice-cream',
             'description' => 'Dairy products and ice cream',
+            'icon_image' => 'dairy-ice-cream.png',
+            'level' => 1,
             'is_active' => true
         ]);
 
         $snacksCategory = Category::firstOrCreate(['name' => 'Snacks & Confectionery'], [
+            'slug' => 'snacks-confectionery',
             'description' => 'Snacks, biscuits, and confectionery items',
+            'icon_image' => 'snacks-confectionery.png',
+            'level' => 1,
             'is_active' => true
         ]);
 
         $beverageCategory = Category::firstOrCreate(['name' => 'Beverages'], [
+            'slug' => 'beverages',
             'description' => 'All types of beverages',
+            'icon_image' => 'beverages.png',
+            'level' => 1,
             'is_active' => true
         ]);
 
