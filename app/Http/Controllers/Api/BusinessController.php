@@ -577,8 +577,10 @@ class BusinessController extends Controller
                 $query->where('category_id', $request->category_id);
             }
 
+            // Always sort by highest rating first, then by total reviews
             $offerings = $query->with(['category', 'variants'])
-                ->orderBy('sort_order')
+                ->orderByDesc('average_rating')
+                ->orderByDesc('total_reviews')
                 ->orderBy('name')
                 ->get();
 
@@ -593,7 +595,9 @@ class BusinessController extends Controller
                 'success' => true,
                 'data' => [
                     'business' => $business->only(['id', 'business_name']),
-                    'offerings' => $offeringsWithFavorites
+                    'offerings' => $offeringsWithFavorites,
+                    'sort_by' => 'rating',
+                    'total_count' => $offerings->count()
                 ]
             ]);
 

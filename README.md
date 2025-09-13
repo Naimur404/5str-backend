@@ -606,21 +606,43 @@ curl "http://localhost:8000/api/v1/search?q=restaurant&type=all&latitude=23.7465
 ### Get Business Offerings
 **GET** `/api/v1/businesses/{id}/offerings`
 
+**Query Parameters:**
+- `type` (optional): Filter by type ('products', 'services')
+- `category_id` (optional): Filter by category ID
+
+**Note:** Offerings are automatically sorted by highest rating first, then by total reviews, then by name.
+
+**Example Request:**
+```bash
+curl "http://localhost:8000/api/v1/businesses/2/offerings?type=products"
+```
+
 **Success Response (200):**
 ```json
 {
     "success": true,
     "data": {
+        "business": {
+            "id": 2,
+            "business_name": "Star Kabab & Restaurant"
+        },
         "offerings": [
             {
                 "id": 1,
-                "offering_name": "Chicken Biryani",
+                "name": "Chicken Biryani",
                 "description": "Aromatic basmati rice with tender chicken",
-                "offering_type": "menu_item",
+                "offering_type": "product",
                 "price": "350.00",
                 "currency": "BDT",
+                "average_rating": "4.50",
+                "total_reviews": 25,
                 "is_popular": true,
                 "is_featured": false,
+                "is_favorite": false,
+                "category": {
+                    "id": 1,
+                    "name": "Main Course"
+                },
                 "variants": [
                     {
                         "id": 1,
@@ -634,6 +656,11 @@ curl "http://localhost:8000/api/v1/search?q=restaurant&type=all&latitude=23.7465
                     }
                 ]
             }
+        ],
+        "sort_by": "rating",
+        "total_count": 8
+    }
+}
         ],
         "pagination": {
             "current_page": 1,
