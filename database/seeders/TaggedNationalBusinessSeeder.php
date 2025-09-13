@@ -180,6 +180,24 @@ class TaggedNationalBusinessSeeder extends Seeder
         ];
 
         foreach ($nationalBusinesses as $businessData) {
+            // Check if business already exists by slug
+            $existingBusiness = Business::where('slug', $businessData['slug'])->first();
+            
+            if ($existingBusiness) {
+                $this->command->info("Business already exists: {$businessData['business_name']} - updating tags");
+                
+                // Update existing business with new tags
+                $existingBusiness->update([
+                    'product_tags' => $businessData['product_tags'],
+                    'business_tags' => $businessData['business_tags'],
+                    'is_national' => true,
+                    'service_coverage' => $businessData['service_coverage'],
+                    'business_model' => $businessData['business_model'],
+                ]);
+                
+                continue;
+            }
+
             $business = Business::create([
                 'owner_user_id' => $user->id,
                 'category_id' => $businessData['category_id'],
