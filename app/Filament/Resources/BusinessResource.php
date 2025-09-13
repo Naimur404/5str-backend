@@ -188,8 +188,7 @@ class BusinessResource extends Resource
                             ->label('Service Coverage')
                             ->options([
                                 'local' => 'Local (Specific Area)',
-                                'citywide' => 'City-wide',
-                                'regional' => 'Regional (Multiple Districts)',
+                                'regional' => 'Regional (Multiple Districts)', 
                                 'national' => 'National (Entire Country)',
                             ])
                             ->default('local')
@@ -198,16 +197,13 @@ class BusinessResource extends Resource
                         Forms\Components\Select::make('business_model')
                             ->label('Business Model')
                             ->options([
-                                'retail' => 'Retail Store',
-                                'restaurant' => 'Restaurant/Food Service',
-                                'service' => 'Service Provider',
-                                'manufacturing' => 'Manufacturing',
-                                'brand' => 'Brand/Chain',
-                                'franchise' => 'Franchise',
-                                'distributor' => 'Distributor',
-                                'wholesaler' => 'Wholesaler',
+                                'physical_location' => 'Physical Location/Store',
+                                'delivery_only' => 'Delivery Only Service',
+                                'online_service' => 'Online Service/Platform',
+                                'manufacturing' => 'Manufacturing Company',
+                                'brand' => 'Brand/Chain Network',
                             ])
-                            ->default('retail')
+                            ->default('physical_location')
                             ->helperText('Primary business model or type')
                             ->visible(fn (Forms\Get $get): bool => $get('is_national') === true),
                         Forms\Components\TagsInput::make('service_areas')
@@ -396,13 +392,11 @@ class BusinessResource extends Resource
                     ->color(fn ($state) => match($state) {
                         'national' => 'success',
                         'regional' => 'info', 
-                        'citywide' => 'warning',
                         'local' => 'gray',
                         default => 'gray'
                     })
                     ->formatStateUsing(fn ($state) => match($state) {
                         'local' => 'Local',
-                        'citywide' => 'City-wide',
                         'regional' => 'Regional',
                         'national' => 'National',
                         default => $state ? ucfirst($state) : 'Local'
@@ -413,15 +407,12 @@ class BusinessResource extends Resource
                     ->badge()
                     ->color('primary')
                     ->formatStateUsing(fn ($state) => match($state) {
-                        'retail' => 'Retail',
-                        'restaurant' => 'Restaurant',
-                        'service' => 'Service',
+                        'physical_location' => 'Physical Store',
+                        'delivery_only' => 'Delivery Only',
+                        'online_service' => 'Online Service',
                         'manufacturing' => 'Manufacturing',
-                        'brand' => 'Brand',
-                        'franchise' => 'Franchise',
-                        'distributor' => 'Distributor',
-                        'wholesaler' => 'Wholesaler',
-                        default => $state ? ucfirst($state) : 'Retail'
+                        'brand' => 'Brand/Chain',
+                        default => $state ? ucfirst($state) : 'Physical Store'
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_verified')
@@ -502,21 +493,17 @@ class BusinessResource extends Resource
                     ->label('Service Coverage')
                     ->options([
                         'local' => 'Local',
-                        'citywide' => 'City-wide', 
                         'regional' => 'Regional',
                         'national' => 'National',
                     ]),
                 Tables\Filters\SelectFilter::make('business_model')
                     ->label('Business Model')
                     ->options([
-                        'retail' => 'Retail Store',
-                        'restaurant' => 'Restaurant',
-                        'service' => 'Service Provider',
+                        'physical_location' => 'Physical Location',
+                        'delivery_only' => 'Delivery Only',
+                        'online_service' => 'Online Service',
                         'manufacturing' => 'Manufacturing',
                         'brand' => 'Brand/Chain',
-                        'franchise' => 'Franchise',
-                        'distributor' => 'Distributor',
-                        'wholesaler' => 'Wholesaler',
                     ]),
                 Tables\Filters\Filter::make('rating')
                     ->form([
@@ -621,14 +608,11 @@ class BusinessResource extends Resource
                             Forms\Components\Select::make('business_model')
                                 ->label('Business Model')
                                 ->options([
-                                    'retail' => 'Retail Store',
-                                    'restaurant' => 'Restaurant/Food Service',
-                                    'service' => 'Service Provider',
+                                    'physical_location' => 'Physical Location',
+                                    'delivery_only' => 'Delivery Only',
+                                    'online_service' => 'Online Service',
                                     'manufacturing' => 'Manufacturing',
                                     'brand' => 'Brand/Chain',
-                                    'franchise' => 'Franchise',
-                                    'distributor' => 'Distributor',
-                                    'wholesaler' => 'Wholesaler',
                                 ])
                                 ->required()
                                 ->default('brand'),
@@ -652,7 +636,7 @@ class BusinessResource extends Resource
                                 $record->update([
                                     'is_national' => false,
                                     'service_coverage' => 'local',
-                                    'business_model' => 'retail',
+                                    'business_model' => 'physical_location',
                                     'service_areas' => null,
                                 ]);
                             }
