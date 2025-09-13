@@ -265,9 +265,26 @@ class SearchController extends Controller
             $query->inCategory($categoryId);
         }
 
-        // Location-based filtering
+        // Location-based filtering - include national businesses
         if ($latitude && $longitude) {
-            $query->nearby($latitude, $longitude, $radiusKm);
+            // Include both nearby local businesses and national businesses
+            $query->where(function($q) use ($latitude, $longitude, $radiusKm) {
+                $q->where('is_national', true)
+                  ->orWhere(function($subQ) use ($latitude, $longitude, $radiusKm) {
+                      $subQ->where('is_national', false)
+                           ->whereRaw(
+                               "( 6371 * acos( cos( radians(?) ) * 
+                                 cos( radians( latitude ) ) * 
+                                 cos( radians( longitude ) - radians(?) ) + 
+                                 sin( radians(?) ) * 
+                                 sin( radians( latitude ) ) ) ) < ?", 
+                               [$latitude, $longitude, $latitude, $radiusKm]
+                           );
+                  });
+            });
+        } else {
+            // If no location provided, show only national businesses
+            $query->national();
         }
 
         // Apply additional filters

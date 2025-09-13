@@ -155,9 +155,26 @@ class BusinessController extends Controller
             $query = Business::active()
                 ->with(['category', 'logoImage']);
 
-            // Location-based filtering
+            // Include national businesses or location-based filtering
             if ($latitude && $longitude) {
-                $query->nearby($latitude, $longitude, $radiusKm);
+                // Include both nearby local businesses and national businesses
+                $query->where(function($q) use ($latitude, $longitude, $radiusKm) {
+                    $q->where('is_national', true)
+                      ->orWhere(function($subQ) use ($latitude, $longitude, $radiusKm) {
+                          $subQ->where('is_national', false)
+                               ->whereRaw(
+                                   "( 6371 * acos( cos( radians(?) ) * 
+                                     cos( radians( latitude ) ) * 
+                                     cos( radians( longitude ) - radians(?) ) + 
+                                     sin( radians(?) ) * 
+                                     sin( radians( latitude ) ) ) ) < ?", 
+                                   [$latitude, $longitude, $latitude, $radiusKm]
+                               );
+                      });
+                });
+            } else {
+                // If no location provided, show only national businesses
+                $query->national();
             }
 
             // Category filter
@@ -458,6 +475,105 @@ class BusinessController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch featured businesses',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get national businesses (brands available across Bangladesh)
+     */
+    public function national(Request $request)
+    {
+        try {
+            $page = $request->input('page', 1);
+            $limit = $request->input('limit', 20);
+
+            $query = Business::active()
+                ->national()
+                ->with(['category', 'logoImage']);
+
+            // Category filter
+            if ($request->has('category_id')) {
+                $query->inCategory($request->category_id);
+            }
+
+            // Business model filter
+            if ($request->has('business_model')) {
+                $query->byBusinessModel($request->business_model);
+            }
+
+            // Rating filter
+            if ($request->has('min_rating')) {
+                $query->where('overall_rating', '>=', $request->min_rating);
+            }
+
+            // Sort options
+            $sortBy = $request->input('sort', 'rating');
+            switch ($sortBy) {
+                case 'rating':
+                    $query->orderByDesc('overall_rating')
+                          ->orderByDesc('total_reviews');
+                    break;
+                case 'popular':
+                    $query->orderByDesc('total_reviews')
+                          ->orderByDesc('overall_rating');
+                    break;
+                case 'name':
+                    $query->orderBy('business_name');
+                    break;
+                case 'featured':
+                    $query->orderByDesc('is_featured')
+                          ->orderByDesc('overall_rating');
+                    break;
+                default:
+                    $query->orderByDesc('overall_rating');
+            }
+
+            $businesses = $query->paginate($limit, ['*'], 'page', $page);
+
+            // Transform businesses
+            $transformedBusinesses = collect($businesses->items())->map(function($business) {
+                $businessData = $business->toArray();
+                
+                // Add additional data for national businesses
+                $businessData['is_national'] = true;
+                $businessData['service_coverage'] = $business->service_coverage;
+                $businessData['business_model'] = $business->business_model;
+                $businessData['service_areas'] = $business->service_areas;
+                
+                // Add free map alternatives (national businesses may not have specific location)
+                if ($business->latitude && $business->longitude) {
+                    $businessData['free_maps'] = [
+                        'openstreetmap_url' => $business->getOpenStreetMapUrl(),
+                        'leaflet_data' => $business->getLeafletMapData(),
+                        'mapbox_url' => $business->getMapBoxUrl(),
+                    ];
+                } else {
+                    $businessData['free_maps'] = null;
+                }
+                
+                return $businessData;
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'businesses' => $transformedBusinesses,
+                    'pagination' => [
+                        'current_page' => $businesses->currentPage(),
+                        'last_page' => $businesses->lastPage(),
+                        'per_page' => $businesses->perPage(),
+                        'total' => $businesses->total(),
+                        'has_more' => $businesses->hasMorePages()
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch national businesses',
                 'error' => $e->getMessage()
             ], 500);
         }

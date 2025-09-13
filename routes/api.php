@@ -49,6 +49,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/home/dynamic-sections/{section}', [HomeController::class, 'dynamicSections']);
     Route::get('/home/featured-businesses', [HomeController::class, 'featuredBusinesses']);
     Route::get('/home/special-offers', [HomeController::class, 'specialOffers']);
+    Route::get('/home/national-brands', [HomeController::class, 'nationalBrands']);
     
     // Home analytics and tracking routes
     Route::post('/home/businesses/{business}/track-view', [HomeController::class, 'trackHomeBusinessView']);
@@ -94,6 +95,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/search', [BusinessController::class, 'search']);
         Route::get('/nearby', [BusinessController::class, 'nearby']);
         Route::get('/featured', [BusinessController::class, 'featured']);
+        Route::get('/national', [BusinessController::class, 'national']); // New national businesses endpoint
         Route::get('/{business}', [BusinessController::class, 'show']);
         Route::post('/{business}/track-click', [BusinessController::class, 'trackClick']);
         Route::post('/{business}/track-view', [BusinessController::class, 'trackBusinessView']);

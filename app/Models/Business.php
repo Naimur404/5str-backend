@@ -33,6 +33,10 @@ class Business extends Model
         'is_verified',
         'is_featured',
         'is_active',
+        'is_national',
+        'service_coverage',
+        'service_areas',
+        'business_model',
         'overall_rating',
         'total_reviews',
         'discovery_score',
@@ -66,6 +70,8 @@ class Business extends Model
         'is_verified' => 'boolean',
         'is_featured' => 'boolean',
         'is_active' => 'boolean',
+        'is_national' => 'boolean',
+        'service_areas' => 'array',
         'overall_rating' => 'decimal:2',
         'total_reviews' => 'integer',
         'discovery_score' => 'decimal:2',
@@ -379,6 +385,36 @@ class Business extends Model
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', true);
+    }
+
+    public function scopeNational($query)
+    {
+        return $query->where('is_national', true);
+    }
+
+    public function scopeLocal($query)
+    {
+        return $query->where('is_national', false);
+    }
+
+    public function scopeByServiceCoverage($query, $coverage)
+    {
+        return $query->where('service_coverage', $coverage);
+    }
+
+    public function scopeByBusinessModel($query, $model)
+    {
+        return $query->where('business_model', $model);
+    }
+
+    public function scopeServingArea($query, $area)
+    {
+        return $query->where(function($q) use ($area) {
+            $q->where('is_national', true)
+              ->orWhere('service_areas', 'LIKE', '%"' . $area . '"%')
+              ->orWhere('city', 'LIKE', '%' . $area . '%')
+              ->orWhere('area', 'LIKE', '%' . $area . '%');
+        });
     }
 
     public function scopeInCategory($query, $categoryId)

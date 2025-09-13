@@ -15,6 +15,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class BusinessResource extends Resource
 {
@@ -44,11 +45,20 @@ class BusinessResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('business_name')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (string $operation, $state, Forms\Set $set) {
+                                if ($operation !== 'create') {
+                                    return;
+                                }
+                                $set('slug', Str::slug($state));
+                            }),
                         Forms\Components\TextInput::make('slug')
                             ->required()
                             ->maxLength(255)
-                            ->unique(ignoreRecord: true),
+                            ->unique(ignoreRecord: true)
+                            ->helperText('Auto-generated from business name, but can be customized')
+                            ->dehydrateStateUsing(fn ($state) => Str::slug($state)),
                         Forms\Components\Textarea::make('description')
                             ->required()
                             ->maxLength(1000)
@@ -166,6 +176,54 @@ class BusinessResource extends Resource
                             ->label('Has Parking')
                             ->default(false),
                     ])->columns(4),
+
+                Forms\Components\Section::make('National Business Settings')
+                    ->schema([
+                        Forms\Components\Toggle::make('is_national')
+                            ->label('National Business')
+                            ->helperText('Check if this business operates nationwide (like Pran Foods, Polar Ice Cream, etc.)')
+                            ->default(false)
+                            ->live(),
+                        Forms\Components\Select::make('service_coverage')
+                            ->label('Service Coverage')
+                            ->options([
+                                'local' => 'Local (Specific Area)',
+                                'citywide' => 'City-wide',
+                                'regional' => 'Regional (Multiple Districts)',
+                                'national' => 'National (Entire Country)',
+                            ])
+                            ->default('local')
+                            ->helperText('Geographic scope of business operations')
+                            ->visible(fn (Forms\Get $get): bool => $get('is_national') === true),
+                        Forms\Components\Select::make('business_model')
+                            ->label('Business Model')
+                            ->options([
+                                'retail' => 'Retail Store',
+                                'restaurant' => 'Restaurant/Food Service',
+                                'service' => 'Service Provider',
+                                'manufacturing' => 'Manufacturing',
+                                'brand' => 'Brand/Chain',
+                                'franchise' => 'Franchise',
+                                'distributor' => 'Distributor',
+                                'wholesaler' => 'Wholesaler',
+                            ])
+                            ->default('retail')
+                            ->helperText('Primary business model or type')
+                            ->visible(fn (Forms\Get $get): bool => $get('is_national') === true),
+                        Forms\Components\TagsInput::make('service_areas')
+                            ->label('Service Areas')
+                            ->placeholder('Add cities/regions served')
+                            ->helperText('List the major cities or regions this business serves (e.g., Dhaka, Chittagong, Sylhet)')
+                            ->suggestions([
+                                'Dhaka', 'Chittagong', 'Sylhet', 'Rajshahi', 'Khulna', 'Barisal', 'Rangpur', 
+                                'Mymensingh', 'Comilla', 'Gazipur', 'Narayanganj', 'Tangail', 'Jessore', 
+                                'Bogra', 'Pabna', 'Dinajpur', 'Cox\'s Bazar', 'Faridpur', 'Brahmanbaria'
+                            ])
+                            ->visible(fn (Forms\Get $get): bool => $get('is_national') === true && in_array($get('service_coverage'), ['regional', 'national'])),
+                    ])
+                    ->columns(2)
+                    ->collapsed()
+                    ->description('Configure settings for national brands and chains that operate across multiple locations'),
                     
                 Forms\Components\Section::make('Images')
                     ->schema([
@@ -326,6 +384,46 @@ class BusinessResource extends Resource
                     ->trueIcon('heroicon-o-square-3-stack-3d')
                     ->falseIcon('heroicon-o-x-mark')
                     ->toggleable(),
+                Tables\Columns\IconColumn::make('is_national')
+                    ->label('National')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-globe-asia-australia')
+                    ->falseIcon('heroicon-o-building-office')
+                    ->tooltip(fn (Business $record): string => $record->is_national ? 'National Business' : 'Local Business'),
+                Tables\Columns\TextColumn::make('service_coverage')
+                    ->label('Coverage')
+                    ->badge()
+                    ->color(fn ($state) => match($state) {
+                        'national' => 'success',
+                        'regional' => 'info', 
+                        'citywide' => 'warning',
+                        'local' => 'gray',
+                        default => 'gray'
+                    })
+                    ->formatStateUsing(fn ($state) => match($state) {
+                        'local' => 'Local',
+                        'citywide' => 'City-wide',
+                        'regional' => 'Regional',
+                        'national' => 'National',
+                        default => $state ? ucfirst($state) : 'Local'
+                    })
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('business_model')
+                    ->label('Model')
+                    ->badge()
+                    ->color('primary')
+                    ->formatStateUsing(fn ($state) => match($state) {
+                        'retail' => 'Retail',
+                        'restaurant' => 'Restaurant',
+                        'service' => 'Service',
+                        'manufacturing' => 'Manufacturing',
+                        'brand' => 'Brand',
+                        'franchise' => 'Franchise',
+                        'distributor' => 'Distributor',
+                        'wholesaler' => 'Wholesaler',
+                        default => $state ? ucfirst($state) : 'Retail'
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\IconColumn::make('is_verified')
                     ->label('Verified')
                     ->boolean()
@@ -398,6 +496,28 @@ class BusinessResource extends Resource
                     ]),
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Active'),
+                Tables\Filters\TernaryFilter::make('is_national')
+                    ->label('National Business'),
+                Tables\Filters\SelectFilter::make('service_coverage')
+                    ->label('Service Coverage')
+                    ->options([
+                        'local' => 'Local',
+                        'citywide' => 'City-wide', 
+                        'regional' => 'Regional',
+                        'national' => 'National',
+                    ]),
+                Tables\Filters\SelectFilter::make('business_model')
+                    ->label('Business Model')
+                    ->options([
+                        'retail' => 'Retail Store',
+                        'restaurant' => 'Restaurant',
+                        'service' => 'Service Provider',
+                        'manufacturing' => 'Manufacturing',
+                        'brand' => 'Brand/Chain',
+                        'franchise' => 'Franchise',
+                        'distributor' => 'Distributor',
+                        'wholesaler' => 'Wholesaler',
+                    ]),
                 Tables\Filters\Filter::make('rating')
                     ->form([
                         Forms\Components\TextInput::make('min_rating')
@@ -482,6 +602,59 @@ class BusinessResource extends Resource
                         ->action(function ($records) {
                             foreach ($records as $record) {
                                 $record->update(['is_featured' => true]);
+                            }
+                        }),
+                    Tables\Actions\BulkAction::make('markNational')
+                        ->label('Mark as National')
+                        ->icon('heroicon-o-globe-asia-australia')
+                        ->color('success')
+                        ->visible(fn () => Auth::user()?->hasAnyRole(['super-admin', 'admin', 'moderator']))
+                        ->form([
+                            Forms\Components\Select::make('service_coverage')
+                                ->label('Service Coverage')
+                                ->options([
+                                    'regional' => 'Regional (Multiple Districts)',
+                                    'national' => 'National (Entire Country)',
+                                ])
+                                ->required()
+                                ->default('national'),
+                            Forms\Components\Select::make('business_model')
+                                ->label('Business Model')
+                                ->options([
+                                    'retail' => 'Retail Store',
+                                    'restaurant' => 'Restaurant/Food Service',
+                                    'service' => 'Service Provider',
+                                    'manufacturing' => 'Manufacturing',
+                                    'brand' => 'Brand/Chain',
+                                    'franchise' => 'Franchise',
+                                    'distributor' => 'Distributor',
+                                    'wholesaler' => 'Wholesaler',
+                                ])
+                                ->required()
+                                ->default('brand'),
+                        ])
+                        ->action(function ($records, array $data) {
+                            foreach ($records as $record) {
+                                $record->update([
+                                    'is_national' => true,
+                                    'service_coverage' => $data['service_coverage'],
+                                    'business_model' => $data['business_model'],
+                                ]);
+                            }
+                        }),
+                    Tables\Actions\BulkAction::make('markLocal')
+                        ->label('Mark as Local')
+                        ->icon('heroicon-o-building-office')
+                        ->color('info')
+                        ->visible(fn () => Auth::user()?->hasAnyRole(['super-admin', 'admin', 'moderator']))
+                        ->action(function ($records) {
+                            foreach ($records as $record) {
+                                $record->update([
+                                    'is_national' => false,
+                                    'service_coverage' => 'local',
+                                    'business_model' => 'retail',
+                                    'service_areas' => null,
+                                ]);
                             }
                         }),
                     Tables\Actions\DeleteBulkAction::make()

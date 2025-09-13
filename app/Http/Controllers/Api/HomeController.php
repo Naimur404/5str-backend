@@ -109,25 +109,28 @@ class HomeController extends Controller
             $usedBusinessIds = [];
             $sectionData = [];
 
-            // Get all potential businesses for analysis
+            // Get all potential businesses for analysis (both local and national)
             $allBusinesses = $this->getAllPotentialBusinesses($latitude, $longitude, $radiusKm);
 
-            // 1. PRIORITY 1: Get trending businesses (highest priority)
+            // NOTE: National businesses are handled separately in their own section
+            // All other sections (trending, featured, popular, dynamic) will only show LOCAL businesses
+            
+            // 1. PRIORITY 1: Get trending businesses (highest priority - LOCAL ONLY)
             $trendingBusinesses = $this->getTrendingBusinessesForHome($userArea, $allBusinesses, $usedBusinessIds);
             $sectionData['trending_businesses'] = $trendingBusinesses;
 
-            // 2. PRIORITY 2: Get featured businesses (excluding already used)
+            // 2. PRIORITY 2: Get featured businesses (LOCAL ONLY - excluding already used)
             $featuredBusinesses = $this->getFeaturedBusinessesForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
             $sectionData['featured_businesses'] = $featuredBusinesses;
 
-            // 3. PRIORITY 3: Get popular nearby (excluding already used)
+            // 3. PRIORITY 3: Get popular nearby (LOCAL ONLY - excluding already used)
             $popularNearby = [];
             if ($latitude && $longitude) {
                 $popularNearby = $this->getPopularNearbyForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
             }
             $sectionData['popular_nearby'] = $popularNearby;
 
-            // 4. PRIORITY 4: Get dynamic sections by category (excluding already used)
+            // 4. PRIORITY 4: Get dynamic sections by category (LOCAL ONLY - excluding already used)
             $dynamicSections = [];
             if ($latitude && $longitude) {
                 $dynamicSections = $this->getDynamicSectionsForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
@@ -139,6 +142,9 @@ class HomeController extends Controller
 
             // 6. Get special offers
             $specialOffers = $this->getSpecialOffersForHome($latitude, $longitude, $radiusKm, $usedBusinessIds);
+
+            // 7. Get top national brands by category (ice cream, biscuits, drinks, etc.)
+            $topNationalBrands = $this->getTopNationalBrandsForHome($usedBusinessIds);
 
             // Track section performance for future optimization
             $this->trackSectionPerformance($sectionData, $userArea);
@@ -153,6 +159,7 @@ class HomeController extends Controller
                     'popular_nearby' => $sectionData['popular_nearby'],
                     'dynamic_sections' => $sectionData['dynamic_sections'],
                     'special_offers' => $specialOffers,
+                    'top_national_brands' => $topNationalBrands,
                     'analytics' => [
                         'total_businesses_shown' => count($usedBusinessIds),
                         'unique_business_placement' => true,
@@ -1350,7 +1357,8 @@ class HomeController extends Controller
         foreach ($trendingData as $trend) {
             $business = $allBusinesses->where('id', $trend->item_id)->first();
             
-            if ($business && !in_array($business->id, $usedBusinessIds)) {
+            // Exclude national businesses from trending - they have their own section
+            if ($business && !in_array($business->id, $usedBusinessIds) && !$business->is_national) {
                 $trendingBusinesses[] = [
                     'id' => $business->id,
                     'business_name' => $business->business_name,
@@ -1384,8 +1392,10 @@ class HomeController extends Controller
      */
     private function getFeaturedBusinessesForHome($latitude, $longitude, $radiusKm, $allBusinesses, &$usedBusinessIds)
     {
+        // Exclude national businesses from featured - they have their own section
         $availableBusinesses = $allBusinesses->whereNotIn('id', $usedBusinessIds)
-            ->where('is_featured', true);
+            ->where('is_featured', true)
+            ->where('is_national', false); // Only local businesses
 
         $featuredBusinesses = [];
         
@@ -1418,8 +1428,10 @@ class HomeController extends Controller
      */
     private function getPopularNearbyForHome($latitude, $longitude, $radiusKm, $allBusinesses, &$usedBusinessIds)
     {
+        // Exclude national businesses from popular nearby - they have their own section
         $availableBusinesses = $allBusinesses->whereNotIn('id', $usedBusinessIds)
-            ->where('overall_rating', '>=', 3.5);
+            ->where('overall_rating', '>=', 3.5)
+            ->where('is_national', false); // Only local businesses
 
         $popularNearby = [];
         
@@ -1452,7 +1464,9 @@ class HomeController extends Controller
      */
     private function getDynamicSectionsForHome($latitude, $longitude, $radiusKm, $allBusinesses, &$usedBusinessIds)
     {
-        $availableBusinesses = $allBusinesses->whereNotIn('id', $usedBusinessIds);
+        // Exclude national businesses from dynamic sections - they have their own section
+        $availableBusinesses = $allBusinesses->whereNotIn('id', $usedBusinessIds)
+            ->where('is_national', false); // Only local businesses
         $categorizedBusinesses = $availableBusinesses->groupBy('category.name');
         
         $dynamicSections = [];
@@ -1600,6 +1614,166 @@ class HomeController extends Controller
             ->filter(function($offer) {
                 return $offer['business'] !== null;
             });
+    }
+
+    /**
+     * Get top national brands categorized by type (ice cream, biscuits, drinks, etc.)
+     */
+    private function getTopNationalBrandsForHome($usedBusinessIds = [])
+    {
+        try {
+            // Get categories commonly associated with national brands
+            $brandCategories = Category::whereIn('name', [
+                'Food & Beverages',
+                'Dairy & Ice Cream', 
+                'Snacks & Confectionery',
+                'Beverages',
+                'Bakery & Sweets'
+            ])->get()->keyBy('name');
+
+            $nationalBrandSections = [];
+
+            // Ice Cream & Dairy Products
+            if ($brandCategories->has('Food & Beverages')) {
+                $iceCreamBrands = Business::active()
+                    ->national()
+                    ->where(function($q) {
+                        $q->where('business_name', 'LIKE', '%ice cream%')
+                          ->orWhere('business_name', 'LIKE', '%dairy%')
+                          ->orWhere('description', 'LIKE', '%ice cream%')
+                          ->orWhere('description', 'LIKE', '%dairy%');
+                    })
+                    ->whereNotIn('id', $usedBusinessIds)
+                    ->with(['category', 'logoImage'])
+                    ->orderByDesc('overall_rating')
+                    ->orderByDesc('total_reviews')
+                    ->take(5)
+                    ->get();
+
+                if ($iceCreamBrands->count() > 0) {
+                    $nationalBrandSections[] = [
+                        'section_title' => 'Top Ice Cream Brands',
+                        'section_type' => 'ice_cream',
+                        'section_description' => 'Popular ice cream brands across Bangladesh',
+                        'businesses' => $iceCreamBrands->map(function($business) {
+                            return [
+                                'id' => $business->id,
+                                'business_name' => $business->business_name,
+                                'slug' => $business->slug,
+                                'description' => $business->description,
+                                'overall_rating' => $business->overall_rating,
+                                'total_reviews' => $business->total_reviews,
+                                'is_national' => true,
+                                'service_coverage' => $business->service_coverage,
+                                'business_model' => $business->business_model,
+                                'category' => $business->category ? [
+                                    'id' => $business->category->id,
+                                    'name' => $business->category->name
+                                ] : null,
+                                'logo_image' => $business->logoImage->image_url ?? null
+                            ];
+                        })
+                    ];
+                }
+            }
+
+            // Biscuit & Snack Brands
+            $biscuitBrands = Business::active()
+                ->national()
+                ->where(function($q) {
+                    $q->where('business_name', 'LIKE', '%biscuit%')
+                      ->orWhere('business_name', 'LIKE', '%snack%')
+                      ->orWhere('business_name', 'LIKE', '%cookie%')
+                      ->orWhere('description', 'LIKE', '%biscuit%')
+                      ->orWhere('description', 'LIKE', '%snack%');
+                })
+                ->whereNotIn('id', array_merge($usedBusinessIds, 
+                    isset($nationalBrandSections[0]) ? $nationalBrandSections[0]['businesses']->pluck('id')->toArray() : []))
+                ->with(['category', 'logoImage'])
+                ->orderByDesc('overall_rating')
+                ->orderByDesc('total_reviews')
+                ->take(5)
+                ->get();
+
+            if ($biscuitBrands->count() > 0) {
+                $nationalBrandSections[] = [
+                    'section_title' => 'Top Biscuit & Snack Brands',
+                    'section_type' => 'biscuits_snacks',
+                    'section_description' => 'Popular biscuit and snack brands nationwide',
+                    'businesses' => $biscuitBrands->map(function($business) {
+                        return [
+                            'id' => $business->id,
+                            'business_name' => $business->business_name,
+                            'slug' => $business->slug,
+                            'description' => $business->description,
+                            'overall_rating' => $business->overall_rating,
+                            'total_reviews' => $business->total_reviews,
+                            'is_national' => true,
+                            'service_coverage' => $business->service_coverage,
+                            'business_model' => $business->business_model,
+                            'category' => $business->category ? [
+                                'id' => $business->category->id,
+                                'name' => $business->category->name
+                            ] : null,
+                            'logo_image' => $business->logoImage->image_url ?? null
+                        ];
+                    })
+                ];
+            }
+
+            // Food & Beverage Manufacturers
+            $foodManufacturers = Business::active()
+                ->national()
+                ->where('business_model', 'manufacturing')
+                ->where(function($q) {
+                    $q->where('business_name', 'LIKE', '%food%')
+                      ->orWhere('business_name', 'LIKE', '%beverage%')
+                      ->orWhere('description', 'LIKE', '%food%')
+                      ->orWhere('description', 'LIKE', '%beverage%')
+                      ->orWhere('description', 'LIKE', '%manufacturer%');
+                })
+                ->whereNotIn('id', array_merge($usedBusinessIds, 
+                    collect($nationalBrandSections)->flatMap(function($section) {
+                        return $section['businesses'];
+                    })->pluck('id')->toArray()))
+                ->with(['category', 'logoImage'])
+                ->orderByDesc('overall_rating')
+                ->orderByDesc('total_reviews')
+                ->take(4)
+                ->get();
+
+            if ($foodManufacturers->count() > 0) {
+                $nationalBrandSections[] = [
+                    'section_title' => 'Top Food Manufacturers',
+                    'section_type' => 'food_manufacturers',
+                    'section_description' => 'Leading food and beverage manufacturers',
+                    'businesses' => $foodManufacturers->map(function($business) {
+                        return [
+                            'id' => $business->id,
+                            'business_name' => $business->business_name,
+                            'slug' => $business->slug,
+                            'description' => $business->description,
+                            'overall_rating' => $business->overall_rating,
+                            'total_reviews' => $business->total_reviews,
+                            'is_national' => true,
+                            'service_coverage' => $business->service_coverage,
+                            'business_model' => $business->business_model,
+                            'category' => $business->category ? [
+                                'id' => $business->category->id,
+                                'name' => $business->category->name
+                            ] : null,
+                            'logo_image' => $business->logoImage->image_url ?? null
+                        ];
+                    })
+                ];
+            }
+
+            return $nationalBrandSections;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get national brands for home: ' . $e->getMessage());
+            return [];
+        }
     }
 
     /**
@@ -2729,6 +2903,39 @@ class HomeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate division analytics'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get national brands for home page display
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function nationalBrands()
+    {
+        try {
+            $nationalBrands = $this->getTopNationalBrandsForHome();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'National brands retrieved successfully',
+                'data' => [
+                    'national_brand_sections' => $nationalBrands,
+                    'total_sections' => count($nationalBrands),
+                    'total_businesses' => collect($nationalBrands)->sum(function($section) {
+                        return count($section['businesses']);
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get national brands: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve national brands',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
     }

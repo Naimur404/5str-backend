@@ -359,6 +359,23 @@ curl "http://localhost:8000/api/v1/home?latitude=23.7465&longitude=90.3754&radiu
                     "area": "Dhanmondi"
                 }
             }
+        ],
+        "top_national_brands": [
+            {
+                "section_title": "Top Ice Cream Brands",
+                "section_type": "ice_cream",
+                "businesses": [
+                    {
+                        "id": 101,
+                        "business_name": "Polar Ice Cream",
+                        "slug": "polar-ice-cream",
+                        "is_national": true,
+                        "service_coverage": "nationwide",
+                        "overall_rating": "4.50",
+                        "total_reviews": 245
+                    }
+                ]
+            }
         ]
     }
 }
@@ -395,6 +412,99 @@ curl "http://localhost:8000/api/v1/home?latitude=23.7465&longitude=90.3754&radiu
                 "recent_searches": 128
             }
         ]
+    }
+}
+```
+
+### Get National Brands for Home Page
+**GET** `/api/v1/home/national-brands`
+
+**Description:** Get top national brands categorized by type (ice cream, biscuits, beverages, etc.) for home page display.
+
+**Example Request:**
+```bash
+curl "http://localhost:8000/api/v1/home/national-brands"
+```
+
+**Success Response (200):**
+```json
+{
+    "success": true,
+    "message": "National brands retrieved successfully",
+    "data": {
+        "national_brand_sections": [
+            {
+                "section_title": "Top Ice Cream Brands",
+                "section_type": "ice_cream",
+                "section_description": "Popular ice cream brands across Bangladesh",
+                "businesses": [
+                    {
+                        "id": 101,
+                        "business_name": "Polar Ice Cream",
+                        "slug": "polar-ice-cream",
+                        "description": "Premium ice cream manufacturer serving nationwide",
+                        "overall_rating": "4.50",
+                        "total_reviews": 245,
+                        "is_national": true,
+                        "service_coverage": "nationwide",
+                        "business_model": "manufacturing",
+                        "category": {
+                            "id": 5,
+                            "name": "Food & Beverages"
+                        },
+                        "logo_image": "https://example.com/polar-logo.jpg"
+                    }
+                ]
+            },
+            {
+                "section_title": "Top Biscuit & Snack Brands",
+                "section_type": "biscuits_snacks",
+                "section_description": "Popular biscuit and snack brands nationwide",
+                "businesses": [
+                    {
+                        "id": 102,
+                        "business_name": "Olympic Biscuits",
+                        "slug": "olympic-biscuits",
+                        "description": "Leading biscuit manufacturer in Bangladesh",
+                        "overall_rating": "4.30",
+                        "total_reviews": 189,
+                        "is_national": true,
+                        "service_coverage": "nationwide",
+                        "business_model": "manufacturing",
+                        "category": {
+                            "id": 5,
+                            "name": "Food & Beverages"
+                        },
+                        "logo_image": "https://example.com/olympic-logo.jpg"
+                    }
+                ]
+            },
+            {
+                "section_title": "Top Food Manufacturers",
+                "section_type": "food_manufacturers",
+                "section_description": "Leading food and beverage manufacturers",
+                "businesses": [
+                    {
+                        "id": 103,
+                        "business_name": "Pran Foods Limited",
+                        "slug": "pran-foods-limited",
+                        "description": "Largest food and beverage manufacturer in Bangladesh",
+                        "overall_rating": "4.60",
+                        "total_reviews": 412,
+                        "is_national": true,
+                        "service_coverage": "nationwide",
+                        "business_model": "manufacturing",
+                        "category": {
+                            "id": 5,
+                            "name": "Food & Beverages"
+                        },
+                        "logo_image": "https://example.com/pran-logo.jpg"
+                    }
+                ]
+            }
+        ],
+        "total_sections": 3,
+        "total_businesses": 6
     }
 }
 ```
@@ -504,16 +614,32 @@ curl "http://localhost:8000/api/v1/search?q=restaurant&type=all&latitude=23.7465
 
 ## 🏢 Business Endpoints
 
+### Business Types Supported
+The platform supports two types of businesses:
+
+1. **Local Businesses**: Location-based businesses (restaurants, shops, salons, etc.)
+   - Have specific latitude/longitude coordinates
+   - Serve customers in nearby areas
+   - Filtered by location radius
+
+2. **National Businesses**: Country-wide businesses and brands
+   - Serve entire Bangladesh or multiple regions
+   - Include food brands (Polar, Pran, Akij), biscuit companies (Tiger, Olympic), delivery services, online platforms
+   - Available regardless of user location
+   - Business models: `manufacturing`, `brand`, `online_service`, `delivery_only`
+
 ### Get Business List
 **GET** `/api/v1/businesses`
 
 **Query Parameters:**
-- `latitude`, `longitude`, `radius`: Location-based filtering
+- `latitude`, `longitude`, `radius`: Location-based filtering (includes national businesses)
 - `category_id`: Filter by category
 - `min_rating`: Minimum rating filter
 - `is_verified`: Show only verified businesses
 - `page`, `limit`: Pagination
 - `sort`: Sorting option
+
+**Note**: When location is provided, returns both nearby local businesses AND national businesses. When no location is provided, returns only national businesses.
 
 **Success Response (200):**
 ```json
@@ -523,32 +649,84 @@ curl "http://localhost:8000/api/v1/search?q=restaurant&type=all&latitude=23.7465
         "businesses": [
             {
                 "id": 2,
-                "business_name": "Star Kabab & Restaurant",
-                "slug": "star-kabab-restaurant",
-                "description": "Traditional Bengali and Chinese cuisine",
-                "area": "Dhanmondi",
-                "city": "Dhaka",
-                "overall_rating": "3.50",
-                "total_reviews": 11,
-                "is_verified": true,
+                "business_name": "Polar Ice Cream",
+                "slug": "polar-ice-cream",
+                "description": "Premium ice cream brand available nationwide",
+                "is_national": true,
+                "service_coverage": "national",
+                "business_model": "brand",
+                "service_areas": ["Dhaka", "Chittagong", "Sylhet", "Rajshahi"],
+                "overall_rating": "4.20",
+                "total_reviews": 150,
                 "category": {
-                    "id": 1,
-                    "name": "Restaurants"
-                },
-                "logo_image": {
-                    "id": 1,
-                    "image_url": "https://example.com/logo.jpg"
+                    "id": 3,
+                    "name": "Food & Beverages"
+                }
+            }
+        ]
+    }
+}
+```
+
+### Get National Businesses
+**GET** `/api/v1/businesses/national`
+
+Get businesses that serve entire Bangladesh (brands, online services, delivery-only businesses).
+
+**Query Parameters:**
+- `category_id`: Filter by category
+- `business_model`: Filter by business model ('manufacturing', 'brand', 'online_service', 'delivery_only')
+- `min_rating`: Minimum rating filter
+- `sort`: 'rating', 'popular', 'name', 'featured'
+- `page`, `limit`: Pagination
+
+**Examples:**
+```bash
+# Get all national businesses
+curl "http://localhost:8000/api/v1/businesses/national"
+
+# Get food & beverage brands
+curl "http://localhost:8000/api/v1/businesses/national?category_id=3&business_model=brand"
+
+# Get popular national brands
+curl "http://localhost:8000/api/v1/businesses/national?sort=popular"
+```
+
+**Success Response (200):**
+```json
+{
+    "success": true,
+    "data": {
+        "businesses": [
+            {
+                "id": 10,
+                "business_name": "Pran Foods Limited",
+                "slug": "pran-foods",
+                "description": "Leading food and beverage manufacturer in Bangladesh",
+                "is_national": true,
+                "service_coverage": "national",
+                "business_model": "manufacturing",
+                "service_areas": null,
+                "overall_rating": "4.50",
+                "total_reviews": 289,
+                "is_verified": true,
+                "is_featured": true,
+                "category": {
+                    "id": 3,
+                    "name": "Food & Beverages"
                 }
             }
         ],
         "pagination": {
             "current_page": 1,
-            "last_page": 1,
+            "last_page": 3,
             "per_page": 20,
-            "total": 1
+            "total": 45,
+            "has_more": true
         }
     }
 }
+```
 ```
 
 ### Get Business Details
@@ -1057,6 +1235,58 @@ Access the admin panel at: `http://localhost:8000/admin`
 - Admin notifications for important events only
 - Real-time polling every 30 seconds
 - Configurable notification rules in `config/notifications.php`
+
+## 🎛️ Admin Dashboard (Filament)
+
+### National Business Management
+
+The Filament admin dashboard now includes comprehensive support for managing national businesses:
+
+#### Features Added:
+- **National Business Toggle**: Mark businesses as national brands (Pran Foods, Polar Ice Cream, etc.)
+- **Service Coverage**: Local, City-wide, Regional, or National scope
+- **Business Model**: Manufacturing, Brand, Franchise, Distributor, etc.
+- **Service Areas**: Tag-based input for cities/regions served
+- **National Business Filters**: Filter by national status, coverage, and model
+- **Bulk Actions**: Convert multiple businesses to national or local at once
+
+#### Accessing Admin Dashboard:
+```bash
+# Visit the admin panel
+http://localhost:8000/admin
+
+# Default admin login (update in production):
+Email: admin@admin.com
+Password: admin123
+```
+
+#### Managing National Businesses:
+
+1. **Create National Business**:
+   - Go to Businesses → Create
+   - Fill basic information
+   - Expand "National Business Settings"
+   - Toggle "National Business" ON
+   - Select service coverage (National/Regional)
+   - Choose business model (Manufacturing/Brand/etc.)
+   - Add service areas if regional/national
+
+2. **Convert Existing Business**:
+   - Go to Businesses list
+   - Select business(es) to convert
+   - Use "Mark as National" bulk action
+   - Configure coverage and model
+
+3. **Filter National Businesses**:
+   - Use "National Business" filter
+   - Filter by "Service Coverage"
+   - Filter by "Business Model"
+
+#### National Business Fields:
+- `is_national`: Boolean toggle for national status
+- `service_coverage`: local | citywide | regional | national
+- `business_model`: retail | restaurant | service | manufacturing | brand | franchise | distributor | wholesaler  
+- `service_areas`: Array of cities/regions served
 
 ## 🔧 Development Commands
 
