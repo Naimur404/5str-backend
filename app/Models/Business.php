@@ -37,6 +37,8 @@ class Business extends Model
         'service_coverage',
         'service_areas',
         'business_model',
+        'product_tags',
+        'business_tags',
         'overall_rating',
         'total_reviews',
         'discovery_score',
@@ -72,6 +74,8 @@ class Business extends Model
         'is_active' => 'boolean',
         'is_national' => 'boolean',
         'service_areas' => 'array',
+        'product_tags' => 'array',
+        'business_tags' => 'array',
         'overall_rating' => 'decimal:2',
         'total_reviews' => 'integer',
         'discovery_score' => 'decimal:2',
@@ -504,6 +508,62 @@ class Business extends Model
 
         $this->update(['discovery_score' => round($score, 2)]);
         return $score;
+    }
+
+    /**
+     * Scope for businesses with specific product tags
+     */
+    public function scopeWithProductTag($query, $tag)
+    {
+        return $query->whereJsonContains('product_tags', $tag);
+    }
+
+    /**
+     * Scope for businesses with any of the provided product tags
+     */
+    public function scopeWithAnyProductTag($query, $tags)
+    {
+        $query->where(function($q) use ($tags) {
+            foreach ((array) $tags as $tag) {
+                $q->orWhereJsonContains('product_tags', $tag);
+            }
+        });
+        return $query;
+    }
+
+    /**
+     * Scope for businesses with specific business tags
+     */
+    public function scopeWithBusinessTag($query, $tag)
+    {
+        return $query->whereJsonContains('business_tags', $tag);
+    }
+
+    // UTILITY METHODS
+
+    /**
+     * Check if business has a specific product tag
+     */
+    public function hasProductTag($tag)
+    {
+        return in_array($tag, $this->product_tags ?? []);
+    }
+
+    /**
+     * Check if business has any of the provided product tags
+     */
+    public function hasAnyProductTag($tags)
+    {
+        $businessTags = $this->product_tags ?? [];
+        return !empty(array_intersect($businessTags, (array) $tags));
+    }
+
+    /**
+     * Check if business has a specific business tag
+     */
+    public function hasBusinessTag($tag)
+    {
+        return in_array($tag, $this->business_tags ?? []);
     }
 
     /**

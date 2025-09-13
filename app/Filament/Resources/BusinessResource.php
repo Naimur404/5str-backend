@@ -257,6 +257,35 @@ class BusinessResource extends Resource
                             ->helperText('Inactive businesses are hidden from public'),
                     ])->columns(3)
                     ->visibleOn(['create', 'edit']),
+
+                Forms\Components\Section::make('Product & Business Tags')
+                    ->schema([
+                        Forms\Components\TagsInput::make('product_tags')
+                            ->label('Product Tags')
+                            ->helperText('Tags related to products/services (e.g., ice cream, biscuit, beverage, snack)')
+                            ->placeholder('Add product tags...')
+                            ->suggestions([
+                                'ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi',
+                                'biscuit', 'cookie', 'snack', 'chips', 'crackers', 'wafer',
+                                'beverage', 'soft drink', 'juice', 'water', 'tea', 'coffee',
+                                'food processing', 'manufacturing', 'packaged food', 'ready meals',
+                                'bakery', 'sweets', 'confectionery', 'chocolate', 'candy',
+                                'rice', 'flour', 'spices', 'oil', 'sauce', 'pickles',
+                                'noodles', 'pasta', 'instant food', 'frozen food'
+                            ]),
+                        Forms\Components\TagsInput::make('business_tags')
+                            ->label('Business Tags')
+                            ->helperText('Tags related to business characteristics (e.g., family-owned, premium, organic)')
+                            ->placeholder('Add business tags...')
+                            ->suggestions([
+                                'family-owned', 'premium', 'organic', 'halal', 'vegetarian', 'vegan',
+                                'traditional', 'modern', 'imported', 'local', 'handmade',
+                                'eco-friendly', 'sustainable', '24/7', 'franchise', 'chain',
+                                'boutique', 'artisan', 'gourmet', 'budget-friendly'
+                            ]),
+                    ])->columns(1)
+                    ->collapsed()
+                    ->visibleOn(['create', 'edit']),
                     
                 Forms\Components\Section::make('Approval Status')
                     ->schema([

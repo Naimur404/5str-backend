@@ -1622,40 +1622,60 @@ class HomeController extends Controller
     private function getTopNationalBrandsForHome($usedBusinessIds = [])
     {
         try {
-            // Get categories commonly associated with national brands
-            $brandCategories = Category::whereIn('name', [
-                'Food & Beverages',
-                'Dairy & Ice Cream', 
-                'Snacks & Confectionery',
-                'Beverages',
-                'Bakery & Sweets'
-            ])->get()->keyBy('name');
-
             $nationalBrandSections = [];
 
-            // Ice Cream & Dairy Products
-            if ($brandCategories->has('Food & Beverages')) {
-                $iceCreamBrands = Business::active()
+            // Define dynamic sections with their corresponding product tags
+            $sectionConfigs = [
+                [
+                    'title' => 'Top Ice Cream Brands',
+                    'type' => 'ice_cream',
+                    'description' => 'Popular ice cream brands across Bangladesh',
+                    'tags' => ['ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi'],
+                    'limit' => 5
+                ],
+                [
+                    'title' => 'Top Biscuit & Snack Brands',
+                    'type' => 'biscuits_snacks', 
+                    'description' => 'Popular biscuit and snack brands nationwide',
+                    'tags' => ['biscuit', 'cookie', 'snack', 'chips', 'crackers', 'wafer'],
+                    'limit' => 5
+                ],
+                [
+                    'title' => 'Top Beverage Brands',
+                    'type' => 'beverages',
+                    'description' => 'Leading beverage brands in Bangladesh',
+                    'tags' => ['beverage', 'soft drink', 'juice', 'water', 'tea', 'coffee'],
+                    'limit' => 4
+                ],
+                [
+                    'title' => 'Top Food Manufacturers',
+                    'type' => 'food_manufacturers',
+                    'description' => 'Leading food manufacturers and processors',
+                    'tags' => ['food processing', 'manufacturing', 'packaged food', 'ready meals'],
+                    'limit' => 4
+                ]
+            ];
+
+            $allUsedBusinessIds = $usedBusinessIds;
+
+            foreach ($sectionConfigs as $config) {
+                // Get businesses with any of the specified product tags
+                $businesses = Business::active()
                     ->national()
-                    ->where(function($q) {
-                        $q->where('business_name', 'LIKE', '%ice cream%')
-                          ->orWhere('business_name', 'LIKE', '%dairy%')
-                          ->orWhere('description', 'LIKE', '%ice cream%')
-                          ->orWhere('description', 'LIKE', '%dairy%');
-                    })
-                    ->whereNotIn('id', $usedBusinessIds)
+                    ->withAnyProductTag($config['tags'])
+                    ->whereNotIn('id', $allUsedBusinessIds)
                     ->with(['category', 'logoImage'])
                     ->orderByDesc('overall_rating')
                     ->orderByDesc('total_reviews')
-                    ->take(5)
+                    ->take($config['limit'])
                     ->get();
 
-                if ($iceCreamBrands->count() > 0) {
+                if ($businesses->count() > 0) {
                     $nationalBrandSections[] = [
-                        'section_title' => 'Top Ice Cream Brands',
-                        'section_type' => 'ice_cream',
-                        'section_description' => 'Popular ice cream brands across Bangladesh',
-                        'businesses' => $iceCreamBrands->map(function($business) {
+                        'section_title' => $config['title'],
+                        'section_type' => $config['type'],
+                        'section_description' => $config['description'],
+                        'businesses' => $businesses->map(function($business) {
                             return [
                                 'id' => $business->id,
                                 'business_name' => $business->business_name,
@@ -1666,6 +1686,7 @@ class HomeController extends Controller
                                 'is_national' => true,
                                 'service_coverage' => $business->service_coverage,
                                 'business_model' => $business->business_model,
+                                'product_tags' => $business->product_tags,
                                 'category' => $business->category ? [
                                     'id' => $business->category->id,
                                     'name' => $business->category->name
@@ -1674,98 +1695,10 @@ class HomeController extends Controller
                             ];
                         })
                     ];
+
+                    // Add these business IDs to the used list for next sections
+                    $allUsedBusinessIds = array_merge($allUsedBusinessIds, $businesses->pluck('id')->toArray());
                 }
-            }
-
-            // Biscuit & Snack Brands
-            $biscuitBrands = Business::active()
-                ->national()
-                ->where(function($q) {
-                    $q->where('business_name', 'LIKE', '%biscuit%')
-                      ->orWhere('business_name', 'LIKE', '%snack%')
-                      ->orWhere('business_name', 'LIKE', '%cookie%')
-                      ->orWhere('description', 'LIKE', '%biscuit%')
-                      ->orWhere('description', 'LIKE', '%snack%');
-                })
-                ->whereNotIn('id', array_merge($usedBusinessIds, 
-                    isset($nationalBrandSections[0]) ? $nationalBrandSections[0]['businesses']->pluck('id')->toArray() : []))
-                ->with(['category', 'logoImage'])
-                ->orderByDesc('overall_rating')
-                ->orderByDesc('total_reviews')
-                ->take(5)
-                ->get();
-
-            if ($biscuitBrands->count() > 0) {
-                $nationalBrandSections[] = [
-                    'section_title' => 'Top Biscuit & Snack Brands',
-                    'section_type' => 'biscuits_snacks',
-                    'section_description' => 'Popular biscuit and snack brands nationwide',
-                    'businesses' => $biscuitBrands->map(function($business) {
-                        return [
-                            'id' => $business->id,
-                            'business_name' => $business->business_name,
-                            'slug' => $business->slug,
-                            'description' => $business->description,
-                            'overall_rating' => $business->overall_rating,
-                            'total_reviews' => $business->total_reviews,
-                            'is_national' => true,
-                            'service_coverage' => $business->service_coverage,
-                            'business_model' => $business->business_model,
-                            'category' => $business->category ? [
-                                'id' => $business->category->id,
-                                'name' => $business->category->name
-                            ] : null,
-                            'logo_image' => $business->logoImage->image_url ?? null
-                        ];
-                    })
-                ];
-            }
-
-            // Food & Beverage Manufacturers
-            $foodManufacturers = Business::active()
-                ->national()
-                ->where('business_model', 'manufacturing')
-                ->where(function($q) {
-                    $q->where('business_name', 'LIKE', '%food%')
-                      ->orWhere('business_name', 'LIKE', '%beverage%')
-                      ->orWhere('description', 'LIKE', '%food%')
-                      ->orWhere('description', 'LIKE', '%beverage%')
-                      ->orWhere('description', 'LIKE', '%manufacturer%');
-                })
-                ->whereNotIn('id', array_merge($usedBusinessIds, 
-                    collect($nationalBrandSections)->flatMap(function($section) {
-                        return $section['businesses'];
-                    })->pluck('id')->toArray()))
-                ->with(['category', 'logoImage'])
-                ->orderByDesc('overall_rating')
-                ->orderByDesc('total_reviews')
-                ->take(4)
-                ->get();
-
-            if ($foodManufacturers->count() > 0) {
-                $nationalBrandSections[] = [
-                    'section_title' => 'Top Food Manufacturers',
-                    'section_type' => 'food_manufacturers',
-                    'section_description' => 'Leading food and beverage manufacturers',
-                    'businesses' => $foodManufacturers->map(function($business) {
-                        return [
-                            'id' => $business->id,
-                            'business_name' => $business->business_name,
-                            'slug' => $business->slug,
-                            'description' => $business->description,
-                            'overall_rating' => $business->overall_rating,
-                            'total_reviews' => $business->total_reviews,
-                            'is_national' => true,
-                            'service_coverage' => $business->service_coverage,
-                            'business_model' => $business->business_model,
-                            'category' => $business->category ? [
-                                'id' => $business->category->id,
-                                'name' => $business->category->name
-                            ] : null,
-                            'logo_image' => $business->logoImage->image_url ?? null
-                        ];
-                    })
-                ];
             }
 
             return $nationalBrandSections;
