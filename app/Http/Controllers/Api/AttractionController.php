@@ -240,14 +240,17 @@ class AttractionController extends Controller
             $attraction->incrementViews();
 
             // Track user view if authenticated
+            $userInteractions = [];
             if (Auth::check()) {
                 $userId = Auth::id();
                 
                 // Add user interaction data
-                $attraction->user_interactions = UserAttractionInteraction::getUserInteractionTypes($userId, $attraction->id);
-                $attraction->user_has_liked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'like');
-                $attraction->user_has_bookmarked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'bookmark');
-                $attraction->user_has_visited = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'been_there');
+                $userInteractions = [
+                    'user_interactions' => UserAttractionInteraction::getUserInteractionTypes($userId, $attraction->id),
+                    'user_has_liked' => UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'like'),
+                    'user_has_bookmarked' => UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'bookmark'),
+                    'user_has_visited' => UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'been_there'),
+                ];
                 
                 // Create view interaction
                 UserAttractionInteraction::createOrUpdate($userId, $attraction->id, 'visit', [
@@ -259,10 +262,114 @@ class AttractionController extends Controller
                 ]);
             }
 
+            // Format the response with proper JSON structure
+            $formattedData = [
+                'id' => $attraction->id,
+                'name' => $attraction->name,
+                'slug' => $attraction->slug,
+                'description' => $attraction->description,
+                'type' => $attraction->type,
+                'category' => $attraction->category,
+                'subcategory' => $attraction->subcategory,
+                'location' => [
+                    'latitude' => (float) $attraction->latitude,
+                    'longitude' => (float) $attraction->longitude,
+                    'address' => $attraction->address,
+                    'city' => $attraction->city,
+                    'area' => $attraction->area,
+                    'district' => $attraction->district,
+                    'country' => $attraction->country,
+                ],
+                'pricing' => [
+                    'is_free' => $attraction->is_free,
+                    'entry_fee' => (float) $attraction->entry_fee,
+                    'currency' => $attraction->currency,
+                ],
+                'schedule' => [
+                    'opening_hours' => $this->parseJsonField($attraction->opening_hours),
+                ],
+                'contact' => $this->parseJsonField($attraction->contact_info),
+                'visit_info' => [
+                    'facilities' => $this->parseJsonField($attraction->facilities),
+                    'best_time_to_visit' => $this->parseJsonField($attraction->best_time_to_visit),
+                    'estimated_duration_minutes' => $attraction->estimated_duration_minutes,
+                    'difficulty_level' => $attraction->difficulty_level,
+                ],
+                'accessibility' => $this->parseJsonField($attraction->accessibility_info),
+                'ratings' => [
+                    'overall_rating' => (float) $attraction->overall_rating,
+                    'total_reviews' => $attraction->total_reviews,
+                ],
+                'engagement' => [
+                    'total_likes' => $attraction->total_likes,
+                    'total_dislikes' => $attraction->total_dislikes,
+                    'total_shares' => $attraction->total_shares,
+                    'total_views' => $attraction->total_views,
+                ],
+                'media' => [
+                    'cover_image_url' => $attraction->cover_image_url,
+                    'gallery_count' => $attraction->gallery_count,
+                    'gallery' => $attraction->gallery->map(function ($image) {
+                        return [
+                            'id' => $image->id,
+                            'image_url' => $image->image_url,
+                            'title' => $image->title,
+                            'description' => $image->description,
+                            'is_cover' => $image->is_cover,
+                            'sort_order' => $image->sort_order,
+                            'full_image_url' => $image->full_image_url,
+                            'thumbnail_url' => $image->thumbnail_url,
+                        ];
+                    }),
+                ],
+                'status_flags' => [
+                    'is_verified' => $attraction->is_verified,
+                    'is_featured' => $attraction->is_featured,
+                    'is_active' => $attraction->is_active,
+                    'status' => $attraction->status,
+                ],
+                'discovery_score' => (float) $attraction->discovery_score,
+                'google_maps_url' => $attraction->google_maps_url,
+                'meta_data' => $this->parseJsonField($attraction->meta_data),
+                'reviews' => $attraction->reviews->map(function ($review) {
+                    return [
+                        'id' => $review->id,
+                        'user' => [
+                            'id' => $review->user->id,
+                            'name' => $review->user->name,
+                            'profile_image' => $review->user->profile_image,
+                            'trust_level' => $review->user->trust_level,
+                        ],
+                        'rating' => (float) $review->rating,
+                        'title' => $review->title,
+                        'comment' => $review->comment,
+                        'visit_date' => $review->visit_date,
+                        'experience_tags' => is_array($review->experience_tags) ? $review->experience_tags : json_decode($review->experience_tags, true) ?? [],
+                        'visit_info' => is_array($review->visit_info) ? $review->visit_info : json_decode($review->visit_info, true) ?? [],
+                        'helpful_votes' => $review->helpful_votes,
+                        'total_votes' => $review->total_votes,
+                        'helpful_percentage' => (float) $review->helpful_percentage,
+                        'is_verified' => $review->is_verified,
+                        'is_featured' => $review->is_featured,
+                        'is_anonymous' => $review->is_anonymous,
+                        'time_ago' => $review->time_ago,
+                        'is_recent' => $review->is_recent,
+                        'created_at' => $review->created_at,
+                    ];
+                }),
+                'created_at' => $attraction->created_at,
+                'updated_at' => $attraction->updated_at,
+            ];
+
+            // Merge user interactions if authenticated
+            if (!empty($userInteractions)) {
+                $formattedData = array_merge($formattedData, $userInteractions);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Attraction retrieved successfully',
-                'data' => $attraction
+                'data' => $formattedData
             ]);
 
         } catch (\Exception $e) {
@@ -401,5 +508,22 @@ class AttractionController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Helper method to parse JSON fields safely
+     */
+    private function parseJsonField($field)
+    {
+        if (is_array($field)) {
+            return $field;
+        }
+        
+        if (is_string($field)) {
+            $decoded = json_decode($field, true);
+            return $decoded !== null ? $decoded : $field;
+        }
+        
+        return $field;
     }
 }
