@@ -53,6 +53,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/home/featured-businesses', [HomeController::class, 'featuredBusinesses']);
     Route::get('/home/special-offers', [HomeController::class, 'specialOffers']);
     Route::get('/home/national-brands', [HomeController::class, 'nationalBrands']);
+    Route::get('/home/featured-attractions', [HomeController::class, 'featuredAttractions']);
+    Route::get('/home/popular-attractions', [HomeController::class, 'popularAttractions']);
+    Route::get('/home/all-attractions-nearby', [HomeController::class, 'allAttractionsNearby']);
+    Route::get('/home/attraction-categories-nearby', [HomeController::class, 'attractionCategoriesNearby']);
     
     // Home analytics and tracking routes
     Route::post('/home/businesses/{business}/track-view', [HomeController::class, 'trackHomeBusinessView']);
@@ -155,7 +159,7 @@ Route::prefix('v1')->group(function () {
     // Public attraction review routes (read-only without authentication)
     Route::prefix('attraction-reviews')->group(function () {
         Route::get('/', [AttractionReviewController::class, 'index']);
-        Route::get('/{attraction}/statistics', [AttractionReviewController::class, 'statistics']);
+        Route::get('/{attraction}/statistics', [AttractionReviewController::class, 'getReviewStats']);
     });
 });
 
@@ -286,14 +290,23 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     // Attraction review management (require login)
     Route::prefix('attraction-reviews')->group(function () {
-        Route::post('/', [AttractionReviewController::class, 'store']);
-        Route::get('/{review}', [AttractionReviewController::class, 'show']);
-        Route::put('/{review}', [AttractionReviewController::class, 'update']);
-        Route::delete('/{review}', [AttractionReviewController::class, 'destroy']);
+        // Submit review for specific attraction
+        Route::post('/{attractionId}/reviews', [AttractionReviewController::class, 'store']);
         
-        // Review helpful voting system
-        Route::post('/{review}/helpful', [AttractionReviewController::class, 'markHelpful']);
-        Route::delete('/{review}/helpful', [AttractionReviewController::class, 'removeHelpful']);
+        // General review submission (with attraction_id in body)
+        Route::post('/', [AttractionReviewController::class, 'store']);
+        
+        Route::get('/{attractionId}/reviews', [AttractionReviewController::class, 'index']);
+        Route::get('/{attractionId}/reviews/{reviewId}', [AttractionReviewController::class, 'show']);
+        Route::put('/{attractionId}/reviews/{reviewId}', [AttractionReviewController::class, 'update']);
+        Route::delete('/{attractionId}/reviews/{reviewId}', [AttractionReviewController::class, 'destroy']);
+        
+        // Review helpful voting system (upvote/downvote)
+        Route::post('/{attractionId}/reviews/{reviewId}/helpful', [AttractionReviewController::class, 'markHelpful']);
+        Route::post('/{attractionId}/reviews/{reviewId}/not-helpful', [AttractionReviewController::class, 'markNotHelpful']);
+        
+        // Review statistics
+        Route::get('/{attractionId}/statistics', [AttractionReviewController::class, 'getReviewStats']);
     });
 
     // Note: A/B testing routes removed to simplify the system

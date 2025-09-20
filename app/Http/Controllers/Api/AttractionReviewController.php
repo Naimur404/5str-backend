@@ -107,9 +107,25 @@ class AttractionReviewController extends Controller
     /**
      * Store a new review
      */
-    public function store(Request $request, $attractionId)
+    public function store(Request $request, $attractionId = null)
     {
-        $validator = Validator::make($request->all(), [
+        // Handle both route patterns: POST /attraction-reviews/{attractionId}/reviews and POST /attraction-reviews
+        $attractionIdFromRoute = $attractionId;
+        $attractionIdFromBody = $request->attraction_id;
+        
+        // Use route parameter if provided, otherwise use body parameter
+        $finalAttractionId = $attractionIdFromRoute ?? $attractionIdFromBody;
+        
+        if (!$finalAttractionId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attraction ID is required',
+                'errors' => ['attraction_id' => ['The attraction id field is required.']]
+            ], 422);
+        }
+
+        $validator = Validator::make(array_merge($request->all(), ['attraction_id' => $finalAttractionId]), [
+            'attraction_id' => 'required|exists:attractions,id',
             'rating' => 'required|numeric|min:0.5|max:5',
             'title' => 'nullable|string|max:255',
             'comment' => 'required|string|min:10|max:2000',
@@ -129,11 +145,11 @@ class AttractionReviewController extends Controller
         }
 
         try {
-            $attraction = Attraction::active()->findOrFail($attractionId);
+            $attraction = Attraction::active()->findOrFail($finalAttractionId);
             $userId = Auth::id();
 
             // Check if user has already reviewed this attraction
-            $existingReview = AttractionReview::where('attraction_id', $attractionId)
+            $existingReview = AttractionReview::where('attraction_id', $finalAttractionId)
                 ->where('user_id', $userId)
                 ->first();
 
@@ -145,7 +161,7 @@ class AttractionReviewController extends Controller
             }
 
             $reviewData = [
-                'attraction_id' => $attractionId,
+                'attraction_id' => $finalAttractionId,
                 'user_id' => $userId,
                 'rating' => $request->rating,
                 'title' => $request->title,

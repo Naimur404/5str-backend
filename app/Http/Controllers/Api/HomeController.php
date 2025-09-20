@@ -10,6 +10,7 @@ use App\Models\Banner;
 use App\Models\Offer;
 use App\Models\Review;
 use App\Models\TrendingData;
+use App\Models\Attraction;
 use App\Services\AnalyticsService;
 use App\Services\LocationService;
 use Illuminate\Http\Request;
@@ -146,6 +147,15 @@ class HomeController extends Controller
             // 7. Get top national brands by category (ice cream, biscuits, drinks, etc.)
             $topNationalBrands = $this->getTopNationalBrandsForHome($usedBusinessIds);
 
+            // 8. Get featured attractions
+            $featuredAttractions = $this->getFeaturedAttractionsForHome($latitude, $longitude, $radiusKm);
+
+            // 9. Get popular attractions nearby
+            $popularAttractions = [];
+            if ($latitude && $longitude) {
+                $popularAttractions = $this->getPopularAttractionsForHome($latitude, $longitude, $radiusKm);
+            }
+
             // Track section performance for future optimization
             $this->trackSectionPerformance($sectionData, $userArea);
 
@@ -160,11 +170,14 @@ class HomeController extends Controller
                     'dynamic_sections' => $sectionData['dynamic_sections'],
                     'special_offers' => $specialOffers,
                     'top_national_brands' => $topNationalBrands,
+                    'featured_attractions' => $featuredAttractions,
+                    'popular_attractions' => $popularAttractions,
                     'analytics' => [
                         'total_businesses_shown' => count($usedBusinessIds),
                         'unique_business_placement' => true,
                         'location_based' => $latitude && $longitude ? true : false,
-                        'trending_data_driven' => true
+                        'trending_data_driven' => true,
+                        'attractions_included' => true
                     ],
                     'user_location' => [
                         'latitude' => $latitude,
@@ -2895,6 +2908,560 @@ class HomeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve national brands',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get featured attractions for home page display
+     */
+    private function getFeaturedAttractionsForHome($latitude = null, $longitude = null, $radiusKm = 50)
+    {
+        try {
+            $query = Attraction::with(['coverImage', 'reviews' => function($q) {
+                $q->active()->latest()->take(3);
+            }])
+            ->active()
+            ->verified()
+            ->featured();
+
+            // If location provided, prioritize nearby attractions but still show some featured ones
+            if ($latitude && $longitude) {
+                $query = $query->selectRaw(
+                    "attractions.*, 
+                    ( 6371 * acos( cos( radians(?) ) * 
+                      cos( radians( latitude ) ) * 
+                      cos( radians( longitude ) - radians(?) ) + 
+                      sin( radians(?) ) * 
+                      sin( radians( latitude ) ) ) ) AS distance", 
+                    [$latitude, $longitude, $latitude]
+                )
+                ->having('distance', '<', $radiusKm)
+                ->orderBy('distance')
+                ->orderBy('overall_rating', 'desc');
+            } else {
+                // Without location, prioritize by rating and discovery score
+                $query = $query->orderBy('discovery_score', 'desc')
+                              ->orderBy('overall_rating', 'desc');
+            }
+
+            $attractions = $query->take(6)->get();
+
+            return $attractions->map(function ($attraction) use ($latitude, $longitude) {
+                return [
+                    'id' => $attraction->id,
+                    'name' => $attraction->name,
+                    'slug' => $attraction->slug,
+                    'description' => $attraction->description,
+                    'type' => $attraction->type,
+                    'category' => $attraction->category,
+                    'subcategory' => $attraction->subcategory,
+                    'city' => $attraction->city,
+                    'area' => $attraction->area,
+                    'district' => $attraction->district,
+                    'is_free' => $attraction->is_free,
+                    'entry_fee' => $attraction->entry_fee,
+                    'currency' => $attraction->currency,
+                    'overall_rating' => (float) $attraction->overall_rating,
+                    'total_reviews' => $attraction->total_reviews,
+                    'total_views' => $attraction->total_views,
+                    'discovery_score' => (float) $attraction->discovery_score,
+                    'estimated_duration_minutes' => $attraction->estimated_duration_minutes,
+                    'difficulty_level' => $attraction->difficulty_level,
+                    'cover_image_url' => $attraction->cover_image_url,
+                    'google_maps_url' => $attraction->google_maps_url,
+                    'distance_km' => $latitude && $longitude && isset($attraction->distance) 
+                        ? round($attraction->distance, 1) 
+                        : null,
+                    'facilities' => $attraction->facilities,
+                    'best_time_to_visit' => $attraction->best_time_to_visit,
+                    'is_featured' => true,
+                    'recent_reviews_count' => $attraction->reviews->count(),
+                ];
+            })->toArray();
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get featured attractions for home: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get popular attractions nearby for home page display
+     */
+    private function getPopularAttractionsForHome($latitude, $longitude, $radiusKm = 30)
+    {
+        try {
+            $attractions = Attraction::with(['coverImage', 'reviews' => function($q) {
+                $q->active()->latest()->take(2);
+            }])
+            ->active()
+            ->verified()
+            ->selectRaw(
+                "attractions.*, 
+                ( 6371 * acos( cos( radians(?) ) * 
+                  cos( radians( latitude ) ) * 
+                  cos( radians( longitude ) - radians(?) ) + 
+                  sin( radians(?) ) * 
+                  sin( radians( latitude ) ) ) ) AS distance", 
+                [$latitude, $longitude, $latitude]
+            )
+            ->having('distance', '<', $radiusKm)
+            ->where('total_views', '>', 100) // Popular threshold
+            ->orderBy('discovery_score', 'desc')
+            ->orderBy('total_views', 'desc')
+            ->orderBy('distance')
+            ->take(8)
+            ->get();
+
+            return $attractions->map(function ($attraction) {
+                return [
+                    'id' => $attraction->id,
+                    'name' => $attraction->name,
+                    'slug' => $attraction->slug,
+                    'description' => $attraction->description,
+                    'type' => $attraction->type,
+                    'category' => $attraction->category,
+                    'subcategory' => $attraction->subcategory,
+                    'city' => $attraction->city,
+                    'area' => $attraction->area,
+                    'district' => $attraction->district,
+                    'is_free' => $attraction->is_free,
+                    'entry_fee' => $attraction->entry_fee,
+                    'currency' => $attraction->currency,
+                    'overall_rating' => (float) $attraction->overall_rating,
+                    'total_reviews' => $attraction->total_reviews,
+                    'total_views' => $attraction->total_views,
+                    'discovery_score' => (float) $attraction->discovery_score,
+                    'estimated_duration_minutes' => $attraction->estimated_duration_minutes,
+                    'difficulty_level' => $attraction->difficulty_level,
+                    'cover_image_url' => $attraction->cover_image_url,
+                    'google_maps_url' => $attraction->google_maps_url,
+                    'distance_km' => round($attraction->distance, 1),
+                    'facilities' => $attraction->facilities,
+                    'best_time_to_visit' => $attraction->best_time_to_visit,
+                    'is_popular' => true,
+                    'recent_reviews_count' => $attraction->reviews->count(),
+                ];
+            })->toArray();
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get popular attractions for home: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get featured attractions endpoint (View All)
+     */
+    public function featuredAttractions(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 100);
+            $perPage = min($request->input('per_page', 20), 50);
+
+            $query = Attraction::with(['coverImage', 'reviews' => function($q) {
+                $q->active()->latest()->take(3);
+            }])
+            ->active()
+            ->verified()
+            ->featured();
+
+            if ($latitude && $longitude) {
+                $query = $query->selectRaw(
+                    "attractions.*, 
+                    ( 6371 * acos( cos( radians(?) ) * 
+                      cos( radians( latitude ) ) * 
+                      cos( radians( longitude ) - radians(?) ) + 
+                      sin( radians(?) ) * 
+                      sin( radians( latitude ) ) ) ) AS distance", 
+                    [$latitude, $longitude, $latitude]
+                )
+                ->having('distance', '<', $radiusKm)
+                ->orderBy('distance')
+                ->orderBy('overall_rating', 'desc');
+            } else {
+                $query = $query->orderBy('discovery_score', 'desc')
+                              ->orderBy('overall_rating', 'desc');
+            }
+
+            $attractions = $query->paginate($perPage);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Featured attractions retrieved successfully',
+                'data' => $attractions
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get featured attractions: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve featured attractions',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get popular attractions endpoint (View All)
+     */
+    public function popularAttractions(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 50);
+            $perPage = min($request->input('per_page', 20), 50);
+
+            if (!$latitude || !$longitude) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Location coordinates are required for popular attractions'
+                ], 422);
+            }
+
+            $attractions = Attraction::with(['coverImage', 'reviews' => function($q) {
+                $q->active()->latest()->take(3);
+            }])
+            ->active()
+            ->verified()
+            ->selectRaw(
+                "attractions.*, 
+                ( 6371 * acos( cos( radians(?) ) * 
+                  cos( radians( latitude ) ) * 
+                  cos( radians( longitude ) - radians(?) ) + 
+                  sin( radians(?) ) * 
+                  sin( radians( latitude ) ) ) ) AS distance", 
+                [$latitude, $longitude, $latitude]
+            )
+            ->having('distance', '<', $radiusKm)
+            ->where('total_views', '>', 50)
+            ->orderBy('discovery_score', 'desc')
+            ->orderBy('total_views', 'desc')
+            ->orderBy('distance')
+            ->paginate($perPage);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Popular attractions retrieved successfully',
+                'data' => $attractions
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get popular attractions: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve popular attractions',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all attractions in current location (View All)
+     * This is the comprehensive endpoint for "View All" attractions near user location
+     */
+    public function allAttractionsNearby(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 50);
+            $perPage = min($request->input('per_page', 20), 50);
+            $category = $request->input('category');
+            $type = $request->input('type');
+            $minRating = $request->input('min_rating', 0);
+            $maxEntryFee = $request->input('max_entry_fee');
+            $isFree = $request->input('is_free');
+            $difficultyLevel = $request->input('difficulty_level');
+            $sortBy = $request->input('sort_by', 'distance'); // distance, rating, popularity, newest
+            
+            if (!$latitude || !$longitude) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Location coordinates (latitude and longitude) are required'
+                ], 422);
+            }
+
+            $query = Attraction::with(['coverImage', 'galleries' => function($q) {
+                $q->where('is_active', true)->take(3);
+            }, 'reviews' => function($q) {
+                $q->active()->latest()->take(5);
+            }])
+            ->active()
+            ->selectRaw(
+                "attractions.*, 
+                ( 6371 * acos( cos( radians(?) ) * 
+                  cos( radians( latitude ) ) * 
+                  cos( radians( longitude ) - radians(?) ) + 
+                  sin( radians(?) ) * 
+                  sin( radians( latitude ) ) ) ) AS distance", 
+                [$latitude, $longitude, $latitude]
+            )
+            ->having('distance', '<', $radiusKm);
+
+            // Apply filters
+            if ($category) {
+                $query->where('category', 'like', '%' . $category . '%');
+            }
+
+            if ($type) {
+                $query->where('type', $type);
+            }
+
+            if ($minRating > 0) {
+                $query->where('overall_rating', '>=', $minRating);
+            }
+
+            if ($isFree !== null) {
+                $query->where('is_free', filter_var($isFree, FILTER_VALIDATE_BOOLEAN));
+            }
+
+            if ($maxEntryFee && $isFree !== 'true') {
+                $query->where('entry_fee', '<=', $maxEntryFee);
+            }
+
+            if ($difficultyLevel) {
+                $query->where('difficulty_level', $difficultyLevel);
+            }
+
+            // Apply sorting
+            switch ($sortBy) {
+                case 'rating':
+                    $query->orderBy('overall_rating', 'desc')
+                          ->orderBy('distance');
+                    break;
+                case 'popularity':
+                    $query->orderBy('discovery_score', 'desc')
+                          ->orderBy('total_views', 'desc')
+                          ->orderBy('distance');
+                    break;
+                case 'newest':
+                    $query->orderBy('created_at', 'desc')
+                          ->orderBy('distance');
+                    break;
+                case 'featured':
+                    $query->orderBy('is_featured', 'desc')
+                          ->orderBy('overall_rating', 'desc')
+                          ->orderBy('distance');
+                    break;
+                case 'distance':
+                default:
+                    $query->orderBy('distance')
+                          ->orderBy('overall_rating', 'desc');
+                    break;
+            }
+
+            $attractions = $query->paginate($perPage);
+
+            // Transform the data to include additional calculated fields
+            $attractions->getCollection()->transform(function ($attraction) {
+                return [
+                    'id' => $attraction->id,
+                    'name' => $attraction->name,
+                    'slug' => $attraction->slug,
+                    'description' => $attraction->description,
+                    'type' => $attraction->type,
+                    'category' => $attraction->category,
+                    'subcategory' => $attraction->subcategory,
+                    'location' => [
+                        'latitude' => (float) $attraction->latitude,
+                        'longitude' => (float) $attraction->longitude,
+                        'address' => $attraction->address,
+                        'city' => $attraction->city,
+                        'area' => $attraction->area,
+                        'district' => $attraction->district,
+                        'country' => $attraction->country,
+                    ],
+                    'pricing' => [
+                        'is_free' => $attraction->is_free,
+                        'entry_fee' => $attraction->entry_fee,
+                        'currency' => $attraction->currency,
+                    ],
+                    'ratings' => [
+                        'overall_rating' => (float) $attraction->overall_rating,
+                        'total_reviews' => $attraction->total_reviews,
+                        'recent_reviews' => $attraction->reviews->map(function($review) {
+                            return [
+                                'id' => $review->id,
+                                'rating' => (float) $review->rating,
+                                'comment' => substr($review->comment, 0, 100) . (strlen($review->comment) > 100 ? '...' : ''),
+                                'user_name' => $review->is_anonymous ? 'Anonymous' : $review->user->name,
+                                'created_at' => $review->created_at->diffForHumans(),
+                            ];
+                        })
+                    ],
+                    'visit_info' => [
+                        'estimated_duration_minutes' => $attraction->estimated_duration_minutes,
+                        'difficulty_level' => $attraction->difficulty_level,
+                        'best_time_to_visit' => $attraction->best_time_to_visit,
+                        'facilities' => $attraction->facilities,
+                        'opening_hours' => $attraction->opening_hours,
+                    ],
+                    'media' => [
+                        'cover_image_url' => $attraction->cover_image_url,
+                        'gallery_images' => $attraction->galleries->map(function($gallery) {
+                            return [
+                                'id' => $gallery->id,
+                                'image_url' => $gallery->full_image_url,
+                                'title' => $gallery->title,
+                                'is_cover' => $gallery->is_cover,
+                            ];
+                        }),
+                        'gallery_count' => $attraction->gallery_count,
+                    ],
+                    'stats' => [
+                        'total_views' => $attraction->total_views,
+                        'total_likes' => $attraction->total_likes,
+                        'total_shares' => $attraction->total_shares,
+                        'discovery_score' => (float) $attraction->discovery_score,
+                    ],
+                    'flags' => [
+                        'is_featured' => $attraction->is_featured,
+                        'is_verified' => $attraction->is_verified,
+                        'is_free' => $attraction->is_free,
+                    ],
+                    'distance_km' => round($attraction->distance, 1),
+                    'google_maps_url' => $attraction->google_maps_url,
+                    'contact_info' => $attraction->contact_info,
+                    'accessibility_info' => $attraction->accessibility_info,
+                ];
+            });
+
+            // Track this API call for analytics
+            $this->trackEndpointAnalytics('attractions_view_all', $latitude, $longitude, [
+                'radius_km' => $radiusKm,
+                'total_found' => $attractions->total(),
+                'filters_applied' => [
+                    'category' => $category,
+                    'type' => $type,
+                    'min_rating' => $minRating,
+                    'is_free' => $isFree,
+                    'max_entry_fee' => $maxEntryFee,
+                    'difficulty_level' => $difficultyLevel,
+                    'sort_by' => $sortBy,
+                ]
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Nearby attractions retrieved successfully',
+                'data' => $attractions,
+                'filters' => [
+                    'location' => [
+                        'latitude' => (float) $latitude,
+                        'longitude' => (float) $longitude,
+                        'radius_km' => $radiusKm,
+                    ],
+                    'applied_filters' => array_filter([
+                        'category' => $category,
+                        'type' => $type,
+                        'min_rating' => $minRating,
+                        'is_free' => $isFree,
+                        'max_entry_fee' => $maxEntryFee,
+                        'difficulty_level' => $difficultyLevel,
+                    ]),
+                    'sort_by' => $sortBy,
+                ],
+                'available_filters' => [
+                    'categories' => ['Beach', 'Historical', 'Nature', 'Wildlife', 'Archaeological', 'Cultural', 'Adventure', 'Religious'],
+                    'types' => ['attraction', 'activity', 'spot'],
+                    'difficulty_levels' => ['easy', 'moderate', 'challenging', 'expert'],
+                    'sort_options' => ['distance', 'rating', 'popularity', 'newest', 'featured'],
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get attractions nearby: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve nearby attractions',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get attraction categories and stats for current location
+     */
+    public function attractionCategoriesNearby(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radiusKm = $request->input('radius', 50);
+
+            if (!$latitude || !$longitude) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Location coordinates are required'
+                ], 422);
+            }
+
+            // Get all attractions within radius first, then aggregate in PHP to avoid MySQL GROUP BY issues
+            $nearbyAttractions = Attraction::select([
+                    'id', 'category', 'type', 'overall_rating', 'is_free', 'entry_fee',
+                    DB::raw("( 6371 * acos( cos( radians($latitude) ) * 
+                      cos( radians( latitude ) ) * 
+                      cos( radians( longitude ) - radians($longitude) ) + 
+                      sin( radians($latitude) ) * 
+                      sin( radians( latitude ) ) ) ) AS distance")
+                ])
+                ->active()
+                ->having('distance', '<', $radiusKm)
+                ->get();
+
+            // Group and aggregate using Laravel collections
+            $categories = $nearbyAttractions->groupBy(['category', 'type'])->map(function ($typeGroup, $category) {
+                return $typeGroup->map(function ($attractions, $type) use ($category) {
+                    $freeCount = $attractions->where('is_free', true)->count();
+                    $paidAttractions = $attractions->where('is_free', false);
+                    
+                    return [
+                        'category' => $category,
+                        'type' => $type,
+                        'count' => $attractions->count(),
+                        'avg_rating' => $attractions->avg('overall_rating') ? round($attractions->avg('overall_rating'), 1) : 0,
+                        'free_count' => $freeCount,
+                        'paid_count' => $attractions->count() - $freeCount,
+                        'min_entry_fee' => $paidAttractions->count() > 0 ? $paidAttractions->min('entry_fee') : null,
+                        'max_entry_fee' => $paidAttractions->count() > 0 ? $paidAttractions->max('entry_fee') : null,
+                    ];
+                });
+            })->flatten(1)->sortByDesc('count')->values();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attraction categories retrieved successfully',
+                'data' => [
+                    'categories' => $categories,
+                    'summary' => [
+                        'total_categories' => $categories->groupBy('category')->count(),
+                        'total_attractions' => $categories->sum('count'),
+                        'average_rating' => $categories->count() > 0 ? round($categories->avg('avg_rating'), 1) : 0,
+                        'free_attractions' => $categories->sum('free_count'),
+                    ],
+                    'location' => [
+                        'latitude' => (float) $latitude,
+                        'longitude' => (float) $longitude,
+                        'radius_km' => $radiusKm,
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get attraction categories: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve attraction categories',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
