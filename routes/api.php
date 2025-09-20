@@ -15,6 +15,9 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PushTokenController;
 use App\Http\Controllers\Api\UserCollectionController;
 use App\Http\Controllers\Api\RecommendationController;
+use App\Http\Controllers\Api\AttractionController;
+use App\Http\Controllers\Api\AttractionInteractionController;
+use App\Http\Controllers\Api\AttractionReviewController;
 
 /*
 |--------------------------------------------------------------------------
@@ -132,6 +135,28 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [OfferController::class, 'index']);
         Route::get('/{offer}', [OfferController::class, 'show']);
     });
+
+    // Public attractions routes (with optional authentication for interactions)
+    Route::prefix('attractions')->group(function () {
+        Route::get('/', [AttractionController::class, 'index']);
+        Route::get('/search', [AttractionController::class, 'search']);
+        Route::get('/nearby', [AttractionController::class, 'nearby']);
+        Route::get('/featured', [AttractionController::class, 'featured']);
+        Route::get('/popular', [AttractionController::class, 'popular']);
+        Route::get('/{attraction}', [AttractionController::class, 'show']);
+        Route::get('/{attraction}/gallery', [AttractionController::class, 'gallery']);
+        Route::get('/{attraction}/reviews', [AttractionController::class, 'reviews']);
+        
+        // Location-based analytics (public access)
+        Route::get('/analytics/by-area', [AttractionController::class, 'getAttractionsByArea']);
+        Route::post('/analytics/area-insights', [AttractionController::class, 'getAreaInsights']);
+    });
+
+    // Public attraction review routes (read-only without authentication)
+    Route::prefix('attraction-reviews')->group(function () {
+        Route::get('/', [AttractionReviewController::class, 'index']);
+        Route::get('/{attraction}/statistics', [AttractionReviewController::class, 'statistics']);
+    });
 });
 
 // Protected routes (authentication required)
@@ -242,6 +267,33 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::post('/batch', [\App\Http\Controllers\Api\UserInteractionController::class, 'batch']);
         Route::get('/history', [\App\Http\Controllers\Api\UserInteractionController::class, 'history']);
         Route::get('/personalization-summary', [\App\Http\Controllers\Api\UserInteractionController::class, 'personalizationSummary']);
+    });
+
+    // Attraction user interactions (require login)
+    Route::prefix('attraction-interactions')->group(function () {
+        // User interaction management (like/dislike/bookmark/visit/share)
+        Route::post('/', [AttractionInteractionController::class, 'store']);
+        Route::get('/user/{user}', [AttractionInteractionController::class, 'userInteractions']);
+        Route::get('/attraction/{attraction}', [AttractionInteractionController::class, 'attractionInteractions']);
+        Route::post('/toggle', [AttractionInteractionController::class, 'toggle']);
+        Route::delete('/remove', [AttractionInteractionController::class, 'remove']);
+        
+        // User's liked/bookmarked attractions
+        Route::get('/liked', [AttractionInteractionController::class, 'likedAttractions']);
+        Route::get('/bookmarked', [AttractionInteractionController::class, 'bookmarkedAttractions']);
+        Route::get('/visited', [AttractionInteractionController::class, 'visitedAttractions']);
+    });
+
+    // Attraction review management (require login)
+    Route::prefix('attraction-reviews')->group(function () {
+        Route::post('/', [AttractionReviewController::class, 'store']);
+        Route::get('/{review}', [AttractionReviewController::class, 'show']);
+        Route::put('/{review}', [AttractionReviewController::class, 'update']);
+        Route::delete('/{review}', [AttractionReviewController::class, 'destroy']);
+        
+        // Review helpful voting system
+        Route::post('/{review}/helpful', [AttractionReviewController::class, 'markHelpful']);
+        Route::delete('/{review}/helpful', [AttractionReviewController::class, 'removeHelpful']);
     });
 
     // Note: A/B testing routes removed to simplify the system
