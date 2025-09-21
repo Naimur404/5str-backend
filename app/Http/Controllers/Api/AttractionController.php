@@ -389,12 +389,48 @@ class AttractionController extends Controller
         try {
             $limit = min($request->limit ?? 10, 20);
             
-            $attractions = Attraction::active()
+            $query = Attraction::active()
                 ->featured()
-                ->with(['gallery', 'coverImage'])
-                ->orderBy('discovery_score', 'desc')
-                ->take($limit)
-                ->get();
+                ->with(['gallery', 'coverImage']);
+            
+            // Location-based filtering
+            if ($request->has('latitude') && $request->has('longitude')) {
+                $latitude = $request->latitude;
+                $longitude = $request->longitude;
+                $radius = $request->radius ?? 25; // Default 25km radius for featured
+                
+                $query->nearbyWithDistance($latitude, $longitude, $radius);
+                
+                // Update discovery scores based on user location
+                $attractions = $query->orderBy('distance')
+                    ->orderBy('discovery_score', 'desc')
+                    ->take($limit)
+                    ->get();
+                
+                $attractions->each(function ($attraction) use ($latitude, $longitude) {
+                    $attraction->updateDiscoveryScore($latitude, $longitude);
+                });
+            } else {
+                // No location provided - use discovery score only
+                $attractions = $query->orderBy('discovery_score', 'desc')
+                    ->take($limit)
+                    ->get();
+            }
+            
+            // Filter by city if provided
+            if ($request->has('city')) {
+                $query->inCity($request->city);
+            }
+            
+            // Filter by area if provided
+            if ($request->has('area')) {
+                $query->inArea($request->area);
+            }
+            
+            // Re-execute query if city/area filters were applied
+            if ($request->has('city') || $request->has('area')) {
+                $attractions = $query->take($limit)->get();
+            }
 
             // Add user interaction data if authenticated
             if (Auth::check()) {
@@ -407,19 +443,174 @@ class AttractionController extends Controller
                 });
             }
 
+            $meta = [
+                'total_count' => $attractions->count()
+            ];
+            
+            // Add location info to meta if provided
+            if ($request->has('latitude') && $request->has('longitude')) {
+                $meta['search_location'] = [
+                    'latitude' => (float) $request->latitude,
+                    'longitude' => (float) $request->longitude,
+                    'radius_km' => $request->radius ?? 25
+                ];
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Featured attractions retrieved successfully',
                 'data' => $attractions,
-                'meta' => [
-                    'total_count' => $attractions->count()
-                ]
+                'meta' => $meta
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve featured attractions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get popular attractions based on rating, likes, and recent activity
+     */
+    public function popular(Request $request)
+    {
+        try {
+            $limit = min($request->limit ?? 10, 20);
+            $timeframe = $request->timeframe ?? '30'; // days
+            
+            $query = Attraction::active()
+                ->with(['gallery', 'coverImage'])
+                ->where('overall_rating', '>=', 3.5) // Minimum rating for popularity
+                ->where('total_reviews', '>=', 1); // Must have at least 1 review
+            
+            // Location-based filtering
+            if ($request->has('latitude') && $request->has('longitude')) {
+                $latitude = $request->latitude;
+                $longitude = $request->longitude;
+                $radius = $request->radius ?? 50; // Default 50km radius for popular
+                
+                $query->nearbyWithDistance($latitude, $longitude, $radius);
+            }
+            
+            // Filter by city if provided
+            if ($request->has('city')) {
+                $query->inCity($request->city);
+            }
+            
+            // Filter by area if provided
+            if ($request->has('area')) {
+                $query->inArea($request->area);
+            }
+            
+            // Filter by timeframe for recent popularity
+            if ($timeframe !== 'all') {
+                $cutoffDate = now()->subDays((int)$timeframe);
+                $query->where('updated_at', '>=', $cutoffDate);
+            }
+            
+            // Sort by popularity metrics
+            $sortBy = $request->sort_by ?? 'combined';
+            
+            switch ($sortBy) {
+                case 'rating':
+                    $query->orderBy('overall_rating', 'desc')
+                          ->orderBy('total_reviews', 'desc');
+                    break;
+                case 'likes':
+                    $query->orderBy('total_likes', 'desc')
+                          ->orderBy('overall_rating', 'desc');
+                    break;
+                case 'views':
+                    $query->orderBy('total_views', 'desc')
+                          ->orderBy('total_likes', 'desc');
+                    break;
+                case 'reviews':
+                    $query->orderBy('total_reviews', 'desc')
+                          ->orderBy('overall_rating', 'desc');
+                    break;
+                case 'distance':
+                    // Only available when location is provided
+                    if ($request->has('latitude') && $request->has('longitude')) {
+                        $query->orderBy('distance');
+                    } else {
+                        $query->orderBy('discovery_score', 'desc');
+                    }
+                    break;
+                case 'combined':
+                default:
+                    if ($request->has('latitude') && $request->has('longitude')) {
+                        // Location-aware combined score: balance popularity with distance
+                        $query->orderByRaw('((overall_rating * total_reviews * total_likes * total_views) / (distance + 1)) DESC')
+                              ->orderBy('discovery_score', 'desc');
+                    } else {
+                        // Standard weighted popularity score
+                        $query->orderByRaw('(overall_rating * total_reviews * total_likes * total_views) DESC')
+                              ->orderBy('discovery_score', 'desc');
+                    }
+                    break;
+            }
+            
+            $attractions = $query->take($limit)->get();
+            
+            // Update discovery scores if location provided
+            if ($request->has('latitude') && $request->has('longitude')) {
+                $attractions->each(function ($attraction) use ($request) {
+                    $attraction->updateDiscoveryScore($request->latitude, $request->longitude);
+                });
+            }
+
+            // Add user interaction data if authenticated
+            if (Auth::check()) {
+                $userId = Auth::id();
+                $attractions->transform(function ($attraction) use ($userId) {
+                    $attraction->user_interactions = UserAttractionInteraction::getUserInteractionTypes($userId, $attraction->id);
+                    $attraction->user_has_liked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'like');
+                    $attraction->user_has_bookmarked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'bookmark');
+                    return $attraction;
+                });
+            }
+
+            $meta = [
+                'total_count' => $attractions->count(),
+                'timeframe_days' => $timeframe,
+                'sorted_by' => $sortBy,
+                'filters_applied' => [
+                    'min_rating' => 3.5,
+                    'min_reviews' => 1
+                ]
+            ];
+            
+            // Add location info to meta if provided
+            if ($request->has('latitude') && $request->has('longitude')) {
+                $meta['search_location'] = [
+                    'latitude' => (float) $request->latitude,
+                    'longitude' => (float) $request->longitude,
+                    'radius_km' => $request->radius ?? 50
+                ];
+            }
+            
+            // Add city/area filters to meta
+            if ($request->has('city') || $request->has('area')) {
+                $meta['location_filters'] = array_filter([
+                    'city' => $request->city,
+                    'area' => $request->area
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Popular attractions retrieved successfully',
+                'data' => $attractions,
+                'meta' => $meta
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve popular attractions',
                 'error' => $e->getMessage()
             ], 500);
         }
