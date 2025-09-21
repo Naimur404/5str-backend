@@ -506,6 +506,105 @@ If you encounter a "Duplicate entry" error for the toggle endpoint, this indicat
 
 ---
 
+## 9. Check User Interaction Status
+
+**Endpoint:** `GET /api/v1/attraction-interactions/status/{attractionId}`
+
+### Instructions:
+- Check if the current authenticated user has any interactions with a specific attraction
+- Returns boolean flags for each interaction type (has_liked, has_bookmarked, etc.)
+- Also returns detailed information about existing interactions
+- Use this endpoint to show correct UI state (filled heart for liked, etc.)
+
+### Example Request:
+```
+GET /api/v1/attraction-interactions/status/3
+```
+
+### Response Format:
+```json
+{
+  "success": true,
+  "message": "User interaction status retrieved successfully",
+  "data": {
+    "attraction_id": 3,
+    "user_id": 15,
+    "interaction_status": {
+      "has_liked": true,
+      "has_disliked": false,
+      "has_bookmarked": true,
+      "has_visited": false,
+      "has_shared": true,
+      "has_wishlisted": false,
+      "interaction_details": [
+        {
+          "id": 25,
+          "interaction_type": "like",
+          "notes": "Amazing place!",
+          "user_rating": null,
+          "interaction_data": null,
+          "is_public": true,
+          "interaction_date": "2025-09-21T10:30:00.000000Z",
+          "created_at": "2025-09-21T10:30:00.000000Z"
+        },
+        {
+          "id": 26,
+          "interaction_type": "bookmark",
+          "notes": "Perfect for weekend trip",
+          "user_rating": null,
+          "interaction_data": {
+            "priority": "high",
+            "planned_visit_date": "2025-12-15"
+          },
+          "is_public": false,
+          "interaction_date": "2025-09-21T11:15:00.000000Z",
+          "created_at": "2025-09-21T11:15:00.000000Z"
+        },
+        {
+          "id": 27,
+          "interaction_type": "share",
+          "notes": null,
+          "user_rating": null,
+          "interaction_data": {
+            "platform": "facebook",
+            "message": "Check this out!",
+            "shared_at": "2025-09-21T12:00:00.000000Z"
+          },
+          "is_public": true,
+          "interaction_date": "2025-09-21T12:00:00.000000Z",
+          "created_at": "2025-09-21T12:00:00.000000Z"
+        }
+      ]
+    },
+    "total_interactions": 3
+  }
+}
+```
+
+### Response Format (No Interactions):
+```json
+{
+  "success": true,
+  "message": "User interaction status retrieved successfully",
+  "data": {
+    "attraction_id": 3,
+    "user_id": 15,
+    "interaction_status": {
+      "has_liked": false,
+      "has_disliked": false,
+      "has_bookmarked": false,
+      "has_visited": false,
+      "has_shared": false,
+      "has_wishlisted": false,
+      "interaction_details": []
+    },
+    "total_interactions": 0
+  }
+}
+```
+
+---
+
 ## Usage Instructions
 
 1. **Authentication**: Always include Bearer token in Authorization header
@@ -517,3 +616,4 @@ If you encounter a "Duplicate entry" error for the toggle endpoint, this indicat
 7. **Caching**: Cache responses appropriately to reduce API calls
 8. **Offline Support**: Store interactions locally and sync when online
 9. **Duplicate Handling**: The toggle endpoint automatically handles duplicate entries by reactivating existing interactions
+10. **Status Checking**: Use the status endpoint to determine current user interaction state before showing UI elements

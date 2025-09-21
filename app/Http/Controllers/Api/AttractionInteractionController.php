@@ -427,6 +427,88 @@ class AttractionInteractionController extends Controller
     }
 
     /**
+     * Check user interaction status for an attraction
+     */
+    public function checkInteractionStatus(Request $request, $attractionId)
+    {
+        try {
+            $attraction = Attraction::findOrFail($attractionId);
+            $userId = Auth::id();
+
+            // Get all active interactions for this user and attraction
+            $interactions = UserAttractionInteraction::where([
+                'user_id' => $userId,
+                'attraction_id' => $attractionId,
+                'is_active' => true
+            ])->get();
+
+            // Build interaction status
+            $interactionStatus = [
+                'has_liked' => false,
+                'has_disliked' => false,
+                'has_bookmarked' => false,
+                'has_visited' => false,
+                'has_shared' => false,
+                'has_wishlisted' => false,
+                'interaction_details' => []
+            ];
+
+            foreach ($interactions as $interaction) {
+                switch ($interaction->interaction_type) {
+                    case 'like':
+                        $interactionStatus['has_liked'] = true;
+                        break;
+                    case 'dislike':
+                        $interactionStatus['has_disliked'] = true;
+                        break;
+                    case 'bookmark':
+                        $interactionStatus['has_bookmarked'] = true;
+                        break;
+                    case 'visit':
+                        $interactionStatus['has_visited'] = true;
+                        break;
+                    case 'share':
+                        $interactionStatus['has_shared'] = true;
+                        break;
+                    case 'wishlist':
+                        $interactionStatus['has_wishlisted'] = true;
+                        break;
+                }
+
+                // Add interaction details
+                $interactionStatus['interaction_details'][] = [
+                    'id' => $interaction->id,
+                    'interaction_type' => $interaction->interaction_type,
+                    'notes' => $interaction->notes,
+                    'user_rating' => $interaction->user_rating,
+                    'interaction_data' => $interaction->interaction_data,
+                    'is_public' => $interaction->is_public,
+                    'interaction_date' => $interaction->interaction_date,
+                    'created_at' => $interaction->created_at
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User interaction status retrieved successfully',
+                'data' => [
+                    'attraction_id' => $attractionId,
+                    'user_id' => $userId,
+                    'interaction_status' => $interactionStatus,
+                    'total_interactions' => $interactions->count()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve interaction status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Update attraction engagement counts
      */
     private function updateAttractionCounts($attraction, $interactionType, $action)

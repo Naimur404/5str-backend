@@ -282,6 +282,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::post('/toggle', [AttractionInteractionController::class, 'toggle']);
         Route::delete('/remove', [AttractionInteractionController::class, 'remove']);
         
+        // Check user interaction status for an attraction
+        Route::get('/status/{attraction}', [AttractionInteractionController::class, 'checkInteractionStatus']);
+        
         // User's liked/bookmarked attractions
         Route::get('/liked', [AttractionInteractionController::class, 'likedAttractions']);
         Route::get('/bookmarked', [AttractionInteractionController::class, 'bookmarkedAttractions']);
