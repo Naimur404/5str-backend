@@ -76,7 +76,13 @@ class AttractionReviewController extends Controller
             if (Auth::check()) {
                 $userId = Auth::id();
                 $reviews->getCollection()->transform(function ($review) use ($userId) {
-                    $review->user_vote = $review->getUserVote($userId);
+                    $userVote = $review->getUserVote($userId);
+                    $review->user_vote_status = [
+                        'has_voted' => $userVote ? true : false,
+                        'is_upvoted' => $userVote && $userVote->is_helpful ? true : false,
+                        'is_downvoted' => $userVote && !$userVote->is_helpful ? true : false,
+                        'vote_details' => $userVote
+                    ];
                     return $review;
                 });
             }
@@ -207,7 +213,13 @@ class AttractionReviewController extends Controller
 
             // Add user vote status if authenticated
             if (Auth::check()) {
-                $review->user_vote = $review->getUserVote(Auth::id());
+                $userVote = $review->getUserVote(Auth::id());
+                $review->user_vote_status = [
+                    'has_voted' => $userVote ? true : false,
+                    'is_upvoted' => $userVote && $userVote->is_helpful ? true : false,
+                    'is_downvoted' => $userVote && !$userVote->is_helpful ? true : false,
+                    'vote_details' => $userVote
+                ];
             }
 
             return response()->json([
@@ -353,7 +365,12 @@ class AttractionReviewController extends Controller
                 'data' => [
                     'helpful_votes' => $review->fresh()->helpful_votes,
                     'total_votes' => $review->fresh()->total_votes,
-                    'helpful_percentage' => $review->fresh()->helpful_percentage
+                    'helpful_percentage' => $review->fresh()->helpful_percentage,
+                    'user_vote_status' => [
+                        'has_voted' => true,
+                        'is_upvoted' => true,
+                        'is_downvoted' => false
+                    ]
                 ]
             ]);
 
@@ -401,7 +418,12 @@ class AttractionReviewController extends Controller
                 'data' => [
                     'helpful_votes' => $review->fresh()->helpful_votes,
                     'total_votes' => $review->fresh()->total_votes,
-                    'helpful_percentage' => $review->fresh()->helpful_percentage
+                    'helpful_percentage' => $review->fresh()->helpful_percentage,
+                    'user_vote_status' => [
+                        'has_voted' => true,
+                        'is_upvoted' => false,
+                        'is_downvoted' => true
+                    ]
                 ]
             ]);
 
