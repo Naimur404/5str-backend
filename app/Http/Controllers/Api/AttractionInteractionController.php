@@ -133,22 +133,37 @@ class AttractionInteractionController extends Controller
             $attraction = Attraction::active()->findOrFail($request->attraction_id);
             $userId = Auth::id();
 
-            // Check if interaction already exists
+            // Check if interaction already exists (active or inactive)
             $existingInteraction = UserAttractionInteraction::where([
                 'user_id' => $userId,
                 'attraction_id' => $request->attraction_id,
-                'interaction_type' => $request->interaction_type,
-                'is_active' => true
+                'interaction_type' => $request->interaction_type
             ])->first();
 
             if ($existingInteraction) {
-                // Remove interaction
-                $existingInteraction->update(['is_active' => false]);
-                $this->updateAttractionCounts($attraction, $request->interaction_type, 'decrement');
-                
-                $action = 'removed';
-                $interaction = null;
-                $message = ucfirst($request->interaction_type) . ' removed';
+                if ($existingInteraction->is_active) {
+                    // Deactivate existing interaction
+                    $existingInteraction->update(['is_active' => false]);
+                    $this->updateAttractionCounts($attraction, $request->interaction_type, 'decrement');
+                    
+                    $action = 'removed';
+                    $interaction = null;
+                    $message = ucfirst($request->interaction_type) . ' removed';
+                } else {
+                    // Reactivate existing interaction
+                    $existingInteraction->update([
+                        'is_active' => true,
+                        'notes' => $request->notes ?? $existingInteraction->notes,
+                        'is_public' => $request->is_public ?? $existingInteraction->is_public,
+                        'interaction_date' => now()
+                    ]);
+                    
+                    $this->updateAttractionCounts($attraction, $request->interaction_type, 'increment');
+                    
+                    $action = 'created';
+                    $interaction = $existingInteraction;
+                    $message = 'Attraction ' . $request->interaction_type . 'd';
+                }
             } else {
                 // Create new interaction
                 $interaction = UserAttractionInteraction::create([
