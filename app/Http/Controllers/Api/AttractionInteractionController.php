@@ -12,185 +12,23 @@ use Illuminate\Support\Facades\Auth;
 class AttractionInteractionController extends Controller
 {
     /**
-     * Toggle like/unlike an attraction
+     * Store a new attraction interaction
      */
-    public function toggleLike(Request $request, $attractionId)
-    {
-        try {
-            $attraction = Attraction::active()->findOrFail($attractionId);
-            $userId = Auth::id();
-
-            $result = UserAttractionInteraction::toggleInteraction(
-                $userId, 
-                $attractionId, 
-                UserAttractionInteraction::TYPE_LIKE
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => $result['action'] === 'created' ? 'Attraction liked' : 'Like removed',
-                'data' => [
-                    'action' => $result['action'],
-                    'is_liked' => $result['action'] === 'created',
-                    'total_likes' => $attraction->fresh()->total_likes
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to toggle like',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Toggle dislike an attraction
-     */
-    public function toggleDislike(Request $request, $attractionId)
-    {
-        try {
-            $attraction = Attraction::active()->findOrFail($attractionId);
-            $userId = Auth::id();
-
-            $result = UserAttractionInteraction::toggleInteraction(
-                $userId, 
-                $attractionId, 
-                UserAttractionInteraction::TYPE_DISLIKE
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => $result['action'] === 'created' ? 'Attraction disliked' : 'Dislike removed',
-                'data' => [
-                    'action' => $result['action'],
-                    'is_disliked' => $result['action'] === 'created',
-                    'total_dislikes' => $attraction->fresh()->total_dislikes
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to toggle dislike',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Toggle bookmark an attraction
-     */
-    public function toggleBookmark(Request $request, $attractionId)
-    {
-        try {
-            $attraction = Attraction::active()->findOrFail($attractionId);
-            $userId = Auth::id();
-
-            $result = UserAttractionInteraction::toggleInteraction(
-                $userId, 
-                $attractionId, 
-                UserAttractionInteraction::TYPE_BOOKMARK,
-                [
-                    'notes' => $request->notes,
-                    'is_public' => $request->is_public ?? true
-                ]
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => $result['action'] === 'created' ? 'Attraction bookmarked' : 'Bookmark removed',
-                'data' => [
-                    'action' => $result['action'],
-                    'is_bookmarked' => $result['action'] === 'created',
-                    'interaction' => $result['interaction']
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to toggle bookmark',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Share an attraction
-     */
-    public function share(Request $request, $attractionId)
+    public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'platform' => 'nullable|string|in:facebook,twitter,instagram,whatsapp,email,sms,copy_link',
-            'message' => 'nullable|string|max:500',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        try {
-            $attraction = Attraction::active()->findOrFail($attractionId);
-            $userId = Auth::id();
-
-            $shareData = [
-                'platform' => $request->platform,
-                'message' => $request->message,
-                'shared_at' => now(),
-                'user_agent' => $request->userAgent(),
-                'ip_address' => $request->ip()
-            ];
-
-            $interaction = UserAttractionInteraction::createOrUpdate(
-                $userId, 
-                $attractionId, 
-                UserAttractionInteraction::TYPE_SHARE,
-                [
-                    'interaction_data' => $shareData,
-                    'is_public' => true
-                ]
-            );
-
-            // Generate share URLs
-            $shareUrls = $this->generateShareUrls($attraction, $request->message);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Attraction shared successfully',
-                'data' => [
-                    'interaction' => $interaction,
-                    'share_urls' => $shareUrls,
-                    'total_shares' => $attraction->fresh()->total_shares
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to share attraction',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Mark attraction as visited (been there)
-     */
-    public function markVisited(Request $request, $attractionId)
-    {
-        $validator = Validator::make($request->all(), [
-            'visit_date' => 'nullable|date|before_or_equal:today',
-            'rating' => 'nullable|numeric|min:0|max:5',
+            'attraction_id' => 'required|exists:attractions,id',
+            'interaction_type' => 'required|in:like,dislike,bookmark,share,visit,wishlist',
             'notes' => 'nullable|string|max:1000',
-            'companions' => 'nullable|array',
-            'duration_minutes' => 'nullable|integer|min:1',
+            'visit_date' => 'nullable|date|before_or_equal:today',
+            'rating' => 'nullable|numeric|between:0,5',
+            'platform' => 'nullable|string|max:50',
+            'message' => 'nullable|string|max:500',
             'is_public' => 'nullable|boolean',
+            'duration_minutes' => 'nullable|integer|min:1|max:1440',
+            'companions' => 'nullable|array',
+            'priority' => 'nullable|in:low,medium,high',
+            'planned_visit_date' => 'nullable|date|after:today'
         ]);
 
         if ($validator->fails()) {
@@ -202,106 +40,228 @@ class AttractionInteractionController extends Controller
         }
 
         try {
-            $attraction = Attraction::active()->findOrFail($attractionId);
+            $attraction = Attraction::active()->findOrFail($request->attraction_id);
             $userId = Auth::id();
 
-            $visitData = [
-                'visit_date' => $request->visit_date ?? now(),
-                'companions' => $request->companions,
-                'duration_minutes' => $request->duration_minutes,
-                'weather' => $request->weather,
-                'photos' => $request->photos ?? []
-            ];
-
-            $interaction = UserAttractionInteraction::createOrUpdate(
-                $userId, 
-                $attractionId, 
-                UserAttractionInteraction::TYPE_BEEN_THERE,
-                [
-                    'visit_info' => $visitData,
-                    'notes' => $request->notes,
-                    'user_rating' => $request->rating,
-                    'is_public' => $request->is_public ?? true,
-                    'interaction_date' => $request->visit_date ?? now()
-                ]
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Visit recorded successfully',
-                'data' => [
-                    'interaction' => $interaction,
-                    'attraction' => $attraction->fresh()
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to record visit',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Add to wishlist
-     */
-    public function addToWishlist(Request $request, $attractionId)
-    {
-        try {
-            $attraction = Attraction::active()->findOrFail($attractionId);
-            $userId = Auth::id();
-
-            $result = UserAttractionInteraction::toggleInteraction(
-                $userId, 
-                $attractionId, 
-                UserAttractionInteraction::TYPE_WISHLIST,
-                [
-                    'notes' => $request->notes,
-                    'priority' => $request->priority ?? 'medium',
-                    'planned_visit_date' => $request->planned_visit_date
-                ]
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => $result['action'] === 'created' ? 'Added to wishlist' : 'Removed from wishlist',
-                'data' => [
-                    'action' => $result['action'],
-                    'is_wishlisted' => $result['action'] === 'created',
-                    'interaction' => $result['interaction']
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update wishlist',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get user's interactions with attractions
-     */
-    public function getUserInteractions(Request $request)
-    {
-        try {
-            $userId = Auth::id();
-            $type = $request->type; // like, bookmark, wishlist, been_there, etc.
+            // Prepare interaction data based on type
+            $interactionData = [];
             
-            $query = UserAttractionInteraction::with(['attraction.gallery', 'attraction.coverImage'])
-                ->where('user_id', $userId)
-                ->where('is_active', true);
-
-            if ($type) {
-                $query->byType($type);
+            switch ($request->interaction_type) {
+                case 'share':
+                    $interactionData = [
+                        'platform' => $request->platform,
+                        'message' => $request->message,
+                        'shared_at' => now()
+                    ];
+                    break;
+                case 'visit':
+                    $interactionData = [
+                        'visit_date' => $request->visit_date ?? today(),
+                        'duration_minutes' => $request->duration_minutes,
+                        'companions' => $request->companions ?? [],
+                        'weather' => $request->weather
+                    ];
+                    break;
+                case 'bookmark':
+                case 'wishlist':
+                    $interactionData = [
+                        'priority' => $request->priority ?? 'medium',
+                        'planned_visit_date' => $request->planned_visit_date
+                    ];
+                    break;
             }
 
-            $interactions = $query->orderBy('created_at', 'desc')
-                ->paginate($request->per_page ?? 15);
+            // Create interaction
+            $interaction = UserAttractionInteraction::create([
+                'user_id' => $userId,
+                'attraction_id' => $request->attraction_id,
+                'interaction_type' => $request->interaction_type,
+                'interaction_data' => $interactionData,
+                'notes' => $request->notes,
+                'user_rating' => $request->rating,
+                'is_public' => $request->is_public ?? true,
+                'interaction_date' => now()
+            ]);
+
+            // Update attraction counts
+            $this->updateAttractionCounts($attraction, $request->interaction_type, 'increment');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Interaction recorded successfully',
+                'data' => [
+                    'interaction' => $interaction,
+                    'attraction' => [
+                        'id' => $attraction->id,
+                        'name' => $attraction->name,
+                        'total_likes' => $attraction->refresh()->total_likes,
+                        'total_shares' => $attraction->total_shares
+                    ]
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to record interaction',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Toggle interaction (like/bookmark/etc)
+     */
+    public function toggle(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'attraction_id' => 'required|exists:attractions,id',
+            'interaction_type' => 'required|in:like,dislike,bookmark,wishlist',
+            'notes' => 'nullable|string|max:1000',
+            'is_public' => 'nullable|boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $attraction = Attraction::active()->findOrFail($request->attraction_id);
+            $userId = Auth::id();
+
+            // Check if interaction already exists
+            $existingInteraction = UserAttractionInteraction::where([
+                'user_id' => $userId,
+                'attraction_id' => $request->attraction_id,
+                'interaction_type' => $request->interaction_type,
+                'is_active' => true
+            ])->first();
+
+            if ($existingInteraction) {
+                // Remove interaction
+                $existingInteraction->update(['is_active' => false]);
+                $this->updateAttractionCounts($attraction, $request->interaction_type, 'decrement');
+                
+                $action = 'removed';
+                $interaction = null;
+                $message = ucfirst($request->interaction_type) . ' removed';
+            } else {
+                // Create new interaction
+                $interaction = UserAttractionInteraction::create([
+                    'user_id' => $userId,
+                    'attraction_id' => $request->attraction_id,
+                    'interaction_type' => $request->interaction_type,
+                    'notes' => $request->notes,
+                    'is_public' => $request->is_public ?? true,
+                    'interaction_date' => now()
+                ]);
+                
+                $this->updateAttractionCounts($attraction, $request->interaction_type, 'increment');
+                
+                $action = 'created';
+                $message = 'Attraction ' . $request->interaction_type . 'd';
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => [
+                    'action' => $action,
+                    'is_liked' => $request->interaction_type === 'like' ? $action === 'created' : null,
+                    'interaction' => $interaction,
+                    'attraction_stats' => [
+                        'total_likes' => $attraction->refresh()->total_likes,
+                        'total_dislikes' => $attraction->total_dislikes
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to toggle interaction',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove specific interaction
+     */
+    public function remove(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'attraction_id' => 'required|exists:attractions,id',
+            'interaction_type' => 'required|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $userId = Auth::id();
+            
+            $interaction = UserAttractionInteraction::where([
+                'user_id' => $userId,
+                'attraction_id' => $request->attraction_id,
+                'interaction_type' => $request->interaction_type,
+                'is_active' => true
+            ])->first();
+
+            if (!$interaction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Interaction not found'
+                ], 404);
+            }
+
+            $interaction->update(['is_active' => false]);
+            
+            // Update attraction counts
+            $attraction = Attraction::find($request->attraction_id);
+            if ($attraction) {
+                $this->updateAttractionCounts($attraction, $request->interaction_type, 'decrement');
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Interaction removed successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to remove interaction',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user interactions for specific user
+     */
+    public function userInteractions(Request $request, $userId)
+    {
+        try {
+            $query = UserAttractionInteraction::with(['attraction.gallery', 'attraction.coverImage'])
+                ->where('user_id', $userId)
+                ->where('is_active', true)
+                ->orderBy('created_at', 'desc');
+
+            if ($request->has('interaction_type')) {
+                $query->where('interaction_type', $request->interaction_type);
+            }
+
+            $interactions = $query->paginate($request->per_page ?? 15);
 
             return response()->json([
                 'success' => true,
@@ -312,75 +272,172 @@ class AttractionInteractionController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve interactions',
+                'message' => 'Failed to retrieve user interactions',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Get interaction statistics for an attraction
+     * Get all interactions for specific attraction
      */
-    public function getInteractionStats($attractionId)
+    public function attractionInteractions(Request $request, $attractionId)
     {
         try {
-            $attraction = Attraction::active()->findOrFail($attractionId);
+            $attraction = Attraction::findOrFail($attractionId);
+            
+            $query = UserAttractionInteraction::with(['user'])
+                ->where('attraction_id', $attractionId)
+                ->where('is_active', true)
+                ->where('is_public', true)
+                ->orderBy('created_at', 'desc');
 
-            $stats = [
-                'total_likes' => $attraction->total_likes,
-                'total_dislikes' => $attraction->total_dislikes,
-                'total_shares' => $attraction->total_shares,
-                'total_visits' => UserAttractionInteraction::where('attraction_id', $attractionId)
-                    ->byType(UserAttractionInteraction::TYPE_BEEN_THERE)->count(),
-                'total_bookmarks' => UserAttractionInteraction::where('attraction_id', $attractionId)
-                    ->byType(UserAttractionInteraction::TYPE_BOOKMARK)->count(),
-                'total_wishlisted' => UserAttractionInteraction::where('attraction_id', $attractionId)
-                    ->byType(UserAttractionInteraction::TYPE_WISHLIST)->count(),
-            ];
+            if ($request->has('interaction_type')) {
+                $query->where('interaction_type', $request->interaction_type);
+            }
 
-            // Recent activity (last 30 days)
-            $recentStats = [
-                'recent_likes' => UserAttractionInteraction::where('attraction_id', $attractionId)
-                    ->byType(UserAttractionInteraction::TYPE_LIKE)
-                    ->recent(30)->count(),
-                'recent_visits' => UserAttractionInteraction::where('attraction_id', $attractionId)
-                    ->byType(UserAttractionInteraction::TYPE_BEEN_THERE)
-                    ->recent(30)->count(),
-            ];
+            $interactions = $query->paginate($request->per_page ?? 20);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Interaction stats retrieved successfully',
-                'data' => [
-                    'overall' => $stats,
-                    'recent' => $recentStats
+                'message' => 'Attraction interactions retrieved successfully',
+                'data' => $interactions,
+                'meta' => [
+                    'attraction' => [
+                        'id' => $attraction->id,
+                        'name' => $attraction->name,
+                        'total_likes' => $attraction->total_likes,
+                        'total_shares' => $attraction->total_shares
+                    ]
                 ]
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve interaction stats',
+                'message' => 'Failed to retrieve attraction interactions',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Generate share URLs for different platforms
+     * Get user's liked attractions
      */
-    private function generateShareUrls($attraction, $customMessage = null)
+    public function likedAttractions(Request $request)
     {
-        $url = url('/attractions/' . $attraction->id);
-        $defaultMessage = "Check out {$attraction->name}! " . ($attraction->description ? substr($attraction->description, 0, 100) . '...' : '');
-        $message = $customMessage ?? $defaultMessage;
+        try {
+            $userId = Auth::id();
+            
+            $interactions = UserAttractionInteraction::with(['attraction.gallery', 'attraction.coverImage'])
+                ->where('user_id', $userId)
+                ->where('interaction_type', 'like')
+                ->where('is_active', true)
+                ->orderBy('created_at', 'desc')
+                ->paginate($request->per_page ?? 15);
 
-        return [
-            'facebook' => 'https://www.facebook.com/sharer/sharer.php?u=' . urlencode($url),
-            'twitter' => 'https://twitter.com/intent/tweet?text=' . urlencode($message) . '&url=' . urlencode($url),
-            'whatsapp' => 'https://wa.me/?text=' . urlencode($message . ' ' . $url),
-            'email' => 'mailto:?subject=' . urlencode('Check out ' . $attraction->name) . '&body=' . urlencode($message . '\n\n' . $url),
-            'direct_link' => $url
-        ];
+            return response()->json([
+                'success' => true,
+                'message' => 'Liked attractions retrieved successfully',
+                'data' => $interactions
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve liked attractions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user's bookmarked attractions
+     */
+    public function bookmarkedAttractions(Request $request)
+    {
+        try {
+            $userId = Auth::id();
+            
+            $interactions = UserAttractionInteraction::with(['attraction.gallery', 'attraction.coverImage'])
+                ->where('user_id', $userId)
+                ->where('interaction_type', 'bookmark')
+                ->where('is_active', true)
+                ->orderBy('created_at', 'desc')
+                ->paginate($request->per_page ?? 15);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bookmarked attractions retrieved successfully',
+                'data' => $interactions
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve bookmarked attractions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user's visited attractions
+     */
+    public function visitedAttractions(Request $request)
+    {
+        try {
+            $userId = Auth::id();
+            
+            $interactions = UserAttractionInteraction::with(['attraction.gallery', 'attraction.coverImage'])
+                ->where('user_id', $userId)
+                ->where('interaction_type', 'visit')
+                ->where('is_active', true)
+                ->orderBy('interaction_date', 'desc')
+                ->paginate($request->per_page ?? 15);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Visited attractions retrieved successfully',
+                'data' => $interactions
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve visited attractions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update attraction engagement counts
+     */
+    private function updateAttractionCounts($attraction, $interactionType, $action)
+    {
+        switch ($interactionType) {
+            case 'like':
+                if ($action === 'increment') {
+                    $attraction->increment('total_likes');
+                } else {
+                    $attraction->decrement('total_likes');
+                }
+                break;
+            case 'dislike':
+                if ($action === 'increment') {
+                    $attraction->increment('total_dislikes');
+                } else {
+                    $attraction->decrement('total_dislikes');
+                }
+                break;
+            case 'share':
+                if ($action === 'increment') {
+                    $attraction->increment('total_shares');
+                } else {
+                    $attraction->decrement('total_shares');
+                }
+                break;
+        }
     }
 }
