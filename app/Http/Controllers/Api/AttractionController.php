@@ -393,30 +393,6 @@ class AttractionController extends Controller
                 ->featured()
                 ->with(['gallery', 'coverImage']);
             
-            // Location-based filtering
-            if ($request->has('latitude') && $request->has('longitude')) {
-                $latitude = $request->latitude;
-                $longitude = $request->longitude;
-                $radius = $request->radius ?? 25; // Default 25km radius for featured
-                
-                $query->nearbyWithDistance($latitude, $longitude, $radius);
-                
-                // Update discovery scores based on user location
-                $attractions = $query->orderBy('distance')
-                    ->orderBy('discovery_score', 'desc')
-                    ->take($limit)
-                    ->get();
-                
-                $attractions->each(function ($attraction) use ($latitude, $longitude) {
-                    $attraction->updateDiscoveryScore($latitude, $longitude);
-                });
-            } else {
-                // No location provided - use discovery score only
-                $attractions = $query->orderBy('discovery_score', 'desc')
-                    ->take($limit)
-                    ->get();
-            }
-            
             // Filter by city if provided
             if ($request->has('city')) {
                 $query->inCity($request->city);
@@ -427,9 +403,27 @@ class AttractionController extends Controller
                 $query->inArea($request->area);
             }
             
-            // Re-execute query if city/area filters were applied
-            if ($request->has('city') || $request->has('area')) {
-                $attractions = $query->take($limit)->get();
+            // Location-based filtering
+            if ($request->has('latitude') && $request->has('longitude')) {
+                $latitude = $request->latitude;
+                $longitude = $request->longitude;
+                $radius = $request->radius ?? 25; // Default 25km radius for featured
+                
+                $query->nearbyWithDistance($latitude, $longitude, $radius);
+                $attractions = $query->orderBy('distance')
+                    ->orderBy('discovery_score', 'desc')
+                    ->take($limit)
+                    ->get();
+                
+                // Update discovery scores based on user location
+                $attractions->each(function ($attraction) use ($latitude, $longitude) {
+                    $attraction->updateDiscoveryScore($latitude, $longitude);
+                });
+            } else {
+                // No location provided - use discovery score only
+                $attractions = $query->orderBy('discovery_score', 'desc')
+                    ->take($limit)
+                    ->get();
             }
 
             // Add user interaction data if authenticated
@@ -454,6 +448,14 @@ class AttractionController extends Controller
                     'longitude' => (float) $request->longitude,
                     'radius_km' => $request->radius ?? 25
                 ];
+            }
+            
+            // Add city/area filters to meta
+            if ($request->has('city') || $request->has('area')) {
+                $meta['location_filters'] = array_filter([
+                    'city' => $request->city,
+                    'area' => $request->area
+                ]);
             }
 
             return response()->json([
