@@ -963,12 +963,14 @@ class HomeController extends Controller
 
                 // Format distance
                 $formattedDistance = null;
+                $distanceKm = null;
                 if (isset($business->distance)) {
-                    $distanceKm = $business->distance;
+                    $distanceKm = round($business->distance, 4); // Keep raw value with precision
                     if ($distanceKm < 1) {
-                        $formattedDistance = number_format($distanceKm * 1000, 0) . ' m';
+                        $meters = round($distanceKm * 1000, 0);
+                        $formattedDistance = $meters . 'm';
                     } else {
-                        $formattedDistance = number_format($distanceKm, 1) . ' km';
+                        $formattedDistance = number_format($distanceKm, 1) . 'km';
                     }
                 }
 
@@ -1008,7 +1010,7 @@ class HomeController extends Controller
                         'longitude' => $business->longitude,
                     ],
                     'distance' => $formattedDistance,
-                    'distance_km' => $business->distance ?? null,
+                    'distance_km' => $distanceKm,
                     'offerings_count' => $offeringsCount,
                     'metadata' => [
                         'category_type' => $this->getCategoryType($business->category->name ?? ''),
@@ -1719,12 +1721,14 @@ class HomeController extends Controller
                     
                     // Format distance properly
                     $formattedDistance = null;
+                    $distanceKm = null;
                     if (isset($business->distance)) {
-                        $distanceKm = $business->distance;
+                        $distanceKm = round($business->distance, 4); // Keep raw value with precision
                         if ($distanceKm < 1) {
-                            $formattedDistance = number_format($distanceKm * 1000, 0) . ' m';
+                            $meters = round($distanceKm * 1000, 0);
+                            $formattedDistance = $meters . 'm';
                         } else {
-                            $formattedDistance = number_format($distanceKm, 1) . ' km';
+                            $formattedDistance = number_format($distanceKm, 1) . 'km';
                         }
                     }
                     
@@ -1764,7 +1768,7 @@ class HomeController extends Controller
                             'longitude' => $business->longitude,
                         ],
                         'distance' => $formattedDistance,
-                        'distance_km' => $business->distance ?? null,
+                        'distance_km' => $distanceKm,
                         'offerings_count' => $offeringsCount,
                         'section_priority' => 'dynamic_' . strtolower(str_replace(' ', '_', $categoryName)),
                         'metadata' => [
