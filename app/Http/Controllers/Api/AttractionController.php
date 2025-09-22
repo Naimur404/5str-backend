@@ -330,7 +330,7 @@ class AttractionController extends Controller
                 ],
                 'discovery_score' => (float) $attraction->discovery_score,
                 'google_maps_url' => $attraction->google_maps_url,
-                'openstreetmap_url' => $this->generateOpenStreetMapUrl($attraction->latitude, $attraction->longitude),
+                'free_maps' => $this->generateFreeMapsData($attraction),
                 'meta_data' => $this->parseJsonField($attraction->meta_data),
                 'reviews' => $attraction->reviews->map(function ($review) {
                     return [
@@ -702,6 +702,42 @@ class AttractionController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Generate comprehensive free maps data including OpenStreetMap URL and Leaflet configuration
+     */
+    private function generateFreeMapsData($attraction)
+    {
+        $latitude = (float) $attraction->latitude;
+        $longitude = (float) $attraction->longitude;
+        
+        if (!$latitude || !$longitude) {
+            return null;
+        }
+        
+        $popupContent = $attraction->name;
+        if ($attraction->address) {
+            $popupContent .= '<br>' . $attraction->address;
+        }
+        
+        return [
+            'openstreetmap_url' => "https://www.openstreetmap.org/?mlat={$latitude}&mlon={$longitude}&zoom=15",
+            'leaflet_data' => [
+                'center' => [
+                    'lat' => $latitude,
+                    'lng' => $longitude,
+                ],
+                'zoom' => 15,
+                'marker' => [
+                    'lat' => $latitude,
+                    'lng' => $longitude,
+                    'popup' => $popupContent,
+                ],
+                'tile_url' => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                'attribution' => '© OpenStreetMap contributors',
+            ],
+        ];
     }
 
     /**
