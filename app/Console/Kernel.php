@@ -39,6 +39,12 @@ class Kernel extends ConsoleKernel
                  ->everyMinute()
                  ->withoutOverlapping()
                  ->runInBackground();
+
+        // Sync category business counts - daily at 4 AM (as a backup to observer)
+        $schedule->command('categories:sync-business-counts')
+                 ->dailyAt('04:00')
+                 ->withoutOverlapping()
+                 ->runInBackground();
     }
 
     /**

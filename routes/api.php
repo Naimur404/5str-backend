@@ -91,6 +91,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/main', [CategoryController::class, 'mainCategories']);
         Route::get('/featured', [CategoryController::class, 'featuredCategories']);
         Route::get('/popular', [CategoryController::class, 'popularCategories']);
+        Route::get('/sync-business-counts', [CategoryController::class, 'syncBusinessCounts']); // Utility route for fixing counts
         Route::get('/{category}', [CategoryController::class, 'show']);
         Route::get('/{category}/subcategories', [CategoryController::class, 'subcategories']);
         Route::get('/{category}/businesses', [CategoryController::class, 'businesses']);

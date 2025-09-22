@@ -4,6 +4,9 @@ namespace App\Observers;
 
 use App\Models\Business;
 use App\Models\User;
+use App\Models\Category;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Filament\Notifications\Notification;
 
 class BusinessObserver
@@ -43,6 +46,9 @@ class BusinessObserver
                     ->sendToDatabase($admin);
             }
         }
+
+        // Update category business count when a new business is created
+        $this->updateCategoryBusinessCount($business->category_id);
     }
 
     /**
@@ -89,6 +95,19 @@ class BusinessObserver
                 ->color('info')
                 ->sendToDatabase($owner);
         }
+
+        // Update category business count when business category or active status changes
+        if ($business->isDirty('category_id')) {
+            $oldCategoryId = $business->getOriginal('category_id');
+            if ($oldCategoryId) {
+                $this->updateCategoryBusinessCount($oldCategoryId);
+            }
+            $this->updateCategoryBusinessCount($business->category_id);
+        }
+
+        if ($business->isDirty('is_active')) {
+            $this->updateCategoryBusinessCount($business->category_id);
+        }
     }
 
     /**
@@ -96,7 +115,8 @@ class BusinessObserver
      */
     public function deleted(Business $business): void
     {
-        //
+        // Update category business count when a business is deleted
+        $this->updateCategoryBusinessCount($business->category_id);
     }
 
     /**
@@ -104,7 +124,8 @@ class BusinessObserver
      */
     public function restored(Business $business): void
     {
-        //
+        // Update category business count when a business is restored
+        $this->updateCategoryBusinessCount($business->category_id);
     }
 
     /**
@@ -112,6 +133,81 @@ class BusinessObserver
      */
     public function forceDeleted(Business $business): void
     {
-        //
+        // Update category business count when a business is force deleted
+        $this->updateCategoryBusinessCount($business->category_id);
+    }
+
+    /**
+     * Update the total_businesses count for a category
+     */
+    private function updateCategoryBusinessCount($categoryId)
+    {
+        if (!$categoryId) {
+            return;
+        }
+
+        try {
+            // Use raw query for better performance
+            DB::statement("
+                UPDATE categories 
+                SET total_businesses = (
+                    SELECT COUNT(*) 
+                    FROM businesses 
+                    WHERE businesses.category_id = ? 
+                    AND businesses.is_active = 1
+                ) 
+                WHERE id = ?
+            ", [$categoryId, $categoryId]);
+
+            // Optional: Log successful updates for monitoring
+            Log::info("Category business count updated", [
+                'category_id' => $categoryId,
+                'timestamp' => now()
+            ]);
+
+        } catch (\Exception $e) {
+            // Log the error but don't fail the main operation
+            Log::error("Failed to update category business count", [
+                'category_id' => $categoryId,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Update business counts for multiple categories (bulk operation)
+     */
+    public static function updateMultipleCategoryCounts(array $categoryIds)
+    {
+        if (empty($categoryIds)) {
+            return;
+        }
+
+        try {
+            $placeholders = str_repeat('?,', count($categoryIds) - 1) . '?';
+            
+            DB::statement("
+                UPDATE categories 
+                SET total_businesses = (
+                    SELECT COUNT(*) 
+                    FROM businesses 
+                    WHERE businesses.category_id = categories.id 
+                    AND businesses.is_active = 1
+                ) 
+                WHERE id IN ($placeholders)
+            ", $categoryIds);
+
+            Log::info("Multiple category business counts updated", [
+                'category_ids' => $categoryIds,
+                'count' => count($categoryIds),
+                'timestamp' => now()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Failed to update multiple category business counts", [
+                'category_ids' => $categoryIds,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Business;
+use App\Observers\BusinessObserver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CategoryController extends Controller
 {
@@ -33,18 +35,28 @@ class CategoryController extends Controller
                 $with[] = 'children';
             }
 
-            // Include business count if requested
-            if ($request->boolean('include_business_count')) {
-                $query->withCount('businesses');
-            }
+            // Always include actual business count (dynamic calculation)
+            $query->withCount(['businesses' => function($q) {
+                $q->where('is_active', true);
+            }]);
 
             $categories = $query->with($with)
-                ->orderBy('total_businesses', 'desc') // highest first
+                ->orderBy('businesses_count', 'desc') // Use dynamic count instead of static total_businesses
                 ->orderBy('sort_order')              // then sort_order
                 ->orderBy('name')                    // then name
                 ->take(10)
                 ->get();
 
+            // Transform the data to include both counts for comparison
+            $categories->transform(function($category) {
+                $category->actual_businesses_count = $category->businesses_count;
+                $category->stored_total_businesses = $category->total_businesses;
+                
+                // Use the actual count as the main total_businesses field
+                $category->total_businesses = $category->businesses_count;
+                
+                return $category;
+            });
 
             return response()->json([
                 'success' => true,
@@ -117,9 +129,18 @@ class CategoryController extends Controller
         try {
             $categories = Category::active()
                 ->popular()
-                ->orderBy('total_businesses', 'desc')
+                ->withCount(['businesses' => function($q) {
+                    $q->where('is_active', true);
+                }])
+                ->orderBy('businesses_count', 'desc') // Use dynamic count
                 ->take(10)
                 ->get();
+
+            // Transform to use actual count as total_businesses
+            $categories->transform(function($category) {
+                $category->total_businesses = $category->businesses_count;
+                return $category;
+            });
 
             return response()->json([
                 'success' => true,
@@ -262,6 +283,40 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch businesses',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Sync total_businesses count for all categories (utility method for maintenance)
+     * This should be called periodically to keep the stored counts accurate
+     */
+    public function syncBusinessCounts()
+    {
+        try {
+            // Get all category IDs
+            $categoryIds = Category::pluck('id')->toArray();
+            
+            // Use the observer's bulk update method
+            BusinessObserver::updateMultipleCategoryCounts($categoryIds);
+
+            $updatedCount = count($categoryIds);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully synced business counts for {$updatedCount} categories",
+                'data' => [
+                    'categories_updated' => $updatedCount,
+                    'updated_category_ids' => $categoryIds,
+                    'timestamp' => now(),
+                    'note' => 'Counts are now automatically maintained via BusinessObserver'
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to sync business counts',
                 'error' => $e->getMessage()
             ], 500);
         }
