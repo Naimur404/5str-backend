@@ -1211,4 +1211,25 @@ class SearchController extends Controller
         return round($score, 2);
     }
 
+    /**
+     * Format distance for display
+     */
+    private function formatDistance($distanceInMeters)
+    {
+        if ($distanceInMeters < 1000) {
+            return [
+                'value' => round($distanceInMeters),
+                'unit' => 'meters',
+                'formatted' => round($distanceInMeters) . 'm'
+            ];
+        } else {
+            $kilometers = $distanceInMeters / 1000;
+            return [
+                'value' => round($kilometers, 1),
+                'unit' => 'kilometers', 
+                'formatted' => round($kilometers, 1) . 'km'
+            ];
+        }
+    }
+
 }
