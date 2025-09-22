@@ -630,10 +630,9 @@ class SearchController extends Controller
             });
         }
 
-        // Location-based filtering - use larger radius for attractions with search terms
+        // Location-based filtering - respect the specified radius
         if ($latitude && $longitude) {
-            $searchRadius = $searchTerm ? 200 : $radiusKm; // 200km radius when searching by term
-            $query->nearby($latitude, $longitude, $searchRadius);
+            $query->nearby($latitude, $longitude, $radiusKm);
         }
 
         // Simple sorting
@@ -1216,9 +1215,6 @@ class SearchController extends Controller
      */
     private function formatDistance($distanceInKm)
     {
-        // Debug: log the input value
-        logger('formatDistance called with: ' . $distanceInKm);
-        
         if ($distanceInKm < 1) {
             $meters = $distanceInKm * 1000;
             return [
