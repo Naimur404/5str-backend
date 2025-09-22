@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Business;
+use App\Models\BusinessOffering;
 use App\Models\FeaturedSection;
 use App\Models\Banner;
 use App\Models\Offer;
@@ -1329,6 +1330,118 @@ class HomeController extends Controller
     }
 
     /**
+     * Determine category type for better organization
+     */
+    private function getCategoryType($categoryName)
+    {
+        $categoryName = strtolower($categoryName);
+        
+        if (strpos($categoryName, 'restaurant') !== false || 
+            strpos($categoryName, 'food') !== false || 
+            strpos($categoryName, 'cafe') !== false ||
+            strpos($categoryName, 'pizza') !== false ||
+            strpos($categoryName, 'burger') !== false) {
+            return 'food';
+        }
+        
+        if (strpos($categoryName, 'shopping') !== false || 
+            strpos($categoryName, 'shop') !== false || 
+            strpos($categoryName, 'store') !== false ||
+            strpos($categoryName, 'clothing') !== false ||
+            strpos($categoryName, 'fashion') !== false) {
+            return 'retail';
+        }
+        
+        if (strpos($categoryName, 'service') !== false || 
+            strpos($categoryName, 'repair') !== false || 
+            strpos($categoryName, 'maintenance') !== false) {
+            return 'service';
+        }
+        
+        if (strpos($categoryName, 'health') !== false || 
+            strpos($categoryName, 'medical') !== false || 
+            strpos($categoryName, 'hospital') !== false ||
+            strpos($categoryName, 'pharmacy') !== false) {
+            return 'healthcare';
+        }
+        
+        return 'general';
+    }
+
+    /**
+     * Check if category is restaurant/food related
+     */
+    private function isRestaurantCategory($categoryName)
+    {
+        $foodKeywords = ['restaurant', 'food', 'cafe', 'pizza', 'burger', 'dining', 'fast food', 'chinese', 'indian', 'bakery', 'sweet'];
+        $categoryLower = strtolower($categoryName);
+        
+        foreach ($foodKeywords as $keyword) {
+            if (strpos($categoryLower, $keyword) !== false) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if category is service related
+     */
+    private function isServiceCategory($categoryName)
+    {
+        $serviceKeywords = ['service', 'repair', 'maintenance', 'cleaning', 'consultation', 'therapy', 'training'];
+        $categoryLower = strtolower($categoryName);
+        
+        foreach ($serviceKeywords as $keyword) {
+            if (strpos($categoryLower, $keyword) !== false) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Determine display type based on category
+     */
+    private function getDisplayType($categoryName)
+    {
+        if ($this->isRestaurantCategory($categoryName)) {
+            return 'menu_focused';
+        }
+        
+        if ($this->isServiceCategory($categoryName)) {
+            return 'service_focused';
+        }
+        
+        return 'business_focused';
+    }
+
+    /**
+     * Get layout type for frontend display
+     */
+    private function getLayoutType($categoryName)
+    {
+        if ($this->isRestaurantCategory($categoryName)) {
+            return 'food_card';
+        }
+        
+        $categoryType = $this->getCategoryType($categoryName);
+        
+        switch ($categoryType) {
+            case 'retail':
+                return 'retail_card';
+            case 'service':
+                return 'service_card';
+            case 'healthcare':
+                return 'healthcare_card';
+            default:
+                return 'standard_card';
+        }
+    }
+
+    /**
      * Get all potential businesses for intelligent placement analysis
      */
     private function getAllPotentialBusinesses($latitude, $longitude, $radiusKm)
@@ -1488,47 +1601,127 @@ class HomeController extends Controller
             if ($businesses->count() >= 2 && $categoryName) { // Only show categories with at least 2 businesses
                 $sectionBusinesses = [];
                 
-                foreach ($businesses->sortByDesc('overall_rating')->take(4) as $business) {
+                foreach ($businesses->sortByDesc('overall_rating')->take(6) as $business) {
+                    // Get business offerings count for this business
+                    $offeringsCount = 0;
+                    try {
+                        $offeringsCount = \App\Models\BusinessOffering::where('business_id', $business->id)
+                            ->where('is_active', true)
+                            ->count();
+                    } catch (\Exception $e) {
+                        // Fallback if offerings table doesn't exist or has issues
+                        $offeringsCount = 0;
+                    }
+                    
+                    // Format distance properly
+                    $formattedDistance = null;
+                    if (isset($business->distance)) {
+                        $distanceKm = $business->distance;
+                        if ($distanceKm < 1) {
+                            $formattedDistance = number_format($distanceKm * 1000, 0) . ' m';
+                        } else {
+                            $formattedDistance = number_format($distanceKm, 1) . ' km';
+                        }
+                    }
+                    
                     $sectionBusinesses[] = [
                         'id' => $business->id,
                         'business_name' => $business->business_name,
                         'slug' => $business->slug,
                         'landmark' => $business->landmark,
+                        'area' => $business->area ?? null,
+                        'address' => $business->address ?? null,
+                        'business_phone' => $business->business_phone ?? null,
+                        'website_url' => $business->website_url ?? null,
                         'overall_rating' => $business->overall_rating,
+                        'total_reviews' => $business->total_reviews ?? 0,
                         'price_range' => $business->price_range,
-                        'category_name' => $business->category->name ?? null,
-                        'subcategory_name' => $business->subcategory->name ?? null,
+                        'is_featured' => $business->is_featured ?? false,
+                        'is_verified' => $business->is_verified ?? false,
+                        'is_open_now' => $business->is_open_now ?? null,
+                        'category' => [
+                            'id' => $business->category->id ?? null,
+                            'name' => $business->category->name ?? null,
+                            'slug' => $business->category->slug ?? null,
+                            'icon_image' => $business->category->icon_image ?? null,
+                            'color_code' => $business->category->color_code ?? null,
+                        ],
+                        'subcategory' => [
+                            'id' => $business->subcategory->id ?? null,
+                            'name' => $business->subcategory->name ?? null,
+                            'slug' => $business->subcategory->slug ?? null,
+                        ],
                         'images' => [
                             'logo' => $business->logoImage->image_url ?? null,
                             'cover' => $business->coverImage->image_url ?? null,
                         ],
-                        'distance' => $business->distance ?? null,
-                        'section_priority' => 'dynamic_' . strtolower(str_replace(' ', '_', $categoryName))
+                        'coordinates' => [
+                            'latitude' => $business->latitude,
+                            'longitude' => $business->longitude,
+                        ],
+                        'distance' => $formattedDistance,
+                        'distance_km' => $business->distance ?? null,
+                        'offerings_count' => $offeringsCount,
+                        'section_priority' => 'dynamic_' . strtolower(str_replace(' ', '_', $categoryName)),
+                        'metadata' => [
+                            'category_type' => $this->getCategoryType($categoryName),
+                            'has_menu' => $this->isRestaurantCategory($categoryName),
+                            'has_services' => $this->isServiceCategory($categoryName),
+                            'display_type' => $this->getDisplayType($categoryName)
+                        ]
                     ];
                     
                     $usedBusinessIds[] = $business->id;
                 }
                 
                 if (!empty($sectionBusinesses)) {
+                    // Calculate section metrics
+                    $avgRating = collect($sectionBusinesses)->avg('overall_rating');
+                    $totalOfferings = collect($sectionBusinesses)->sum('offerings_count');
+                    
                     $dynamicSections[] = [
                         'section_name' => "Top {$categoryName}",
                         'section_slug' => strtolower(str_replace(' ', '_', $categoryName)),
+                        'section_id' => 'dynamic_' . strtolower(str_replace([' ', '&', '/'], ['_', 'and', '_'], $categoryName)),
                         'category_name' => $categoryName,
-                        'count' => count($sectionBusinesses),
+                        'category_type' => $this->getCategoryType($categoryName),
+                        'display_config' => [
+                            'show_ratings' => true,
+                            'show_distance' => $latitude && $longitude,
+                            'show_price_range' => true,
+                            'show_offerings_count' => $totalOfferings > 0,
+                            'layout_type' => $this->getLayoutType($categoryName)
+                        ],
+                        'metrics' => [
+                            'count' => count($sectionBusinesses),
+                            'avg_rating' => round($avgRating, 2),
+                            'total_offerings' => $totalOfferings,
+                            'has_verified' => collect($sectionBusinesses)->where('is_verified', true)->count() > 0
+                        ],
                         'businesses' => $sectionBusinesses
                     ];
                 }
             }
         }
 
-        // Sort sections by total rating and availability
+        // Sort sections by relevance: restaurants first, then by rating and business count
         usort($dynamicSections, function($a, $b) {
-            $aAvgRating = collect($a['businesses'])->avg('overall_rating');
-            $bAvgRating = collect($b['businesses'])->avg('overall_rating');
-            return $bAvgRating <=> $aAvgRating;
+            // Prioritize restaurant/food categories
+            $aIsFood = $this->isRestaurantCategory($a['category_name']);
+            $bIsFood = $this->isRestaurantCategory($b['category_name']);
+            
+            if ($aIsFood && !$bIsFood) return -1;
+            if (!$aIsFood && $bIsFood) return 1;
+            
+            // Then sort by average rating and business count
+            $aScore = ($a['metrics']['avg_rating'] * 0.7) + ($a['metrics']['count'] * 0.3);
+            $bScore = ($b['metrics']['avg_rating'] * 0.7) + ($b['metrics']['count'] * 0.3);
+            
+            return $bScore <=> $aScore;
         });
 
-        return $dynamicSections;
+        // Limit to top 8 dynamic sections to avoid overwhelming the user
+        return array_slice($dynamicSections, 0, 8);
     }
 
     /**
