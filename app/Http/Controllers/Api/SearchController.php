@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\BusinessOffering;
 use App\Models\Category;
+use App\Models\Attraction;
 use App\Services\AnalyticsService;
 use App\Services\LocationService;
 use Illuminate\Http\Request;
@@ -29,7 +30,7 @@ class SearchController extends Controller
     {
         try {
             $searchTerm = $request->input('q');
-            $searchType = $request->input('type', 'all'); // all, businesses, offerings
+            $searchType = $request->input('type', 'all'); // all, businesses, offerings, attractions
             $latitude = $request->input('latitude');
             $longitude = $request->input('longitude');
             $categoryId = $request->input('category_id');
@@ -55,6 +56,12 @@ class SearchController extends Controller
                 $results['offerings'] = $offeringResults;
             }
 
+            // Search attractions if type is 'all' or 'attractions'
+            if (in_array($searchType, ['all', 'attractions'])) {
+                $attractionResults = $this->searchAttractions($request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy, $userArea);
+                $results['attractions'] = $attractionResults;
+            }
+
             // Get search suggestions if search term is provided
             $suggestions = [];
             if ($searchTerm && strlen($searchTerm) >= 2) {
@@ -68,6 +75,9 @@ class SearchController extends Controller
             }
             if (isset($results['offerings'])) {
                 $totalResults += $results['offerings']['pagination']['total'];
+            }
+            if (isset($results['attractions'])) {
+                $totalResults += $results['attractions']['pagination']['total'];
             }
 
             // Log the search
@@ -592,7 +602,7 @@ class SearchController extends Controller
             return $data;
         });
 
-        return [
+            return [
             'data' => $offeringData,
             'pagination' => [
                 'current_page' => $offerings->currentPage(),
@@ -600,6 +610,198 @@ class SearchController extends Controller
                 'per_page' => $offerings->perPage(),
                 'total' => $offerings->total(),
                 'has_more' => $offerings->hasMorePages()
+            ]
+        ];
+    }
+
+    /**
+     * Search attractions
+     */
+    protected function searchAttractions(Request $request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy, $userArea)
+    {
+        $query = Attraction::active();
+
+        // Text search
+        if ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('description', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('category', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('subcategory', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('type', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Category filter (by category name if categoryId is provided, we need to convert it)
+        if ($categoryId) {
+            // Get the category name from the ID to filter attractions
+            $category = \App\Models\Category::find($categoryId);
+            if ($category) {
+                $query->where(function ($q) use ($category) {
+                    $q->where('category', 'LIKE', "%{$category->name}%")
+                      ->orWhere('subcategory', 'LIKE', "%{$category->name}%");
+                });
+            }
+        }
+
+        // Location-based filtering
+        if ($latitude && $longitude) {
+            $query->nearby($latitude, $longitude, $radiusKm);
+        }
+
+        // Apply additional filters
+        if ($request->has('min_rating')) {
+            $query->where('overall_rating', '>=', $request->min_rating);
+        }
+
+        if ($request->boolean('is_popular')) {
+            // Define popular as high rating with good number of reviews
+            $query->where('overall_rating', '>=', 4.0)
+                  ->where('total_reviews', '>=', 10);
+        }
+
+        if ($request->boolean('is_featured')) {
+            $query->where('is_featured', true);
+        }
+
+        if ($request->boolean('is_free')) {
+            $query->where('is_free', true);
+        }
+
+        if ($request->has('difficulty_level')) {
+            $query->where('difficulty_level', $request->difficulty_level);
+        }
+
+        if ($request->has('type')) {
+            $query->where('type', $request->type);
+        }
+
+        // Add trending data for enhanced sorting
+        $today = now()->format('Y-m-d');
+        $query->leftJoin('trending_data', function($join) use ($today, $userArea) {
+            $join->on('attractions.id', '=', 'trending_data.item_id')
+                 ->where('trending_data.item_type', '=', 'attraction')
+                 ->where('trending_data.time_period', '=', 'daily')
+                 ->where('trending_data.date_period', '=', $today)
+                 ->where('trending_data.location_area', '=', $userArea);
+        });
+
+        // Enhanced sort options with trending + rating combination
+        switch ($sortBy) {
+            case 'trending':
+                $query->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC')
+                      ->orderBy('overall_rating', 'desc');
+                break;
+            case 'rating':
+                $query->orderBy('overall_rating', 'desc')
+                      ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
+                break;
+            case 'hybrid': // Combination of trending and rating
+                $query->orderByRaw('COALESCE(trending_data.hybrid_score, (overall_rating * 20)) DESC');
+                break;
+            case 'popular':
+                $query->orderBy('total_reviews', 'desc')
+                      ->orderBy('overall_rating', 'desc');
+                break;
+            case 'name':
+                $query->orderBy('name');
+                break;
+            case 'newest':
+                $query->orderBy('created_at', 'desc');
+                break;
+            case 'distance':
+                if ($latitude && $longitude) {
+                    $query = $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
+                } else {
+                    $query->orderBy('name');
+                }
+                break;
+            default: // relevance with trending boost and category priority
+                if ($searchTerm) {
+                    $query->orderByRaw("CASE 
+                        WHEN name LIKE ? THEN 1 
+                        WHEN category LIKE ? THEN 2
+                        WHEN type LIKE ? THEN 3
+                        WHEN name LIKE ? THEN 4 
+                        WHEN description LIKE ? THEN 5 
+                        ELSE 6 
+                    END", [
+                        $searchTerm,
+                        "%{$searchTerm}%",
+                        "%{$searchTerm}%",
+                        "%{$searchTerm}%",
+                        "%{$searchTerm}%"
+                    ])
+                    ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC')
+                    ->orderBy('overall_rating', 'desc');
+                } else {
+                    $query->orderBy('discovery_score', 'desc')
+                          ->orderBy('overall_rating', 'desc');
+                }
+        }
+
+        $attractions = $query->select('attractions.*', 'trending_data.trend_score', 'trending_data.hybrid_score')
+                            ->paginate($limit, ['*'], 'page', $page);
+
+        // Format attraction data
+        $attractionData = $attractions->getCollection()->map(function($attraction) use ($latitude, $longitude) {
+            $data = [
+                'id' => $attraction->id,
+                'name' => $attraction->name,
+                'slug' => $attraction->slug,
+                'description' => $attraction->description,
+                'type' => $attraction->type,
+                'category' => $attraction->category,
+                'subcategory' => $attraction->subcategory,
+                'latitude' => $attraction->latitude,
+                'longitude' => $attraction->longitude,
+                'city' => $attraction->city,
+                'area' => $attraction->area,
+                'address' => $attraction->address,
+                'is_free' => $attraction->is_free,
+                'entry_fee' => $attraction->entry_fee,
+                'currency' => $attraction->currency,
+                'image_url' => $attraction->cover_image_url,
+                'is_featured' => $attraction->is_featured,
+                'is_verified' => $attraction->is_verified,
+                'average_rating' => $attraction->overall_rating, // Map for consistent API response
+                'overall_rating' => $attraction->overall_rating,
+                'total_reviews' => $attraction->total_reviews,
+                'total_likes' => $attraction->total_likes,
+                'total_views' => $attraction->total_views,
+                'discovery_score' => $attraction->discovery_score,
+                'difficulty_level' => $attraction->difficulty_level,
+                'estimated_duration_minutes' => $attraction->estimated_duration_minutes,
+                'trending_score' => $attraction->trend_score ?? 0,
+                'hybrid_score' => $attraction->hybrid_score ?? ($attraction->overall_rating * 20),
+                'google_maps_url' => $attraction->google_maps_url,
+                'item_type' => 'attraction' // Use item_type to avoid conflict with attraction type field
+            ];
+
+            // Calculate distance if user location is provided
+            if ($latitude && $longitude && $attraction->latitude && $attraction->longitude) {
+                $distance = $this->calculateDistance(
+                    $latitude,
+                    $longitude,
+                    $attraction->latitude,
+                    $attraction->longitude
+                );
+                
+                $data['distance_km'] = $distance;
+                $data['distance_formatted'] = $this->formatDistance($distance);
+            }
+
+            return $data;
+        });
+
+        return [
+            'data' => $attractionData,
+            'pagination' => [
+                'current_page' => $attractions->currentPage(),
+                'last_page' => $attractions->lastPage(),
+                'per_page' => $attractions->perPage(),
+                'total' => $attractions->total(),
+                'has_more' => $attractions->hasMorePages()
             ]
         ];
     }
