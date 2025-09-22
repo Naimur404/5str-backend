@@ -714,7 +714,7 @@ class AttractionController extends Controller
         }
         
         // OpenStreetMap URL format: https://www.openstreetmap.org/?mlat=lat&mlon=lon&zoom=15
-        return "https://www.openstreetmap.org/?mlat={$latitude}&mlon={$longitude}&zoom=15";
+        return "https://www.openstreetmap.org/?mlat={$latitude}&mlon={$longitude}&zoom=20";
     }
 
     /**
