@@ -330,6 +330,7 @@ class AttractionController extends Controller
                 ],
                 'discovery_score' => (float) $attraction->discovery_score,
                 'google_maps_url' => $attraction->google_maps_url,
+                'openstreetmap_url' => $this->generateOpenStreetMapUrl($attraction->latitude, $attraction->longitude),
                 'meta_data' => $this->parseJsonField($attraction->meta_data),
                 'reviews' => $attraction->reviews->map(function ($review) {
                     return [
@@ -701,6 +702,20 @@ class AttractionController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Generate OpenStreetMap URL using latitude and longitude
+     */
+    private function generateOpenStreetMapUrl($latitude, $longitude)
+    {
+        if (!$latitude || !$longitude) {
+            return null;
+        }
+        
+        // OpenStreetMap URL format: https://www.openstreetmap.org/#map=zoom/lat/lon
+        // Using zoom level 15 for good detail level
+        return "https://www.openstreetmap.org/#map=15/{$latitude}/{$longitude}";
     }
 
     /**
