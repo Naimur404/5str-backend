@@ -55,10 +55,19 @@ class AttractionGallery extends Model
      */
     public function getFullImageUrlAttribute()
     {
+        // If image_path exists and the file exists, use it
         if ($this->image_path && Storage::exists($this->image_path)) {
             return Storage::url($this->image_path);
         }
         
+        // If image_url looks like a file path (no http/https), treat it as a storage path
+        if ($this->image_url && !str_starts_with($this->image_url, 'http')) {
+            if (Storage::exists($this->image_url)) {
+                return Storage::url($this->image_url);
+            }
+        }
+        
+        // Otherwise, return the image_url as is (external URL)
         return $this->image_url;
     }
 

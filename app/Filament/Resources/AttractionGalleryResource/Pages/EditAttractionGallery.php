@@ -20,9 +20,10 @@ class EditAttractionGallery extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        // If image_path is provided but image_url is empty, generate image_url from image_path
+        // If image_path is provided but image_url is empty, use the image_path as image_url
         if (!empty($data['image_path']) && empty($data['image_url'])) {
-            $data['image_url'] = Storage::url($data['image_path']);
+            // Store the path without /storage prefix - the accessor will handle URL generation
+            $data['image_url'] = $data['image_path'];
         }
         
         // If neither image_path nor image_url is provided, throw validation error

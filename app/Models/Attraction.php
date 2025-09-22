@@ -174,7 +174,7 @@ class Attraction extends Model
 
     public function getCoverImageUrlAttribute()
     {
-        return $this->coverImage?->image_url ?? $this->galleries()->first()?->image_url;
+        return $this->coverImage?->full_image_url ?? $this->galleries()->first()?->full_image_url;
     }
 
     public function getGalleryCountAttribute()
