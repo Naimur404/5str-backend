@@ -713,9 +713,8 @@ class AttractionController extends Controller
             return null;
         }
         
-        // OpenStreetMap URL format: https://www.openstreetmap.org/#map=zoom/lat/lon
-        // Using zoom level 15 for good detail level
-        return "https://www.openstreetmap.org/#map=15/{$latitude}/{$longitude}";
+        // OpenStreetMap URL format: https://www.openstreetmap.org/?mlat=lat&mlon=lon&zoom=15
+        return "https://www.openstreetmap.org/?mlat={$latitude}&mlon={$longitude}&zoom=15";
     }
 
     /**
