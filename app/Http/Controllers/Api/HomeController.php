@@ -1010,7 +1010,7 @@ class HomeController extends Controller
                         'longitude' => $business->longitude,
                     ],
                     'distance' => $formattedDistance,
-                    'distance_km' => $distanceKm,
+                    'distance_km' => $formattedDistance,
                     'offerings_count' => $offeringsCount,
                     'metadata' => [
                         'category_type' => $this->getCategoryType($business->category->name ?? ''),
