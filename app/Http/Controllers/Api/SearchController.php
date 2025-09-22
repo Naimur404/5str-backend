@@ -1214,20 +1214,23 @@ class SearchController extends Controller
     /**
      * Format distance for display
      */
-    private function formatDistance($distanceInMeters)
+    private function formatDistance($distanceInKm)
     {
-        if ($distanceInMeters < 1000) {
+        // Debug: log the input value
+        logger('formatDistance called with: ' . $distanceInKm);
+        
+        if ($distanceInKm < 1) {
+            $meters = $distanceInKm * 1000;
             return [
-                'value' => round($distanceInMeters),
+                'value' => round($meters),
                 'unit' => 'meters',
-                'formatted' => round($distanceInMeters) . 'm'
+                'formatted' => round($meters) . 'm'
             ];
         } else {
-            $kilometers = $distanceInMeters / 1000;
             return [
-                'value' => round($kilometers, 1),
+                'value' => round($distanceInKm, 1),
                 'unit' => 'kilometers', 
-                'formatted' => round($kilometers, 1) . 'km'
+                'formatted' => round($distanceInKm, 1) . 'km'
             ];
         }
     }
