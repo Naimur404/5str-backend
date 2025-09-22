@@ -626,122 +626,24 @@ class SearchController extends Controller
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('name', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('description', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('category', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('subcategory', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('type', 'LIKE', "%{$searchTerm}%");
+                  ->orWhere('category', 'LIKE', "%{$searchTerm}%");
             });
         }
 
-        // Category filter (by category name if categoryId is provided, we need to convert it)
-        if ($categoryId) {
-            // Get the category name from the ID to filter attractions
-            $category = \App\Models\Category::find($categoryId);
-            if ($category) {
-                $query->where(function ($q) use ($category) {
-                    $q->where('category', 'LIKE', "%{$category->name}%")
-                      ->orWhere('subcategory', 'LIKE', "%{$category->name}%");
-                });
-            }
-        }
-
-        // Location-based filtering
+        // Location-based filtering - use larger radius for attractions with search terms
         if ($latitude && $longitude) {
-            $query->nearby($latitude, $longitude, $radiusKm);
+            $searchRadius = $searchTerm ? 200 : $radiusKm; // 200km radius when searching by term
+            $query->nearby($latitude, $longitude, $searchRadius);
         }
 
-        // Apply additional filters
-        if ($request->has('min_rating')) {
-            $query->where('overall_rating', '>=', $request->min_rating);
+        // Simple sorting
+        if ($sortBy === 'rating') {
+            $query->orderBy('overall_rating', 'desc');
+        } else {
+            $query->orderBy('name');
         }
 
-        if ($request->boolean('is_popular')) {
-            // Define popular as high rating with good number of reviews
-            $query->where('overall_rating', '>=', 4.0)
-                  ->where('total_reviews', '>=', 10);
-        }
-
-        if ($request->boolean('is_featured')) {
-            $query->where('is_featured', true);
-        }
-
-        if ($request->boolean('is_free')) {
-            $query->where('is_free', true);
-        }
-
-        if ($request->has('difficulty_level')) {
-            $query->where('difficulty_level', $request->difficulty_level);
-        }
-
-        if ($request->has('type')) {
-            $query->where('type', $request->type);
-        }
-
-        // Add trending data for enhanced sorting
-        $today = now()->format('Y-m-d');
-        $query->leftJoin('trending_data', function($join) use ($today, $userArea) {
-            $join->on('attractions.id', '=', 'trending_data.item_id')
-                 ->where('trending_data.item_type', '=', 'attraction')
-                 ->where('trending_data.time_period', '=', 'daily')
-                 ->where('trending_data.date_period', '=', $today)
-                 ->where('trending_data.location_area', '=', $userArea);
-        });
-
-        // Enhanced sort options with trending + rating combination
-        switch ($sortBy) {
-            case 'trending':
-                $query->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC')
-                      ->orderBy('overall_rating', 'desc');
-                break;
-            case 'rating':
-                $query->orderBy('overall_rating', 'desc')
-                      ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
-                break;
-            case 'hybrid': // Combination of trending and rating
-                $query->orderByRaw('COALESCE(trending_data.hybrid_score, (overall_rating * 20)) DESC');
-                break;
-            case 'popular':
-                $query->orderBy('total_reviews', 'desc')
-                      ->orderBy('overall_rating', 'desc');
-                break;
-            case 'name':
-                $query->orderBy('name');
-                break;
-            case 'newest':
-                $query->orderBy('created_at', 'desc');
-                break;
-            case 'distance':
-                if ($latitude && $longitude) {
-                    $query = $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
-                } else {
-                    $query->orderBy('name');
-                }
-                break;
-            default: // relevance with trending boost and category priority
-                if ($searchTerm) {
-                    $query->orderByRaw("CASE 
-                        WHEN name LIKE ? THEN 1 
-                        WHEN category LIKE ? THEN 2
-                        WHEN type LIKE ? THEN 3
-                        WHEN name LIKE ? THEN 4 
-                        WHEN description LIKE ? THEN 5 
-                        ELSE 6 
-                    END", [
-                        $searchTerm,
-                        "%{$searchTerm}%",
-                        "%{$searchTerm}%",
-                        "%{$searchTerm}%",
-                        "%{$searchTerm}%"
-                    ])
-                    ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC')
-                    ->orderBy('overall_rating', 'desc');
-                } else {
-                    $query->orderBy('discovery_score', 'desc')
-                          ->orderBy('overall_rating', 'desc');
-                }
-        }
-
-        $attractions = $query->select('attractions.*', 'trending_data.trend_score', 'trending_data.hybrid_score')
-                            ->paginate($limit, ['*'], 'page', $page);
+        $attractions = $query->paginate($limit, ['*'], 'page', $page);
 
         // Format attraction data
         $attractionData = $attractions->getCollection()->map(function($attraction) use ($latitude, $longitude) {
@@ -761,10 +663,9 @@ class SearchController extends Controller
                 'is_free' => $attraction->is_free,
                 'entry_fee' => $attraction->entry_fee,
                 'currency' => $attraction->currency,
-                'image_url' => $attraction->cover_image_url,
                 'is_featured' => $attraction->is_featured,
                 'is_verified' => $attraction->is_verified,
-                'average_rating' => $attraction->overall_rating, // Map for consistent API response
+                'average_rating' => $attraction->overall_rating,
                 'overall_rating' => $attraction->overall_rating,
                 'total_reviews' => $attraction->total_reviews,
                 'total_likes' => $attraction->total_likes,
@@ -772,10 +673,13 @@ class SearchController extends Controller
                 'discovery_score' => $attraction->discovery_score,
                 'difficulty_level' => $attraction->difficulty_level,
                 'estimated_duration_minutes' => $attraction->estimated_duration_minutes,
-                'trending_score' => $attraction->trend_score ?? 0,
-                'hybrid_score' => $attraction->hybrid_score ?? ($attraction->overall_rating * 20),
                 'google_maps_url' => $attraction->google_maps_url,
-                'item_type' => 'attraction' // Use item_type to avoid conflict with attraction type field
+                // Image data similar to business/offerings response
+                'image_url' => $attraction->cover_image_url,
+                'logo_url' => $attraction->cover_image_url, // Use cover image as logo
+                'cover_image_url' => $attraction->cover_image_url,
+                'gallery_count' => $attraction->gallery_count,
+                'item_type' => 'attraction'
             ];
 
             // Calculate distance if user location is provided
@@ -804,9 +708,7 @@ class SearchController extends Controller
                 'has_more' => $attractions->hasMorePages()
             ]
         ];
-    }
-
-    /**
+    }    /**
      * Get search suggestions
      */
     protected function getSearchSuggestions($searchTerm, $categoryId = null, $limit = 10)
