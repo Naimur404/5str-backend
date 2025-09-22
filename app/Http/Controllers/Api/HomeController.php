@@ -873,15 +873,47 @@ class HomeController extends Controller
             $radiusKm = $request->input('radius', 20);
             $limit = $request->input('limit', 50);
 
-            // Define section configurations
+            // Define section configurations - EXPANDED to support all business types
             $sectionConfigs = [
                 'restaurants' => [
                     'title' => 'Top Restaurants',
-                    'keywords' => ['restaurant', 'food', 'cafe', 'pizza', 'burger', 'dining', 'fast food', 'chinese', 'indian']
+                    'keywords' => ['restaurant', 'food', 'cafe', 'pizza', 'burger', 'dining', 'fast food', 'chinese', 'indian', 'bakery', 'sweet', 'tea', 'coffee']
                 ],
                 'shopping' => [
                     'title' => 'Top Shopping',
-                    'keywords' => ['shopping', 'shop', 'store', 'clothing', 'fashion', 'retail', 'boutique', 'mall', 'market']
+                    'keywords' => ['shopping', 'shop', 'store', 'clothing', 'fashion', 'retail', 'boutique', 'mall', 'market', 'electronics', 'mobile', 'computer']
+                ],
+                'services' => [
+                    'title' => 'Top Services',
+                    'keywords' => ['service', 'services', 'repair', 'maintenance', 'cleaning', 'consultation', 'therapy', 'training', 'education', 'course', 'institute']
+                ],
+                'healthcare' => [
+                    'title' => 'Healthcare Services',
+                    'keywords' => ['health', 'medical', 'hospital', 'clinic', 'pharmacy', 'doctor', 'dental', 'diagnostic', 'pathology', 'physiotherapy']
+                ],
+                'beauty' => [
+                    'title' => 'Beauty & Wellness',
+                    'keywords' => ['beauty', 'salon', 'spa', 'parlour', 'wellness', 'massage', 'facial', 'hair', 'skin', 'cosmetic']
+                ],
+                'automotive' => [
+                    'title' => 'Automotive Services',
+                    'keywords' => ['automotive', 'car', 'bike', 'vehicle', 'garage', 'workshop', 'spare', 'parts', 'servicing', 'mechanic']
+                ],
+                'education' => [
+                    'title' => 'Educational Services',
+                    'keywords' => ['education', 'school', 'college', 'university', 'institute', 'academy', 'coaching', 'tuition', 'training', 'course']
+                ],
+                'travel' => [
+                    'title' => 'Travel & Tourism',
+                    'keywords' => ['travel', 'tourism', 'hotel', 'resort', 'tour', 'ticket', 'booking', 'transport', 'bus', 'air']
+                ],
+                'entertainment' => [
+                    'title' => 'Entertainment',
+                    'keywords' => ['entertainment', 'cinema', 'movie', 'theater', 'game', 'sports', 'gym', 'fitness', 'club', 'recreation']
+                ],
+                'finance' => [
+                    'title' => 'Financial Services',
+                    'keywords' => ['bank', 'finance', 'insurance', 'loan', 'investment', 'money', 'exchange', 'atm', 'mobile banking', 'financial']
                 ]
             ];
 
@@ -906,7 +938,8 @@ class HomeController extends Controller
                 ->with([
                     'category:id,name,slug,icon_image,color_code',
                     'subcategory:id,name,slug',
-                    'logoImage:id,business_id,image_url'
+                    'logoImage:id,business_id,image_url',
+                    'coverImage:id,business_id,image_url'
                 ]);
 
             if ($latitude && $longitude) {
@@ -915,6 +948,77 @@ class HomeController extends Controller
 
             $businesses = $query->orderBy('overall_rating', 'desc')
                 ->paginate($limit);
+
+            // Transform businesses to include comprehensive data
+            $transformedBusinesses = $businesses->getCollection()->map(function($business) {
+                // Get offerings count
+                $offeringsCount = 0;
+                try {
+                    $offeringsCount = BusinessOffering::where('business_id', $business->id)
+                        ->where('is_active', true)
+                        ->count();
+                } catch (\Exception $e) {
+                    $offeringsCount = 0;
+                }
+
+                // Format distance
+                $formattedDistance = null;
+                if (isset($business->distance)) {
+                    $distanceKm = $business->distance;
+                    if ($distanceKm < 1) {
+                        $formattedDistance = number_format($distanceKm * 1000, 0) . ' m';
+                    } else {
+                        $formattedDistance = number_format($distanceKm, 1) . ' km';
+                    }
+                }
+
+                return [
+                    'id' => $business->id,
+                    'business_name' => $business->business_name,
+                    'slug' => $business->slug,
+                    'landmark' => $business->landmark,
+                    'area' => $business->area ?? null,
+                    'address' => $business->address ?? null,
+                    'business_phone' => $business->business_phone ?? null,
+                    'website_url' => $business->website_url ?? null,
+                    'overall_rating' => $business->overall_rating,
+                    'total_reviews' => $business->total_reviews ?? 0,
+                    'price_range' => $business->price_range,
+                    'is_featured' => $business->is_featured ?? false,
+                    'is_verified' => $business->is_verified ?? false,
+                    'is_open_now' => $business->is_open_now ?? null,
+                    'category' => [
+                        'id' => $business->category->id ?? null,
+                        'name' => $business->category->name ?? null,
+                        'slug' => $business->category->slug ?? null,
+                        'icon_image' => $business->category->icon_image ?? null,
+                        'color_code' => $business->category->color_code ?? null,
+                    ],
+                    'subcategory' => [
+                        'id' => $business->subcategory->id ?? null,
+                        'name' => $business->subcategory->name ?? null,
+                        'slug' => $business->subcategory->slug ?? null,
+                    ],
+                    'images' => [
+                        'logo' => $business->logoImage->image_url ?? null,
+                        'cover' => $business->coverImage->image_url ?? null,
+                    ],
+                    'coordinates' => [
+                        'latitude' => $business->latitude,
+                        'longitude' => $business->longitude,
+                    ],
+                    'distance' => $formattedDistance,
+                    'distance_km' => $business->distance ?? null,
+                    'offerings_count' => $offeringsCount,
+                    'metadata' => [
+                        'category_type' => $this->getCategoryType($business->category->name ?? ''),
+                        'has_menu' => $this->isRestaurantCategory($business->category->name ?? ''),
+                        'has_services' => $this->isServiceCategory($business->category->name ?? ''),
+                    ]
+                ];
+            });
+
+            $businesses->setCollection($transformedBusinesses);
 
             return response()->json([
                 'success' => true,
