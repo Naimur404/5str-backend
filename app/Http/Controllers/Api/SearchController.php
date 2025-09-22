@@ -249,14 +249,18 @@ class SearchController extends Controller
         $query = Business::active()
             ->with(['category:id,name,slug', 'logoImage']);
 
-        // Text search
+        // Text search - include category name in search
         if ($searchTerm) {
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('business_name', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('description', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('full_address', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('area', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('city', 'LIKE', "%{$searchTerm}%");
+                  ->orWhere('city', 'LIKE', "%{$searchTerm}%")
+                  // Search by category name
+                  ->orWhereHas('category', function ($categoryQuery) use ($searchTerm) {
+                      $categoryQuery->where('name', 'LIKE', "%{$searchTerm}%");
+                  });
             });
         }
 
@@ -339,19 +343,23 @@ class SearchController extends Controller
             case 'newest':
                 $query->orderBy('created_at', 'desc');
                 break;
-            default: // relevance with trending boost
+            default: // relevance with trending boost and category priority
                 if ($searchTerm) {
-                    $query->orderByRaw("CASE 
-                        WHEN business_name LIKE ? THEN 1 
-                        WHEN business_name LIKE ? THEN 2 
-                        WHEN description LIKE ? THEN 3 
-                        ELSE 4 
-                    END", [
-                        $searchTerm,
-                        "%{$searchTerm}%",
-                        "%{$searchTerm}%"
-                    ])
-                    ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
+                    // Join with categories table for better sorting
+                    $query->leftJoin('categories', 'businesses.category_id', '=', 'categories.id')
+                          ->orderByRaw("CASE 
+                              WHEN business_name LIKE ? THEN 1 
+                              WHEN categories.name LIKE ? THEN 2
+                              WHEN business_name LIKE ? THEN 3 
+                              WHEN description LIKE ? THEN 4 
+                              ELSE 5 
+                          END", [
+                              $searchTerm,
+                              "%{$searchTerm}%",
+                              "%{$searchTerm}%",
+                              "%{$searchTerm}%"
+                          ])
+                          ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
                 } else {
                     $query->orderByRaw('(COALESCE(trending_data.hybrid_score, 0) * 0.6 + discovery_score * 0.4) DESC');
                 }
@@ -423,11 +431,19 @@ class SearchController extends Controller
                 'category:id,name,slug'
             ]);
 
-        // Text search
+        // Text search - include category name in search
         if ($searchTerm) {
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                  ->orWhere('description', 'LIKE', "%{$searchTerm}%")
+                  // Search by offering category name
+                  ->orWhereHas('category', function ($categoryQuery) use ($searchTerm) {
+                      $categoryQuery->where('name', 'LIKE', "%{$searchTerm}%");
+                  })
+                  // Search by business category name (in case offering category is different)
+                  ->orWhereHas('business.category', function ($businessCategoryQuery) use ($searchTerm) {
+                      $businessCategoryQuery->where('name', 'LIKE', "%{$searchTerm}%");
+                  });
             });
         }
 
@@ -504,19 +520,23 @@ class SearchController extends Controller
             case 'newest':
                 $query->orderBy('created_at', 'desc');
                 break;
-            default: // relevance with trending boost
+            default: // relevance with trending boost and category priority
                 if ($searchTerm) {
-                    $query->orderByRaw("CASE 
-                        WHEN name LIKE ? THEN 1 
-                        WHEN name LIKE ? THEN 2 
-                        WHEN description LIKE ? THEN 3 
-                        ELSE 4 
-                    END", [
-                        $searchTerm,
-                        "%{$searchTerm}%",
-                        "%{$searchTerm}%"
-                    ])
-                    ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
+                    // Join with categories table for better sorting
+                    $query->leftJoin('categories as offering_categories', 'business_offerings.category_id', '=', 'offering_categories.id')
+                          ->orderByRaw("CASE 
+                              WHEN name LIKE ? THEN 1 
+                              WHEN offering_categories.name LIKE ? THEN 2
+                              WHEN name LIKE ? THEN 3 
+                              WHEN description LIKE ? THEN 4 
+                              ELSE 5 
+                          END", [
+                              $searchTerm,
+                              "%{$searchTerm}%",
+                              "%{$searchTerm}%",
+                              "%{$searchTerm}%"
+                          ])
+                          ->orderByRaw('COALESCE(trending_data.trend_score, 0) DESC');
                 } else {
                     $query->orderBy('sort_order')->orderBy('name');
                 }
