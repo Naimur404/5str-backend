@@ -34,7 +34,7 @@ class SearchController extends Controller
             $latitude = $request->input('latitude');
             $longitude = $request->input('longitude');
             $categoryId = $request->input('category_id');
-            $radiusKm = $request->input('radius', 20);
+            $radiusKm = $request->input('radius', 15);
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
             $sortBy = $request->input('sort', 'relevance');
