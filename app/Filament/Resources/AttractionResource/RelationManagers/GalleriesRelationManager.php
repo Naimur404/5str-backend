@@ -9,6 +9,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Storage;
 
 class GalleriesRelationManager extends RelationManager
 {
@@ -19,20 +20,24 @@ class GalleriesRelationManager extends RelationManager
         return $form
             ->schema([
                 Forms\Components\FileUpload::make('image_path')
-                    ->label('Image')
+                    ->label('Upload Image')
                     ->image()
                     ->disk('public')
                     ->directory('attractions/gallery')
-                    ->required(),
-                Forms\Components\TextInput::make('title')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('description')
-                    ->rows(2),
+                    ->imageEditor()
+                    ->helperText('Upload an image file or use the external URL field below'),
                 Forms\Components\TextInput::make('image_url')
                     ->label('External Image URL')
                     ->url()
-                    ->helperText('Use this if you want to link to an external image instead of uploading'),
+                    ->helperText('Alternatively, provide an external image URL'),
+                Forms\Components\TextInput::make('title')
+                    ->label('Image Title')
+                    ->maxLength(255)
+                    ->placeholder('Enter a descriptive title'),
+                Forms\Components\Textarea::make('description')
+                    ->label('Description')
+                    ->rows(2)
+                    ->placeholder('Describe what this image shows'),
                 Forms\Components\Toggle::make('is_cover')
                     ->label('Set as Cover Image')
                     ->helperText('Only one image can be the cover image'),
@@ -99,5 +104,30 @@ class GalleriesRelationManager extends RelationManager
             ])
             ->reorderable('sort_order')
             ->defaultSort('sort_order');
+    }
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        return $this->processImageData($data);
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return $this->processImageData($data);
+    }
+
+    private function processImageData(array $data): array
+    {
+        // If image_path is provided but image_url is empty, generate image_url from image_path
+        if (!empty($data['image_path']) && empty($data['image_url'])) {
+            $data['image_url'] = Storage::url($data['image_path']);
+        }
+        
+        // If neither image_path nor image_url is provided, we need at least one
+        if (empty($data['image_path']) && empty($data['image_url'])) {
+            throw new \Exception('Either upload an image file or provide an external image URL.');
+        }
+        
+        return $data;
     }
 }
