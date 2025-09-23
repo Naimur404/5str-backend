@@ -369,9 +369,21 @@ class NeuralRecommendationEngine
                 ->post("{$this->mlServiceUrl}/{$endpoint}", $data);
 
             if ($response->successful()) {
-                return $response->json();
+                $jsonResponse = $response->json();
+                // Log the response for debugging
+                Log::info("ML Service response for {$endpoint}", [
+                    'response_type' => gettype($jsonResponse),
+                    'response_content' => $jsonResponse
+                ]);
+                
+                // Ensure we always return an array, never null
+                return is_array($jsonResponse) ? $jsonResponse : [];
             }
 
+            Log::error("ML Service HTTP error for {$endpoint}", [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
             throw new \Exception("ML Service error: " . $response->body());
         } catch (\Exception $e) {
             // Fallback to traditional methods if ML service unavailable
