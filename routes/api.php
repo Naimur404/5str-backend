@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\BusinessController;
@@ -35,6 +36,13 @@ Route::prefix('v1')->group(function () {
     // Authentication routes
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    
+    // Email verification routes
+    Route::prefix('email')->group(function () {
+        Route::post('/verify', [EmailVerificationController::class, 'verify']);
+        Route::post('/resend', [EmailVerificationController::class, 'resend']);
+        Route::get('/status', [EmailVerificationController::class, 'status']);
+    });
 
     // Home screen data (public access)
     Route::get('/home', [HomeController::class, 'index']);

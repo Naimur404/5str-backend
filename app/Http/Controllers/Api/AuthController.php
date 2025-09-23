@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\EmailVerificationCode;
+use App\Mail\EmailVerification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -38,6 +41,14 @@ class AuthController extends Controller
         }
 
         try {
+            // Check if email already has a verified account
+            if (EmailVerificationCode::isEmailVerified($request->email)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This email is already registered and verified. Please try logging in.'
+                ], 409);
+            }
+
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -46,6 +57,7 @@ class AuthController extends Controller
                 'city' => $request->city,
                 'current_latitude' => $request->current_latitude,
                 'current_longitude' => $request->current_longitude,
+                'email_verified_at' => null, // Not verified yet
             ]);
 
             // Assign default user role
@@ -62,23 +74,20 @@ class AuthController extends Controller
                 // Continue without role assignment - user can still function
             }
 
-            $token = $user->createToken('auth_token')->plainTextToken;
+            // Generate verification code
+            $verificationCode = EmailVerificationCode::createForEmail($request->email);
+
+            // Send verification email
+            Mail::to($request->email)->send(new EmailVerification($verificationCode, $request->name));
 
             return response()->json([
                 'success' => true,
-                'message' => 'User registered successfully',
+                'message' => 'Registration successful! Please check your email for verification code.',
                 'data' => [
-                    'token' => $token,
-                    'token_type' => 'Bearer',
-                    'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'phone' => $user->phone,
-                        'city' => $user->city,
-                        'is_active' => $user->is_active,
-                        'role' => 'user'
-                    ]
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'verification_expires_at' => $verificationCode->expires_at,
+                    'verification_required' => true
                 ]
             ], 201);
 
@@ -124,6 +133,27 @@ class AuthController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Account is deactivated'
+            ], 403);
+        }
+
+        // Check if email is verified
+        if (!EmailVerificationCode::isEmailVerified($request->email)) {
+            $latestCode = EmailVerificationCode::getLatestForEmail($request->email);
+            
+            if ($latestCode && $latestCode->isExpired()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your verification code has expired. Please request a new one.',
+                    'verification_required' => true,
+                    'verification_expired' => true
+                ], 403);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Please verify your email address before logging in. Check your inbox for the verification code.',
+                'verification_required' => true,
+                'verification_expires_at' => $latestCode ? $latestCode->expires_at : null
             ], 403);
         }
 
