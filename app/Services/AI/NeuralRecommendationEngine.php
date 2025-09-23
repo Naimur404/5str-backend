@@ -55,10 +55,17 @@ class NeuralRecommendationEngine
         });
 
         // Use neural network to generate embeddings
-        return $this->callMLService('generate_embeddings', [
+        $result = $this->callMLService('generate_embeddings', [
             'businesses' => $businessFeatures->toArray(),
             'dimensions' => self::EMBEDDING_DIMENSIONS
         ]);
+
+        // Ensure we return an array even if ML service fails
+        if (!is_array($result)) {
+            return [];
+        }
+
+        return $result;
     }
 
     /**
@@ -83,10 +90,27 @@ class NeuralRecommendationEngine
             })->toArray()
         ];
 
-        return $this->callMLService('generate_user_embedding', [
+        $result = $this->callMLService('generate_user_embedding', [
             'user_profile' => $userProfile,
             'dimensions' => self::EMBEDDING_DIMENSIONS
         ]);
+
+        // Handle different response formats and null responses
+        if (!is_array($result)) {
+            return [];
+        }
+
+        // If response has embedding key, extract it
+        if (isset($result['embedding']) && is_array($result['embedding'])) {
+            return $result['embedding'];
+        }
+
+        // If response is directly an array of embeddings
+        if (isset($result[0]) && is_numeric($result[0])) {
+            return $result;
+        }
+
+        return [];
     }
 
     /**
@@ -137,11 +161,23 @@ class NeuralRecommendationEngine
             $embeddingA = $this->getBusinessEmbedding($businessA);
             $embeddingB = $this->getBusinessEmbedding($businessB);
 
-            return $this->callMLService('calculate_similarity', [
+            $result = $this->callMLService('calculate_similarity', [
                 'embedding_a' => $embeddingA,
                 'embedding_b' => $embeddingB,
                 'method' => 'cosine_similarity'
             ]);
+
+            // Return a default similarity score if ML service fails
+            if (!is_numeric($result) && !is_array($result)) {
+                return 0.0;
+            }
+
+            // If result is an array, extract the similarity value
+            if (is_array($result)) {
+                return floatval($result['similarity'] ?? $result[0] ?? 0.0);
+            }
+
+            return floatval($result);
         });
     }
 
@@ -350,12 +386,49 @@ class NeuralRecommendationEngine
         switch ($endpoint) {
             case 'generate_embeddings':
                 return ['embeddings' => []];
+            case 'generate_user_embedding':
+                return ['embedding' => []];
             case 'calculate_similarity':
                 return ['similarity' => 0.5];
             case 'predict_preferences':
                 return ['recommendations' => []];
+            case 'ensemble_recommendations':
+                return ['recommendations' => []];
+            case 'optimize_weights':
+                return $this->getCurrentWeights();
+            case 'analyze_sentiment':
+                return [
+                    'sentiment' => 'neutral',
+                    'sentiment_score' => 0.5,
+                    'keywords' => [],
+                    'categories' => [],
+                    'quality_indicators' => []
+                ];
+            case 'predict_timing':
+                return [
+                    'optimal_hours' => [9, 12, 18, 20],
+                    'best_days' => ['monday', 'wednesday', 'friday', 'saturday'],
+                    'predicted_engagement' => 0.5,
+                    'confidence' => 0.3
+                ];
+            case 'extract_visual_features':
+                return [
+                    'visual_features' => [
+                        'objects' => [],
+                        'scene_type' => 'unknown',
+                        'color_palette' => [],
+                        'quality_score' => 0.5
+                    ]
+                ];
+            case 'detect_anomalies':
+                return [
+                    'anomalies_detected' => false,
+                    'anomaly_score' => 0.0,
+                    'anomalous_interactions' => [],
+                    'risk_level' => 'low'
+                ];
             default:
-                return ['result' => null, 'fallback' => true];
+                return ['result' => [], 'fallback' => true];
         }
     }
 
