@@ -8,7 +8,10 @@ use App\Models\UserPoint;
 use App\Models\Review;
 use App\Models\Business;
 use App\Models\BusinessOffering;
+use App\Models\Attraction;
+use App\Models\UserAttractionInteraction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -18,77 +21,146 @@ class UserController extends Controller
     public function favorites(Request $request)
     {
         try {
-            $user = auth()->user();
-            $type = $request->input('type'); // 'business', 'offering', or null for all
+            $user = Auth::user();
+            $type = $request->input('type'); // 'business', 'offering', 'attraction', or null for all
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
 
-            $query = Favorite::where('user_id', $user->id)
-                ->with(['favoritable']);
+            // Get traditional favorites (businesses and offerings)
+            $favoritesData = collect();
 
-            // Filter by type if specified
-            if ($type === 'business') {
-                $query->where('favoritable_type', 'App\\Models\\Business');
-            } elseif ($type === 'offering') {
-                $query->where('favoritable_type', 'App\\Models\\BusinessOffering');
+            if (!$type || in_array($type, ['business', 'offering'])) {
+                $query = Favorite::where('user_id', $user->id)
+                    ->with(['favoritable']);
+
+                // Filter by type if specified
+                if ($type === 'business') {
+                    $query->where('favoritable_type', 'App\\Models\\Business');
+                } elseif ($type === 'offering') {
+                    $query->where('favoritable_type', 'App\\Models\\BusinessOffering');
+                } elseif (!$type) {
+                    // Get both business and offering favorites when no type specified
+                    $query->whereIn('favoritable_type', ['App\\Models\\Business', 'App\\Models\\BusinessOffering']);
+                }
+
+                $favorites = $query->orderBy('created_at', 'desc')->get();
+
+                // Map favorites to lightweight format
+                $traditionalFavorites = $favorites->map(function($favorite) {
+                    $item = $favorite->favoritable;
+                    if (!$item) return null;
+
+                    if ($favorite->favoritable_type === 'App\\Models\\Business') {
+                        return [
+                            'id' => $favorite->id,
+                            'type' => 'business',
+                            'favorited_at' => $favorite->created_at->format('Y-m-d H:i:s'),
+                            'business' => [
+                                'id' => $item->id,
+                                'business_name' => $item->business_name,
+                                'slug' => $item->slug,
+                                'landmark' => $item->landmark,
+                                'overall_rating' => $item->overall_rating,
+                                'total_reviews' => $item->total_reviews,
+                                'price_range' => $item->price_range,
+                                'category_name' => $item->category->name ?? null,
+                                'logo_image' => $item->logoImage->image_url ?? null,
+                            ]
+                        ];
+                    } elseif ($favorite->favoritable_type === 'App\\Models\\BusinessOffering') {
+                        return [
+                            'id' => $favorite->id,
+                            'type' => 'offering',
+                            'favorited_at' => $favorite->created_at->format('Y-m-d H:i:s'),
+                            'offering' => [
+                                'id' => $item->id,
+                                'name' => $item->name,
+                                'business_id' => $item->business_id,
+                                'offering_type' => $item->offering_type,
+                                'price_range' => $item->price_range,
+                                'average_rating' => $item->average_rating,
+                                'total_reviews' => $item->total_reviews,
+                                'business_name' => $item->business->business_name ?? null,
+                                'image_url' => $item->image_url,
+                            ]
+                        ];
+                    }
+                    return null;
+                })->filter();
+
+                $favoritesData = $favoritesData->merge($traditionalFavorites);
             }
 
-            $favorites = $query->orderBy('created_at', 'desc')
-                ->paginate($limit, ['*'], 'page', $page);
+            // Get attraction favorites (bookmarks and likes)
+            if (!$type || $type === 'attraction') {
+                $attractionInteractions = UserAttractionInteraction::where('user_id', $user->id)
+                    ->whereIn('interaction_type', ['bookmark', 'like', 'wishlist'])
+                    ->where('is_active', true)
+                    ->with(['attraction.coverImage', 'attraction.galleries'])
+                    ->orderBy('created_at', 'desc')
+                    ->get();
 
-            // Map favorites to lightweight format
-            $favoritesData = $favorites->getCollection()->map(function($favorite) {
-                $item = $favorite->favoritable;
-                if (!$item) return null;
+                $attractionFavorites = $attractionInteractions->map(function($interaction) {
+                    $attraction = $interaction->attraction;
+                    if (!$attraction) return null;
 
-                if ($favorite->favoritable_type === 'App\\Models\\Business') {
                     return [
-                        'id' => $favorite->id,
-                        'type' => 'business',
-                        'favorited_at' => $favorite->created_at->format('Y-m-d H:i:s'),
-                        'business' => [
-                            'id' => $item->id,
-                            'business_name' => $item->business_name,
-                            'slug' => $item->slug,
-                            'landmark' => $item->landmark,
-                            'overall_rating' => $item->overall_rating,
-                            'total_reviews' => $item->total_reviews,
-                            'price_range' => $item->price_range,
-                            'category_name' => $item->category->name ?? null,
-                            'logo_image' => $item->logoImage->image_url ?? null,
-                        ]
+                        'id' => $interaction->id,
+                        'type' => 'attraction',
+                        'interaction_type' => $interaction->interaction_type, // bookmark, like, wishlist
+                        'favorited_at' => $interaction->created_at->format('Y-m-d H:i:s'),
+                        'attraction' => [
+                            'id' => $attraction->id,
+                            'name' => $attraction->name,
+                            'slug' => $attraction->slug,
+                            'type' => $attraction->type,
+                            'category' => $attraction->category,
+                            'address' => $attraction->address,
+                            'city' => $attraction->city,
+                            'area' => $attraction->area,
+                            'overall_rating' => $attraction->overall_rating,
+                            'total_reviews' => $attraction->total_reviews,
+                            'total_likes' => $attraction->total_likes,
+                            'is_free' => $attraction->is_free,
+                            'entry_fee' => $attraction->entry_fee,
+                            'currency' => $attraction->currency,
+                            'estimated_duration_minutes' => $attraction->estimated_duration_minutes,
+                            'difficulty_level' => $attraction->difficulty_level,
+                            'cover_image' => $attraction->cover_image_url,
+                            'is_verified' => $attraction->is_verified,
+                            'is_featured' => $attraction->is_featured,
+                        ],
+                        'notes' => $interaction->notes,
+                        'user_rating' => $interaction->user_rating,
                     ];
-                } elseif ($favorite->favoritable_type === 'App\\Models\\BusinessOffering') {
-                    return [
-                        'id' => $favorite->id,
-                        'type' => 'offering',
-                        'favorited_at' => $favorite->created_at->format('Y-m-d H:i:s'),
-                        'offering' => [
-                            'id' => $item->id,
-                            'name' => $item->name,
-                            'business_id' => $item->business_id,
-                            'offering_type' => $item->offering_type,
-                            'price_range' => $item->price_range,
-                            'average_rating' => $item->average_rating,
-                            'total_reviews' => $item->total_reviews,
-                            'business_name' => $item->business->business_name ?? null,
-                            'image_url' => $item->image_url,
-                        ]
-                    ];
-                }
-                return null;
-            })->filter();
+                })->filter();
+
+                $favoritesData = $favoritesData->merge($attractionFavorites);
+            }
+
+            // Sort all favorites by date
+            $sortedFavorites = $favoritesData->sortByDesc('favorited_at')->values();
+
+            // Implement pagination manually
+            $currentPage = $page;
+            $perPage = $limit;
+            $total = $sortedFavorites->count();
+            $offset = ($currentPage - 1) * $perPage;
+            $paginatedFavorites = $sortedFavorites->slice($offset, $perPage)->values();
+
+            $lastPage = ceil($total / $perPage);
+            $hasMore = $currentPage < $lastPage;
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'favorites' => $favoritesData,
+                    'favorites' => $paginatedFavorites,
                     'pagination' => [
-                        'current_page' => $favorites->currentPage(),
-                        'last_page' => $favorites->lastPage(),
-                        'per_page' => $favorites->perPage(),
-                        'total' => $favorites->total(),
-                        'has_more' => $favorites->hasMorePages()
+                        'current_page' => $currentPage,
+                        'last_page' => $lastPage,
+                        'per_page' => $perPage,
+                        'total' => $total,
+                        'has_more' => $hasMore
                     ]
                 ]
             ]);
@@ -109,46 +181,103 @@ class UserController extends Controller
     {
         try {
             $request->validate([
-                'favoritable_type' => 'required|in:business,offering',
-                'favoritable_id' => 'required|integer|min:1'
+                'favoritable_type' => 'required|in:business,offering,attraction',
+                'favoritable_id' => 'required|integer|min:1',
+                'interaction_type' => 'required_if:favoritable_type,attraction|in:bookmark,like,wishlist',
+                'notes' => 'nullable|string|max:1000',
+                'is_public' => 'nullable|boolean',
+                'priority' => 'nullable|in:low,medium,high',
+                'planned_visit_date' => 'nullable|date|after:today'
             ]);
 
-            $user = auth()->user();
-            $type = $request->favoritable_type === 'business' ? 'App\\Models\\Business' : 'App\\Models\\BusinessOffering';
-            
-            // Check if item exists
-            if ($type === 'App\\Models\\Business') {
-                $item = Business::findOrFail($request->favoritable_id);
-            } else {
-                $item = BusinessOffering::findOrFail($request->favoritable_id);
-            }
+            $user = Auth::user();
 
-            // Check if already favorited
-            $existing = Favorite::where('user_id', $user->id)
-                ->where('favoritable_type', $type)
-                ->where('favoritable_id', $request->favoritable_id)
-                ->first();
+            if ($request->favoritable_type === 'attraction') {
+                // Handle attraction favorites through UserAttractionInteraction
+                $attraction = Attraction::findOrFail($request->favoritable_id);
+                $interactionType = $request->interaction_type ?? 'bookmark';
 
-            if ($existing) {
+                // Check if interaction already exists
+                $existing = UserAttractionInteraction::where('user_id', $user->id)
+                    ->where('attraction_id', $request->favoritable_id)
+                    ->where('interaction_type', $interactionType)
+                    ->where('is_active', true)
+                    ->first();
+
+                if ($existing) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Attraction already ' . $interactionType . 'd'
+                    ], 409);
+                }
+
+                // Prepare interaction data
+                $interactionData = [];
+                if ($interactionType === 'bookmark' || $interactionType === 'wishlist') {
+                    $interactionData = [
+                        'priority' => $request->priority ?? 'medium',
+                        'planned_visit_date' => $request->planned_visit_date
+                    ];
+                }
+
+                $interaction = UserAttractionInteraction::create([
+                    'user_id' => $user->id,
+                    'attraction_id' => $request->favoritable_id,
+                    'interaction_type' => $interactionType,
+                    'interaction_data' => $interactionData,
+                    'notes' => $request->notes,
+                    'is_public' => $request->is_public ?? true,
+                    'interaction_date' => now()
+                ]);
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Item already in favorites'
-                ], 409);
+                    'success' => true,
+                    'message' => 'Attraction ' . $interactionType . 'd successfully',
+                    'data' => [
+                        'interaction_id' => $interaction->id,
+                        'type' => 'attraction',
+                        'interaction_type' => $interactionType
+                    ]
+                ]);
+            } else {
+                // Handle traditional favorites (business/offering)
+                $type = $request->favoritable_type === 'business' ? 'App\\Models\\Business' : 'App\\Models\\BusinessOffering';
+                
+                // Check if item exists
+                if ($type === 'App\\Models\\Business') {
+                    $item = Business::findOrFail($request->favoritable_id);
+                } else {
+                    $item = BusinessOffering::findOrFail($request->favoritable_id);
+                }
+
+                // Check if already favorited
+                $existing = Favorite::where('user_id', $user->id)
+                    ->where('favoritable_type', $type)
+                    ->where('favoritable_id', $request->favoritable_id)
+                    ->first();
+
+                if ($existing) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Item already in favorites'
+                    ], 409);
+                }
+
+                $favorite = Favorite::create([
+                    'user_id' => $user->id,
+                    'favoritable_type' => $type,
+                    'favoritable_id' => $request->favoritable_id
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Added to favorites',
+                    'data' => [
+                        'favorite_id' => $favorite->id,
+                        'type' => $request->favoritable_type
+                    ]
+                ]);
             }
-
-            $favorite = Favorite::create([
-                'user_id' => $user->id,
-                'favoritable_type' => $type,
-                'favoritable_id' => $request->favoritable_id
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Added to favorites',
-                'data' => [
-                    'favorite_id' => $favorite->id
-                ]
-            ]);
 
         } catch (\Exception $e) {
             return response()->json([
@@ -165,8 +294,25 @@ class UserController extends Controller
     public function removeFavorite(Request $request, $favoriteId)
     {
         try {
-            $user = auth()->user();
+            $user = Auth::user();
             
+            // Check if it's an attraction interaction ID first
+            $attractionInteraction = UserAttractionInteraction::where('id', $favoriteId)
+                ->where('user_id', $user->id)
+                ->where('is_active', true)
+                ->first();
+
+            if ($attractionInteraction) {
+                // Remove attraction favorite
+                $attractionInteraction->update(['is_active' => false]);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Attraction removed from favorites'
+                ]);
+            }
+
+            // Otherwise, handle traditional favorite
             $favorite = Favorite::where('id', $favoriteId)
                 ->where('user_id', $user->id)
                 ->first();
@@ -200,7 +346,7 @@ class UserController extends Controller
     public function reviews(Request $request)
     {
         try {
-            $user = auth()->user();
+            $user = Auth::user();
             $type = $request->input('type'); // 'business', 'offering', or null for all
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
@@ -287,7 +433,7 @@ class UserController extends Controller
     public function points(Request $request)
     {
         try {
-            $user = auth()->user();
+            $user = Auth::user();
             $type = $request->input('type'); // 'review', 'helpful_vote', 'referral', or null for all
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
