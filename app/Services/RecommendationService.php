@@ -275,23 +275,28 @@ class RecommendationService
 
     public function getSimilarBusinesses(Business $business, int $count = 10): Collection
     {
-        // First try to get pre-calculated similarities
-        $similarities = BusinessSimilarity::getSimilarBusinesses($business->id);
+        // First try to get pre-calculated similarities with HIGHER threshold
+        $similarities = BusinessSimilarity::getSimilarBusinesses($business->id, null, 0.3);
         
-        $businesses = $similarities->take($count)
-            ->map(function ($similarity) {
+        $businesses = $similarities->take($count * 2) // Get more to filter out bad ones
+            ->map(function ($similarity) use ($business) {
                 $foundBusiness = Business::with(['category:id,name,icon_image', 'subcategory:id,name', 'logoImage', 'coverImage'])
                     ->find($similarity['business_id']);
                 
                 if ($foundBusiness) {
-                    $foundBusiness->similarity_score = $similarity['similarity_score'];
-                    $foundBusiness->similarity_type = $similarity['similarity_type'];
-                    $foundBusiness->similarity_reasons = $similarity['contributing_factors'];
+                    // STRICT VALIDATION: Only allow compatible categories
+                    if ($this->areBusinessesCompatible($business, $foundBusiness)) {
+                        $foundBusiness->similarity_score = $similarity['similarity_score'];
+                        $foundBusiness->similarity_type = $similarity['similarity_type'];
+                        $foundBusiness->similarity_reasons = $similarity['contributing_factors'];
+                        return $foundBusiness;
+                    }
                 }
                 
-                return $foundBusiness;
+                return null;
             })
             ->filter()
+            ->take($count) // Now take the requested count after filtering
             ->values();
 
         // If no pre-calculated similarities exist, use fallback method
@@ -300,6 +305,37 @@ class RecommendationService
         }
 
         return $businesses;
+    }
+
+    /**
+     * Check if two businesses are compatible for similarity
+     */
+    private function areBusinessesCompatible(Business $businessA, Business $businessB): bool
+    {
+        // Same category is always compatible
+        if ($businessA->category_id === $businessB->category_id) {
+            return true;
+        }
+
+        // Check for compatible categories
+        $compatiblePairs = [
+            'restaurant' => ['food', 'cafe', 'fast food', 'dining'],
+            'food' => ['restaurant', 'cafe', 'fast food', 'dining'],
+            'beauty' => ['salon', 'spa', 'wellness'],
+            'salon' => ['beauty', 'spa', 'wellness'],
+            'clothing' => ['fashion', 'apparel', 'boutique'],
+            'fashion' => ['clothing', 'apparel', 'boutique'],
+            'electronics' => ['technology', 'mobile', 'computer'],
+            'technology' => ['electronics', 'mobile', 'computer'],
+            'health' => ['pharmacy', 'medical', 'healthcare'],
+            'pharmacy' => ['health', 'medical', 'healthcare'],
+        ];
+
+        $categoryA = strtolower($businessA->category->name ?? '');
+        $categoryB = strtolower($businessB->category->name ?? '');
+
+        return isset($compatiblePairs[$categoryA]) && 
+               in_array($categoryB, $compatiblePairs[$categoryA]);
     }
 
     /**

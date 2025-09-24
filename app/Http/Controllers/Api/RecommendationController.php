@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class RecommendationController extends Controller
 {
@@ -276,8 +277,27 @@ class RecommendationController extends Controller
         try {
             $similarBusinesses = $this->recommendationService->getSimilarBusinesses($business, $count);
 
+            // Additional validation to ensure no wrong category matches
+            $validatedSimilar = $similarBusinesses->filter(function ($similarBusiness) use ($business) {
+                $originalCategory = strtolower($business->category->name ?? '');
+                $similarCategory = strtolower($similarBusiness->category->name ?? '');
+                
+                // Log any potential issues for debugging
+                if ($originalCategory !== $similarCategory) {
+                    Log::info("Cross-category similarity found", [
+                        'original_business' => $business->business_name,
+                        'original_category' => $originalCategory,
+                        'similar_business' => $similarBusiness->business_name,
+                        'similar_category' => $similarCategory,
+                        'similarity_score' => $similarBusiness->similarity_score ?? 0
+                    ]);
+                }
+                
+                return $this->isCategoryCompatible($originalCategory, $similarCategory);
+            });
+
             // Transform similar businesses with complete data
-            $transformedSimilar = $similarBusinesses->map(function ($similarBusiness) {
+            $transformedSimilar = $validatedSimilar->map(function ($similarBusiness) {
                 return [
                     'id' => $similarBusiness->id,
                     'name' => $similarBusiness->business_name,
@@ -704,5 +724,33 @@ class RecommendationController extends Controller
                 'formatted' => round($km, 1) . ' km'
             ];
         }
+    }
+
+    /**
+     * Check if two business categories are compatible for similarity
+     */
+    private function isCategoryCompatible(string $categoryA, string $categoryB): bool
+    {
+        // Same category is always compatible
+        if ($categoryA === $categoryB) {
+            return true;
+        }
+
+        // Define compatible category pairs
+        $compatiblePairs = [
+            'restaurant' => ['food', 'cafe', 'fast food', 'dining'],
+            'food' => ['restaurant', 'cafe', 'fast food', 'dining'],
+            'beauty' => ['salon', 'spa', 'wellness'],
+            'salon' => ['beauty', 'spa', 'wellness'],
+            'clothing' => ['fashion', 'apparel', 'boutique'],
+            'fashion' => ['clothing', 'apparel', 'boutique'],
+            'electronics' => ['technology', 'mobile', 'computer'],
+            'technology' => ['electronics', 'mobile', 'computer'],
+            'health' => ['pharmacy', 'medical', 'healthcare'],
+            'pharmacy' => ['health', 'medical', 'healthcare'],
+        ];
+
+        return isset($compatiblePairs[$categoryA]) && 
+               in_array($categoryB, $compatiblePairs[$categoryA]);
     }
 }
