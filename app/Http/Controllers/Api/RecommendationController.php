@@ -277,8 +277,17 @@ class RecommendationController extends Controller
         try {
             $similarBusinesses = $this->recommendationService->getSimilarBusinesses($business, $count);
 
-            // Additional validation to ensure no wrong category matches
+            // Additional validation to ensure no wrong category matches and no self-similarity
             $validatedSimilar = $similarBusinesses->filter(function ($similarBusiness) use ($business) {
+                // CRITICAL: Exclude the same business from similar results
+                if ($similarBusiness->id === $business->id) {
+                    Log::warning("Self-similarity detected and filtered", [
+                        'business_id' => $business->id,
+                        'business_name' => $business->business_name
+                    ]);
+                    return false;
+                }
+                
                 $originalCategory = strtolower($business->category->name ?? '');
                 $similarCategory = strtolower($similarBusiness->category->name ?? '');
                 
@@ -295,6 +304,29 @@ class RecommendationController extends Controller
                 
                 return $this->isCategoryCompatible($originalCategory, $similarCategory);
             });
+
+            // If no valid similar businesses found, return empty array with explanation
+            if ($validatedSimilar->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'business' => [
+                            'id' => $business->id,
+                            'name' => $business->business_name,
+                            'slug' => $business->slug,
+                            'description' => $business->description,
+                            'category' => $business->category ? [
+                                'id' => $business->category->id,
+                                'name' => $business->category->name,
+                                'icon' => $business->category->icon_image,
+                            ] : null,
+                        ],
+                        'similar_businesses' => [],
+                        'total_count' => 0,
+                        'message' => 'No similar businesses found for this business.'
+                    ]
+                ]);
+            }
 
             // Transform similar businesses with complete data
             $transformedSimilar = $validatedSimilar->map(function ($similarBusiness) {

@@ -280,6 +280,11 @@ class RecommendationService
         
         $businesses = $similarities->take($count * 2) // Get more to filter out bad ones
             ->map(function ($similarity) use ($business) {
+                // CRITICAL: Skip if it's the same business ID
+                if ($similarity['business_id'] === $business->id) {
+                    return null;
+                }
+                
                 $foundBusiness = Business::with(['category:id,name,icon_image', 'subcategory:id,name', 'logoImage', 'coverImage'])
                     ->find($similarity['business_id']);
                 
