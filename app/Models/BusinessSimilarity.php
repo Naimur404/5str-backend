@@ -50,9 +50,25 @@ class BusinessSimilarity extends Model
         }
 
         return $query->get()->map(function ($similarity) use ($businessId) {
-            $otherBusinessId = $similarity->business_a_id === $businessId 
-                ? $similarity->business_b_id 
-                : $similarity->business_a_id;
+            // Ensure proper type casting for comparison
+            $businessAId = (int) $similarity->business_a_id;
+            $businessBId = (int) $similarity->business_b_id;
+            $requestedId = (int) $businessId;
+            
+            // DEBUG: Log the comparison for troubleshooting
+            \Illuminate\Support\Facades\Log::info("DEBUG BusinessSimilarity ID calculation", [
+                'raw_a_id' => $similarity->business_a_id,
+                'raw_b_id' => $similarity->business_b_id,
+                'requested_id' => $businessId,
+                'cast_a_id' => $businessAId,
+                'cast_b_id' => $businessBId,
+                'cast_requested_id' => $requestedId,
+                'comparison_result' => $businessAId === $requestedId
+            ]);
+            
+            $otherBusinessId = $businessAId === $requestedId 
+                ? $businessBId 
+                : $businessAId;
 
             return [
                 'business_id' => $otherBusinessId,
