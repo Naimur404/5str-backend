@@ -225,6 +225,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::prefix('reviews')->group(function () {
         Route::post('/', [ReviewController::class, 'store']);
         Route::get('/{review}', [ReviewController::class, 'show']);
+        Route::get('/show/{review}', [ReviewController::class, 'showFull']);
         Route::put('/{review}', [ReviewController::class, 'update']);
         Route::delete('/{review}', [ReviewController::class, 'destroy']);
         

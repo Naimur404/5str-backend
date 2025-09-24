@@ -615,6 +615,92 @@ class ReviewController extends Controller
         }
     }
 
+      public function showFull($reviewId)
+    {
+        try {
+            
+            $review = Review::where('id', $reviewId)
+                ->with(['reviewable', 'images'])
+                ->first();
+
+            if (!$review) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Review not found or you do not have permission to view it'
+                ], 404);
+            }
+
+            $reviewableData = null;
+            if ($review->reviewable_type === 'App\\Models\\Business') {
+                $item = $review->reviewable;
+                $reviewableData = [
+                    'type' => 'business',
+                    'id' => $item->id,
+                    'business_name' => $item->business_name,
+                    'slug' => $item->slug,
+                    'category_name' => $item->category->name ?? null,
+                    'logo_image' => $item->logoImage->image_url ?? null,
+                ];
+            } elseif ($review->reviewable_type === 'App\\Models\\BusinessOffering') {
+                $item = $review->reviewable;
+                $reviewableData = [
+                    'type' => 'offering',
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'offering_type' => $item->offering_type,
+                    'business_name' => $item->business->business_name ?? null,
+                    'image_url' => $item->image_url,
+                ];
+            }
+
+            $images = $review->images->map(function($image) {
+                return [
+                    'id' => $image->id,
+                    'image_url' => $image->image_url,
+                    'original_filename' => $image->original_filename,
+                ];
+            });
+
+            // Check if the reviewed item is in user's favorites
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'review' => [
+                        'id' => $review->id,
+                        'overall_rating' => $review->overall_rating,
+                        'service_rating' => $review->service_rating,
+                        'quality_rating' => $review->quality_rating,
+                        'value_rating' => $review->value_rating,
+                        'title' => $review->title,
+                        'review_text' => $review->review_text,
+                        'pros' => $review->pros,
+                        'cons' => $review->cons,
+                        'visit_date' => $review->visit_date?->format('Y-m-d'),
+                        'amount_spent' => $review->amount_spent,
+                        'party_size' => $review->party_size,
+                        'is_recommended' => $review->is_recommended,
+                        'is_verified_visit' => $review->is_verified_visit,
+                        'helpful_count' => $review->helpful_count,
+                        'not_helpful_count' => $review->not_helpful_count,
+                        'status' => $review->status,
+                        'images' => $images,
+                        'reviewable' => $reviewableData,
+                        'created_at' => $review->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $review->updated_at->format('Y-m-d H:i:s'),
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch review',
+                'error' => config('app.debug') ? $e->getMessage() : 'Something went wrong'
+            ], 500);
+        }
+    }
+
     /**
      * Vote on review helpfulness
      */
