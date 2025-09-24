@@ -93,15 +93,59 @@ class CalculateBusinessSimilarities extends Command
                 }
             }
 
+            // STRICT FILTER: Skip businesses that are completely incompatible
+            if ($this->areIncompatibleBusinesses($business, $otherBusiness)) {
+                continue;
+            }
+
             // Calculate similarity factors
             $factors = $this->calculateSimilarityFactors($business, $otherBusiness);
             
-            // Store the similarity if score is above threshold
+            // STRICT THRESHOLD: Only store similarities with meaningful scores
             $score = $this->calculateSimilarityScore($factors);
-            if ($score >= 0.1) { // Minimum similarity threshold
+            if ($score >= 0.3) { // Increased minimum similarity threshold
                 BusinessSimilarity::calculateAndStore($business->id, $otherBusiness->id, $factors);
+                
+                // Debug output for verification
+                if ($this->output->isVerbose()) {
+                    $this->line("✓ Similarity stored: {$business->name} <-> {$otherBusiness->name} (Score: {$score})");
+                }
+            } else if ($this->output->isVeryVerbose()) {
+                $this->line("✗ Skipped low similarity: {$business->name} <-> {$otherBusiness->name} (Score: {$score})");
             }
         }
+    }
+
+    /**
+     * Check if two businesses are completely incompatible and should never be similar
+     */
+    private function areIncompatibleBusinesses(Business $businessA, Business $businessB): bool
+    {
+        $categoryA = strtolower($businessA->category->name ?? '');
+        $categoryB = strtolower($businessB->category->name ?? '');
+
+        // Define incompatible category combinations
+        $incompatiblePairs = [
+            'restaurant' => ['clothing', 'electronics', 'pharmacy', 'automotive', 'real estate'],
+            'clothing' => ['restaurant', 'pharmacy', 'automotive', 'food', 'medical'],
+            'electronics' => ['restaurant', 'clothing', 'food', 'beauty', 'pharmacy'],
+            'pharmacy' => ['restaurant', 'clothing', 'electronics', 'automotive'],
+            'automotive' => ['restaurant', 'clothing', 'beauty', 'food', 'pharmacy'],
+            'real estate' => ['restaurant', 'clothing', 'electronics', 'beauty', 'food'],
+            'medical' => ['clothing', 'electronics', 'automotive', 'beauty'],
+            'education' => ['restaurant', 'clothing', 'automotive', 'beauty']
+        ];
+
+        // If businesses are in incompatible categories, they should never be similar
+        if (isset($incompatiblePairs[$categoryA])) {
+            return in_array($categoryB, $incompatiblePairs[$categoryA]);
+        }
+
+        if (isset($incompatiblePairs[$categoryB])) {
+            return in_array($categoryA, $incompatiblePairs[$categoryB]);
+        }
+
+        return false;
     }
 
     private function calculateSimilarityFactors(Business $businessA, Business $businessB): array
@@ -127,8 +171,38 @@ class CalculateBusinessSimilarities extends Command
             return 0.8;
         }
 
-        // Different categories
+        // Check for compatible categories (e.g., Restaurant and Food, Beauty and Salon)
+        if ($this->areCompatibleCategories($businessA, $businessB)) {
+            return 0.6;
+        }
+
+        // Different incompatible categories should never be similar
         return 0.0;
+    }
+
+    /**
+     * Check if two businesses have compatible categories
+     */
+    private function areCompatibleCategories(Business $businessA, Business $businessB): bool
+    {
+        $compatiblePairs = [
+            'restaurant' => ['food', 'cafe', 'fast food', 'dining'],
+            'food' => ['restaurant', 'cafe', 'fast food', 'dining'],
+            'beauty' => ['salon', 'spa', 'wellness'],
+            'salon' => ['beauty', 'spa', 'wellness'],
+            'clothing' => ['fashion', 'apparel', 'boutique'],
+            'fashion' => ['clothing', 'apparel', 'boutique'],
+            'electronics' => ['technology', 'mobile', 'computer'],
+            'technology' => ['electronics', 'mobile', 'computer'],
+            'health' => ['pharmacy', 'medical', 'healthcare'],
+            'pharmacy' => ['health', 'medical', 'healthcare'],
+        ];
+
+        $categoryA = strtolower($businessA->category->name ?? '');
+        $categoryB = strtolower($businessB->category->name ?? '');
+
+        return isset($compatiblePairs[$categoryA]) && 
+               in_array($categoryB, $compatiblePairs[$categoryA]);
     }
 
     private function calculateLocationProximity(Business $businessA, Business $businessB): float
@@ -203,12 +277,17 @@ class CalculateBusinessSimilarities extends Command
 
     private function calculateSimilarityScore(array $factors): float
     {
+        // STRICT RULE: If no category match, similarity is 0
+        if (($factors['category_match'] ?? 0) == 0) {
+            return 0.0;
+        }
+
         $weights = [
-            'category_match' => 0.4,
-            'location_proximity' => 0.25,
-            'review_sentiment' => 0.15,
+            'category_match' => 0.6,     // Increased to 60% - category is most important
+            'location_proximity' => 0.15, // Reduced location weight
+            'review_sentiment' => 0.1,
             'feature_overlap' => 0.1,
-            'user_overlap' => 0.1
+            'user_overlap' => 0.05
         ];
 
         $score = 0;
