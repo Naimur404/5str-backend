@@ -275,22 +275,8 @@ class RecommendationService
 
     public function getSimilarBusinesses(Business $business, int $count = 10): Collection
     {
-        // DEBUG: Log the request
-        \Illuminate\Support\Facades\Log::info("DEBUG RecommendationService getSimilarBusinesses", [
-            'business_id' => $business->id,
-            'business_name' => $business->business_name,
-            'count' => $count
-        ]);
-
         // First try to get pre-calculated similarities with HIGHER threshold
         $similarities = BusinessSimilarity::getSimilarBusinesses($business->id, null, 0.3);
-
-        // DEBUG: Log raw similarities
-        \Illuminate\Support\Facades\Log::info("DEBUG RecommendationService - raw similarities", [
-            'business_id' => $business->id,
-            'raw_count' => $similarities->count(),
-            'raw_data' => $similarities->toArray()
-        ]);
         
         $businesses = $similarities->take($count * 2) // Get more to filter out bad ones
             ->map(function ($similarity) use ($business) {
@@ -318,28 +304,10 @@ class RecommendationService
             ->take($count) // Now take the requested count after filtering
             ->values();
 
-        // DEBUG: Log final businesses before fallback
-        \Illuminate\Support\Facades\Log::info("DEBUG RecommendationService - before fallback check", [
-            'business_id' => $business->id,
-            'businesses_count' => $businesses->count(),
-            'business_ids' => $businesses->pluck('id')->toArray()
-        ]);
-
         // If no pre-calculated similarities exist, use fallback method
         if ($businesses->isEmpty()) {
-            \Illuminate\Support\Facades\Log::info("DEBUG RecommendationService - using fallback", [
-                'business_id' => $business->id,
-                'reason' => 'No businesses found after filtering'
-            ]);
             $businesses = $this->getSimilarBusinessesFallback($business, $count);
         }
-
-        // DEBUG: Log final result
-        \Illuminate\Support\Facades\Log::info("DEBUG RecommendationService - final result", [
-            'business_id' => $business->id,
-            'final_count' => $businesses->count(),
-            'final_ids' => $businesses->pluck('id')->toArray()
-        ]);
 
         return $businesses;
     }

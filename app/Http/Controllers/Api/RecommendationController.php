@@ -275,21 +275,7 @@ class RecommendationController extends Controller
         $count = $request->input('count', 10);
 
         try {
-            // DEBUG: Log the initial request
-            Log::info("DEBUG getSimilarBusinesses", [
-                'business_id' => $business->id,
-                'business_name' => $business->business_name,
-                'count_requested' => $count
-            ]);
-
             $similarBusinesses = $this->recommendationService->getSimilarBusinesses($business, $count);
-
-            // DEBUG: Log what we got from service
-            Log::info("DEBUG getSimilarBusinesses - from service", [
-                'business_id' => $business->id,
-                'similar_count' => $similarBusinesses->count(),
-                'similar_ids' => $similarBusinesses->pluck('id')->toArray()
-            ]);
 
             // Additional validation to ensure no wrong category matches and no self-similarity
             $validatedSimilar = $similarBusinesses->filter(function ($similarBusiness) use ($business) {
@@ -319,22 +305,8 @@ class RecommendationController extends Controller
                 return $this->isCategoryCompatible($originalCategory, $similarCategory);
             });
 
-            // DEBUG: Log after filtering
-            Log::info("DEBUG getSimilarBusinesses - after filtering", [
-                'business_id' => $business->id,
-                'validated_count' => $validatedSimilar->count(),
-                'validated_ids' => $validatedSimilar->pluck('id')->toArray()
-            ]);
-
             // If no valid similar businesses found, return empty array with explanation
             if ($validatedSimilar->isEmpty()) {
-                // DEBUG: Log why empty
-                Log::warning("DEBUG getSimilarBusinesses - returning empty", [
-                    'business_id' => $business->id,
-                    'reason' => 'All similar businesses filtered out',
-                    'original_count' => $similarBusinesses->count(),
-                    'after_validation' => $validatedSimilar->count()
-                ]);
                 return response()->json([
                     'success' => true,
                     'data' => [
