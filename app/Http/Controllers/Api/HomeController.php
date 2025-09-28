@@ -863,7 +863,7 @@ class HomeController extends Controller
     }
 
     /**
-     * Get dynamic sections (top-restaurants, top-shopping, etc.)
+     * Get dynamic sections based on actual database categories
      */
     public function dynamicSections(Request $request, $section)
     {
@@ -873,88 +873,100 @@ class HomeController extends Controller
             $radiusKm = $request->input('radius', 20);
             $limit = $request->input('limit', 50);
 
-            // Define section configurations - EXPANDED to support all business types
-            $sectionConfigs = [
-                'restaurants' => [
-                    'title' => 'Top Restaurants',
-                    'keywords' => ['restaurant', 'food', 'cafe', 'pizza', 'burger', 'dining', 'fast food', 'chinese', 'indian', 'bakery', 'sweet', 'tea', 'coffee']
-                ],
-                'shopping' => [
-                    'title' => 'Top Shopping',
-                    'keywords' => ['shopping', 'shop', 'store', 'clothing', 'fashion', 'retail', 'boutique', 'mall', 'market', 'electronics', 'mobile', 'computer']
-                ],
-                'services' => [
-                    'title' => 'Top Services',
-                    'keywords' => ['service', 'services', 'repair', 'maintenance', 'cleaning', 'consultation', 'therapy', 'training', 'education', 'course', 'institute']
-                ],
-                'healthcare' => [
-                    'title' => 'Healthcare Services',
-                    'keywords' => ['health', 'medical', 'hospital', 'clinic', 'pharmacy', 'doctor', 'dental', 'diagnostic', 'pathology', 'physiotherapy']
-                ],
-                'beauty' => [
-                    'title' => 'Beauty & Wellness',
-                    'keywords' => ['beauty', 'salon', 'spa', 'parlour', 'wellness', 'massage', 'facial', 'hair', 'skin', 'cosmetic']
-                ],
-                'automotive' => [
-                    'title' => 'Automotive Services',
-                    'keywords' => ['automotive', 'car', 'bike', 'vehicle', 'garage', 'workshop', 'spare', 'parts', 'servicing', 'mechanic']
-                ],
-                'education' => [
-                    'title' => 'Educational Services',
-                    'keywords' => ['education', 'school', 'college', 'university', 'institute', 'academy', 'coaching', 'tuition', 'training', 'course']
-                ],
-                'travel' => [
-                    'title' => 'Travel & Tourism',
-                    'keywords' => ['travel', 'tourism', 'hotel', 'resort', 'tour', 'ticket', 'booking', 'transport', 'bus', 'air']
-                ],
-                'entertainment' => [
-                    'title' => 'Entertainment',
-                    'keywords' => ['entertainment', 'cinema', 'movie', 'theater', 'game', 'sports', 'gym', 'fitness', 'club', 'recreation']
-                ],
-                'finance' => [
-                    'title' => 'Financial Services',
-                    'keywords' => ['bank', 'finance', 'insurance', 'loan', 'investment', 'money', 'exchange', 'atm', 'mobile banking', 'financial']
-                ]
-            ];
+            // Get all businesses with categories for dynamic section generation
+            $businessesQuery = Business::with([
+                'category:id,name,slug,icon_image,color_code',
+                'subcategory:id,name,slug',
+                'logoImage:id,business_id,image_url,image_type',
+                'coverImage:id,business_id,image_url,image_type'
+            ])->where('is_active', true);
 
-            // Check if section is supported
-            if (!isset($sectionConfigs[$section])) {
+            // Apply location filter if coordinates provided
+            if ($latitude && $longitude) {
+                $businessesQuery->selectRaw(
+                    "businesses.*, ST_Distance_Sphere(POINT(longitude, latitude), POINT(?, ?)) / 1000 as distance",
+                    [$longitude, $latitude]
+                )
+                ->whereRaw(
+                    "ST_Distance_Sphere(POINT(longitude, latitude), POINT(?, ?)) <= ?",
+                    [$longitude, $latitude, $radiusKm * 1000]
+                )
+                ->orderBy('distance');
+            } else {
+                $businessesQuery->select('businesses.*')
+                    ->orderByDesc('overall_rating')
+                    ->orderByDesc('is_featured');
+            }
+
+            $allBusinesses = $businessesQuery->get();
+            
+            // Group businesses by category
+            $categorizedBusinesses = $allBusinesses->groupBy('category.name');
+            
+            // Generate dynamic section slug from category name
+            $requestedSectionSlug = strtolower($section);
+            $matchedCategoryName = null;
+            
+            // Find the category that matches the requested section slug
+            foreach ($categorizedBusinesses->keys() as $categoryName) {
+                if (!$categoryName) continue;
+                
+                $categorySlug = strtolower(str_replace([' ', '&', '/', '-'], ['_', 'and', '_', '_'], $categoryName));
+                
+                // Exact match
+                if ($categorySlug === $requestedSectionSlug) {
+                    $matchedCategoryName = $categoryName;
+                    break;
+                }
+                
+                // Partial match (e.g., "health" matches "Health & Wellness")
+                if (strpos($categorySlug, $requestedSectionSlug) !== false || 
+                    strpos($requestedSectionSlug, $categorySlug) !== false) {
+                    $matchedCategoryName = $categoryName;
+                    break;
+                }
+            }
+
+            // If no match found, return available sections
+            if (!$matchedCategoryName) {
+                $availableSections = [];
+                foreach ($categorizedBusinesses->keys() as $categoryName) {
+                    if ($categoryName && $categorizedBusinesses[$categoryName]->count() >= 1) {
+                        $availableSections[] = strtolower(str_replace([' ', '&', '/', '-'], ['_', 'and', '_', '_'], $categoryName));
+                    }
+                }
+                
                 return response()->json([
                     'success' => false,
-                    'message' => 'Section not supported. Available sections: ' . implode(', ', array_keys($sectionConfigs))
-                ], 422);
+                    'message' => 'Section not found. Available sections: ' . implode(', ', $availableSections),
+                    'available_sections' => $availableSections
+                ], 404);
             }
 
-            $config = $sectionConfigs[$section];
+            // Get businesses for the matched category
+            $categoryBusinesses = $categorizedBusinesses[$matchedCategoryName];
             
-            $query = Business::active()
-                ->whereHas('category', function ($q) use ($config) {
-                    $q->where(function($subQuery) use ($config) {
-                        foreach ($config['keywords'] as $keyword) {
-                            $subQuery->orWhere('name', 'LIKE', "%{$keyword}%");
-                        }
-                    });
-                })
-                ->with([
-                    'category:id,name,slug,icon_image,color_code',
-                    'subcategory:id,name,slug',
-                    'logoImage:id,business_id,image_url',
-                    'coverImage:id,business_id,image_url'
-                ]);
+            // Sort businesses by rating and featured status
+            $sortedBusinesses = $categoryBusinesses->sortBy([
+                ['distance', 'asc'],
+                ['overall_rating', 'desc'],
+                ['is_featured', 'desc'],
+                ['total_reviews', 'desc']
+            ]);
 
-            if ($latitude && $longitude) {
-                $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
-            }
-
-            $businesses = $query->orderBy('overall_rating', 'desc')
-                ->paginate($limit);
+            // Get page parameter
+            $page = $request->input('page', 1);
+            
+            // Paginate the results
+            $totalBusinesses = $sortedBusinesses->count();
+            $paginatedBusinesses = $sortedBusinesses->forPage($page, $limit);
 
             // Transform businesses to include comprehensive data
-            $transformedBusinesses = $businesses->getCollection()->map(function($business) {
+            $transformedBusinesses = $paginatedBusinesses->map(function($business) {
                 // Get offerings count
                 $offeringsCount = 0;
                 try {
-                    $offeringsCount = BusinessOffering::where('business_id', $business->id)
+                    $offeringsCount = \App\Models\BusinessOffering::where('business_id', $business->id)
                         ->where('is_active', true)
                         ->count();
                 } catch (\Exception $e) {
@@ -965,7 +977,7 @@ class HomeController extends Controller
                 $formattedDistance = null;
                 $distanceKm = null;
                 if (isset($business->distance)) {
-                    $distanceKm = round($business->distance, 4); // Keep raw value with precision
+                    $distanceKm = round($business->distance, 4);
                     if ($distanceKm < 1) {
                         $meters = round($distanceKm * 1000, 0);
                         $formattedDistance = $meters . 'm';
@@ -978,6 +990,7 @@ class HomeController extends Controller
                     'id' => $business->id,
                     'business_name' => $business->business_name,
                     'slug' => $business->slug,
+                    'description' => $business->description,
                     'landmark' => $business->landmark,
                     'area' => $business->area ?? null,
                     'address' => $business->address ?? null,
@@ -1010,30 +1023,32 @@ class HomeController extends Controller
                         'longitude' => $business->longitude,
                     ],
                     'distance' => $formattedDistance,
-                    'distance_km' => $formattedDistance,
+                    'distance_km' => $distanceKm,
                     'offerings_count' => $offeringsCount,
-                    'metadata' => [
-                        'category_type' => $this->getCategoryType($business->category->name ?? ''),
-                        'has_menu' => $this->isRestaurantCategory($business->category->name ?? ''),
-                        'has_services' => $this->isServiceCategory($business->category->name ?? ''),
-                    ]
                 ];
-            });
+            })->values();
 
-            $businesses->setCollection($transformedBusinesses);
+            // Calculate pagination info
+            $totalPages = ceil($totalBusinesses / $limit);
+            $from = ($page - 1) * $limit + 1;
+            $to = min($page * $limit, $totalBusinesses);
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'section' => $section,
-                    'title' => $config['title'],
-                    'businesses' => $businesses->items(),
+                    'section' => strtolower(str_replace([' ', '&', '/', '-'], ['_', 'and', '_', '_'], $matchedCategoryName)),
+                    'title' => "Top {$matchedCategoryName}",
+                    'category_name' => $matchedCategoryName,
+                    'description' => "Discover the best {$matchedCategoryName} in your area",
+                    'businesses' => $transformedBusinesses,
                     'pagination' => [
-                        'current_page' => $businesses->currentPage(),
-                        'last_page' => $businesses->lastPage(),
-                        'per_page' => $businesses->perPage(),
-                        'total' => $businesses->total(),
-                        'has_more' => $businesses->hasMorePages()
+                        'current_page' => $page,
+                        'last_page' => $totalPages,
+                        'per_page' => $limit,
+                        'total' => $totalBusinesses,
+                        'from' => $from > 0 ? $from : null,
+                        'to' => $to > 0 ? $to : null,
+                        'has_more' => $page < $totalPages
                     ],
                     'location' => [
                         'latitude' => $latitude,
