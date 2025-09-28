@@ -907,21 +907,24 @@ class HomeController extends Controller
             $requestedSectionSlug = strtolower($section);
             $matchedCategoryName = null;
             
+            // Normalize the requested section slug to handle different formats
+            $normalizedRequestedSlug = $this->normalizeSectionSlug($requestedSectionSlug);
+            
             // Find the category that matches the requested section slug
             foreach ($categorizedBusinesses->keys() as $categoryName) {
                 if (!$categoryName) continue;
                 
-                $categorySlug = strtolower(str_replace([' ', '&', '/', '-'], ['_', 'and', '_', '_'], $categoryName));
+                $categorySlug = $this->normalizeSectionSlug(strtolower($categoryName));
                 
                 // Exact match
-                if ($categorySlug === $requestedSectionSlug) {
+                if ($categorySlug === $normalizedRequestedSlug) {
                     $matchedCategoryName = $categoryName;
                     break;
                 }
                 
                 // Partial match (e.g., "health" matches "Health & Wellness")
-                if (strpos($categorySlug, $requestedSectionSlug) !== false || 
-                    strpos($requestedSectionSlug, $categorySlug) !== false) {
+                if (strpos($categorySlug, $normalizedRequestedSlug) !== false || 
+                    strpos($normalizedRequestedSlug, $categorySlug) !== false) {
                     $matchedCategoryName = $categoryName;
                     break;
                 }
@@ -932,7 +935,7 @@ class HomeController extends Controller
                 $availableSections = [];
                 foreach ($categorizedBusinesses->keys() as $categoryName) {
                     if ($categoryName && $categorizedBusinesses[$categoryName]->count() >= 1) {
-                        $availableSections[] = strtolower(str_replace([' ', '&', '/', '-'], ['_', 'and', '_', '_'], $categoryName));
+                        $availableSections[] = $this->normalizeSectionSlug(strtolower($categoryName));
                     }
                 }
                 
@@ -1036,7 +1039,7 @@ class HomeController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'section' => strtolower(str_replace([' ', '&', '/', '-'], ['_', 'and', '_', '_'], $matchedCategoryName)),
+                    'section' => $this->normalizeSectionSlug(strtolower($matchedCategoryName)),
                     'title' => "Top {$matchedCategoryName}",
                     'category_name' => $matchedCategoryName,
                     'description' => "Discover the best {$matchedCategoryName} in your area",
@@ -3781,5 +3784,25 @@ class HomeController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
+    }
+
+    /**
+     * Normalize section slug to handle different formats
+     * Converts both "&" and "and" variations to a consistent format
+     */
+    private function normalizeSectionSlug(string $text): string
+    {
+        // First normalize all variations of "&" and "and"
+        $normalized = preg_replace('/\s*&\s*/', '_and_', $text);
+        $normalized = preg_replace('/\s+and\s+/', '_and_', $normalized);
+        
+        // Then handle other special characters
+        $normalized = str_replace([' ', '/', '-', '.', ','], '_', $normalized);
+        
+        // Remove multiple underscores
+        $normalized = preg_replace('/_+/', '_', $normalized);
+        
+        // Trim underscores from start and end
+        return trim($normalized, '_');
     }
 }
