@@ -497,6 +497,14 @@ class BusinessController extends Controller
             if ($request->has('category_id')) {
                 $query->inCategory($request->category_id);
             }
+            
+            // Category name filter (alternative to category_id)
+            if ($request->has('category')) {
+                $categoryName = $request->category;
+                $query->whereHas('category', function($q) use ($categoryName) {
+                    $q->where('name', 'LIKE', "%{$categoryName}%");
+                });
+            }
 
             // Business model filter
             if ($request->has('business_model')) {
@@ -523,7 +531,11 @@ class BusinessController extends Controller
             // Specific item type filters - NEW
             if ($request->has('item_type')) {
                 $itemType = $request->item_type;
-                switch ($itemType) {
+                // Normalize item type to handle different formats
+                $normalizedItemType = strtolower(str_replace(['&', ' ', '_'], ['_', '_', '_'], $itemType));
+                $normalizedItemType = preg_replace('/_+/', '_', trim($normalizedItemType, '_'));
+                
+                switch ($normalizedItemType) {
                     case 'ice_cream':
                         $query->withAnyProductTag(['ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi']);
                         break;
@@ -535,6 +547,14 @@ class BusinessController extends Controller
                         break;
                     case 'food_processing':
                         $query->withAnyProductTag(['food processing', 'manufacturing', 'packaged food', 'ready meals']);
+                        break;
+                    case 'food_beverages':
+                    case 'food_and_beverages':
+                        $query->withAnyProductTag(['food', 'beverage', 'restaurant', 'cafe', 'snack', 'meal', 'drink', 'juice', 'coffee', 'tea', 'bakery']);
+                        break;
+                    case 'bakery_cafe':
+                    case 'bakery_and_cafe':
+                        $query->withAnyProductTag(['bakery', 'cafe', 'coffee', 'pastry', 'bread', 'cake', 'biscuit']);
                         break;
                 }
             }
