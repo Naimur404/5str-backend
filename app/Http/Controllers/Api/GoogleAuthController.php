@@ -12,13 +12,14 @@ use Illuminate\Support\Str;
 class GoogleAuthController extends Controller
 {
     /**
-     * Redirect to Google OAuth
+     * Redirect to Google OAuth (Stateless)
      */
     public function redirect()
     {
         try {
             return response()->json([
-                'url' => Socialite::driver('google')->redirect()->getTargetUrl()
+                'success' => true,
+                'url' => Socialite::driver('google')->stateless()->redirect()->getTargetUrl(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -29,48 +30,16 @@ class GoogleAuthController extends Controller
     }
 
     /**
-     * Handle Google OAuth callback
+     * Handle Google OAuth callback (Stateless)
      */
     public function callback(Request $request)
     {
         try {
-            // Get user from Google
-            $googleUser = Socialite::driver('google')->user();
+            // Get user from Google using stateless driver
+            $googleUser = Socialite::driver('google')->stateless()->user();
             
-            // Check if user exists with this Google ID
-            $user = User::where('google_id', $googleUser->id)->first();
-            
-            if ($user) {
-                // User exists, update their info and log them in
-                $user->update([
-                    'name' => $googleUser->name,
-                    'email' => $googleUser->email,
-                    'avatar' => $googleUser->avatar,
-                ]);
-            } else {
-                // Check if user exists with the same email
-                $existingUser = User::where('email', $googleUser->email)->first();
-                
-                if ($existingUser) {
-                    // Link Google account to existing user
-                    $existingUser->update([
-                        'google_id' => $googleUser->id,
-                        'avatar' => $googleUser->avatar,
-                    ]);
-                    $user = $existingUser;
-                } else {
-                    // Create new user
-                    $user = User::create([
-                        'name' => $googleUser->name,
-                        'email' => $googleUser->email,
-                        'google_id' => $googleUser->id,
-                        'avatar' => $googleUser->avatar,
-                        'email_verified_at' => now(),
-                        'password' => bcrypt(Str::random(24)), // Random password since they're using Google OAuth
-                        'is_active' => true,
-                    ]);
-                }
-            }
+            // Process user authentication
+            $user = $this->handleGoogleUser($googleUser);
             
             // Create Sanctum token
             $token = $user->createToken('google-auth')->plainTextToken;
@@ -110,45 +79,16 @@ class GoogleAuthController extends Controller
                 ], 401);
             }
 
-            $googleId = $payload['sub'];
-            $email = $payload['email'];
-            $name = $payload['name'];
-            $avatar = $payload['picture'] ?? null;
+            // Create a mock Google user object matching Socialite's structure
+            $googleUser = (object) [
+                'id' => $payload['sub'],
+                'email' => $payload['email'],
+                'name' => $payload['name'],
+                'avatar' => $payload['picture'] ?? null,
+            ];
 
-            // Check if user exists with this Google ID
-            $user = User::where('google_id', $googleId)->first();
-            
-            if ($user) {
-                // User exists, update their info
-                $user->update([
-                    'name' => $name,
-                    'email' => $email,
-                    'avatar' => $avatar,
-                ]);
-            } else {
-                // Check if user exists with the same email
-                $existingUser = User::where('email', $email)->first();
-                
-                if ($existingUser) {
-                    // Link Google account to existing user
-                    $existingUser->update([
-                        'google_id' => $googleId,
-                        'avatar' => $avatar,
-                    ]);
-                    $user = $existingUser;
-                } else {
-                    // Create new user
-                    $user = User::create([
-                        'name' => $name,
-                        'email' => $email,
-                        'google_id' => $googleId,
-                        'avatar' => $avatar,
-                        'email_verified_at' => now(),
-                        'password' => null, // No password for Google OAuth users
-                        'is_active' => true,
-                    ]);
-                }
-            }
+            // Process user authentication
+            $user = $this->handleGoogleUser($googleUser);
             
             // Create Sanctum token
             $token = $user->createToken('google-auth')->plainTextToken;
@@ -166,5 +106,48 @@ class GoogleAuthController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Helper method to handle Google user data
+     */
+    private function handleGoogleUser($googleUser)
+    {
+        // Check if user exists with this Google ID
+        $user = User::where('google_id', $googleUser->id)->first();
+        
+        if ($user) {
+            // User exists, update their info
+            $user->update([
+                'name' => $googleUser->name,
+                'email' => $googleUser->email,
+                'avatar' => $googleUser->avatar ?? $user->avatar,
+            ]);
+        } else {
+            // Check if user exists with the same email
+            $existingUser = User::where('email', $googleUser->email)->first();
+            
+            if ($existingUser) {
+                // Link Google account to existing user
+                $existingUser->update([
+                    'google_id' => $googleUser->id,
+                    'avatar' => $googleUser->avatar ?? $existingUser->avatar,
+                ]);
+                $user = $existingUser;
+            } else {
+                // Create new user
+                $user = User::create([
+                    'name' => $googleUser->name,
+                    'email' => $googleUser->email,
+                    'google_id' => $googleUser->id,
+                    'avatar' => $googleUser->avatar,
+                    'email_verified_at' => now(),
+                    'password' => null, // No password for Google OAuth users
+                    'is_active' => true,
+                ]);
+            }
+        }
+
+        return $user;
     }
 }
