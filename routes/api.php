@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\AttractionController;
 use App\Http\Controllers\Api\AttractionInteractionController;
 use App\Http\Controllers\Api\AttractionReviewController;
+use App\Http\Controllers\Api\GoogleAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,6 +37,13 @@ Route::prefix('v1')->group(function () {
     // Authentication routes
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    
+    // Google OAuth routes
+    Route::prefix('auth/google')->group(function () {
+        Route::get('/redirect', [GoogleAuthController::class, 'redirect']);
+        Route::get('/callback', [GoogleAuthController::class, 'callback']);
+        Route::post('/token', [GoogleAuthController::class, 'handleGoogleToken']);
+    });
     
     // Email verification routes
     Route::prefix('email')->group(function () {
