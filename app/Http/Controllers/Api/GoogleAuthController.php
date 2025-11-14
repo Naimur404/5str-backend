@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class GoogleAuthController extends Controller
@@ -32,29 +33,116 @@ class GoogleAuthController extends Controller
     /**
      * Handle Google OAuth callback (Stateless)
      */
-    public function callback(Request $request)
+     public function callback(Request $request)
     {
         try {
-            // Get user from Google using stateless driver
+            // Get user info from Google
             $googleUser = Socialite::driver('google')->stateless()->user();
             
-            // Process user authentication
-            $user = $this->handleGoogleUser($googleUser);
-            
-            // Create Sanctum token
-            $token = $user->createToken('google-auth')->plainTextToken;
-            
+            // Find or create user
+            $user = User::where('email', $googleUser->email)
+                ->orWhere('google_id', $googleUser->id)
+                ->first();
+
+            if ($user) {
+                // Update existing user
+                $user->update([
+                    'google_id' => $googleUser->id,
+                    'avatar' => $googleUser->avatar,
+                    'email_verified_at' => $user->email_verified_at ?? now(),
+                ]);
+            } else {
+                // Create new user
+                $user = User::create([
+                    'name' => $googleUser->name,
+                    'email' => $googleUser->email,
+                    'google_id' => $googleUser->id,
+                    'avatar' => $googleUser->avatar,
+                    'email_verified_at' => now(),
+                    'password' => bcrypt(Str::random(32)), // Random password for OAuth users
+                ]);
+            }
+
+            // Create token
+            $token = $user->createToken('mobile-app')->plainTextToken;
+
+            // **KEY CHANGE: Detect if request is from mobile app**
+            $userAgent = $request->header('User-Agent');
+            $isMobileApp = str_contains($userAgent, 'ReactNative') || 
+                          str_contains($userAgent, 'Expo') ||
+                          $request->header('X-Mobile-App') === 'true';
+
+            // **OPTION 1: Redirect to mobile app deep link (RECOMMENDED)**
+            if ($isMobileApp || $request->has('mobile')) {
+                // Encode user data
+                $userData = json_encode([
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'profile_image' => $user->profile_image,
+                    'current_latitude' => $user->current_latitude,
+                    'current_longitude' => $user->current_longitude,
+                    'city' => $user->city,
+                    'total_points' => $user->total_points,
+                    'total_reviews_written' => $user->total_reviews_written,
+                    'trust_level' => $user->trust_level,
+                    'email_verified_at' => $user->email_verified_at,
+                    'is_active' => $user->is_active,
+                    'google_id' => $user->google_id,
+                    'avatar' => $user->avatar,
+                ]);
+
+                // Redirect to app with data
+                $deepLink = '5str://auth/google?' . http_build_query([
+                    'success' => 'true',
+                    'token' => $token,
+                    'user' => base64_encode($userData),
+                ]);
+
+                return redirect($deepLink);
+            }
+
+            // **OPTION 2: Return JSON for web/testing**
             return response()->json([
                 'success' => true,
-                'user' => $user,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'profile_image' => $user->profile_image,
+                    'current_latitude' => $user->current_latitude,
+                    'current_longitude' => $user->current_longitude,
+                    'city' => $user->city,
+                    'total_points' => $user->total_points,
+                    'total_reviews_written' => $user->total_reviews_written,
+                    'trust_level' => $user->trust_level,
+                    'email_verified_at' => $user->email_verified_at,
+                    'is_active' => $user->is_active,
+                    'google_id' => $user->google_id,
+                    'avatar' => $user->avatar,
+                ],
                 'token' => $token,
-                'token_type' => 'Bearer',
+                'token_type' => 'Bearer'
             ]);
-            
+
         } catch (\Exception $e) {
+            Log::error('Google OAuth Error: ' . $e->getMessage());
+            
+            // Redirect to app with error if mobile
+            $userAgent = $request->header('User-Agent');
+            $isMobileApp = str_contains($userAgent, 'ReactNative') || 
+                          str_contains($userAgent, 'Expo') ||
+                          $request->has('mobile');
+                          
+            if ($isMobileApp) {
+                return redirect('5str://auth/google?error=' . urlencode($e->getMessage()));
+            }
+
             return response()->json([
-                'error' => 'Authentication failed',
-                'message' => $e->getMessage()
+                'success' => false,
+                'message' => 'Authentication failed: ' . $e->getMessage()
             ], 500);
         }
     }
