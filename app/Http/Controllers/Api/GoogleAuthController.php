@@ -180,6 +180,29 @@ class GoogleAuthController extends Controller
             
             // Create Sanctum token
             $token = $user->createToken('google-auth')->plainTextToken;
+            return response()->json([
+                            'success' => true,
+                            'user' => [
+                                'id' => $user->id,
+                                'name' => $user->name,
+                                'email' => $user->email,
+                                'phone' => $user->phone,
+                                'profile_image' => $user->profile_image,
+                                'current_latitude' => $user->current_latitude,
+                                'current_longitude' => $user->current_longitude,
+                                'city' => $user->city,
+                                'total_points' => $user->total_points,
+                                'total_reviews_written' => $user->total_reviews_written,
+                                'trust_level' => $user->trust_level,
+                                'email_verified_at' => $user->email_verified_at,
+                                'is_active' => $user->is_active,
+                                'google_id' => $user->google_id,
+                                'avatar' => $user->avatar,
+                                'role' => $user->roles->first()?->name ?? 'user'
+                            ],
+                            'token' => $token,
+                            'token_type' => 'Bearer',
+                        ]);
             
             return response()->json([
                 'success' => true,
