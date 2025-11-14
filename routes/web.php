@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\GoogleAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,3 +26,9 @@ Route::get('/login', function () {
         'error' => 'Unauthenticated'
     ], 401);
 })->name('login');
+
+Route::prefix('auth/google')->group(function () {
+        Route::get('/redirect', [GoogleAuthController::class, 'redirect']);
+        Route::get('/callback', [GoogleAuthController::class, 'callback']);
+        Route::post('/token', [GoogleAuthController::class, 'handleGoogleToken']);
+    });

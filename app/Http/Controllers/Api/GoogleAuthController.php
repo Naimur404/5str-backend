@@ -12,49 +12,76 @@ use Illuminate\Support\Str;
 class GoogleAuthController extends Controller
 {
     /**
-     * Redirect to Google OAuth (for web applications)
-     * Note: For React Native, use the /token endpoint instead
+     * Redirect to Google OAuth
      */
     public function redirect()
     {
         try {
-            // Build Google OAuth URL manually for API use
-            $clientId = config('services.google.client_id');
-            $redirectUri = config('services.google.redirect');
-            
-            $url = "https://accounts.google.com/oauth/authorize?" . http_build_query([
-                'client_id' => $clientId,
-                'redirect_uri' => $redirectUri,
-                'scope' => 'openid email profile',
-                'response_type' => 'code',
-                'access_type' => 'offline',
-            ]);
-            
             return response()->json([
-                'url' => $url,
-                'note' => 'For React Native apps, use POST /auth/google/token instead'
+                'url' => Socialite::driver('google')->redirect()->getTargetUrl()
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to generate Google OAuth URL',
-                'message' => $e->getMessage(),
-                'note' => 'For React Native apps, use the /token endpoint instead'
+                'message' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Handle Google OAuth callback (for web applications)
-     * Note: For React Native, use the /token endpoint instead
+     * Handle Google OAuth callback
      */
     public function callback(Request $request)
     {
         try {
+            // Get user from Google
+            $googleUser = Socialite::driver('google')->user();
+            
+            // Check if user exists with this Google ID
+            $user = User::where('google_id', $googleUser->id)->first();
+            
+            if ($user) {
+                // User exists, update their info and log them in
+                $user->update([
+                    'name' => $googleUser->name,
+                    'email' => $googleUser->email,
+                    'avatar' => $googleUser->avatar,
+                ]);
+            } else {
+                // Check if user exists with the same email
+                $existingUser = User::where('email', $googleUser->email)->first();
+                
+                if ($existingUser) {
+                    // Link Google account to existing user
+                    $existingUser->update([
+                        'google_id' => $googleUser->id,
+                        'avatar' => $googleUser->avatar,
+                    ]);
+                    $user = $existingUser;
+                } else {
+                    // Create new user
+                    $user = User::create([
+                        'name' => $googleUser->name,
+                        'email' => $googleUser->email,
+                        'google_id' => $googleUser->id,
+                        'avatar' => $googleUser->avatar,
+                        'email_verified_at' => now(),
+                        'password' => bcrypt(Str::random(24)), // Random password since they're using Google OAuth
+                        'is_active' => true,
+                    ]);
+                }
+            }
+            
+            // Create Sanctum token
+            $token = $user->createToken('google-auth')->plainTextToken;
+            
             return response()->json([
-                'error' => 'This endpoint is for web applications',
-                'message' => 'For React Native apps, use POST /auth/google/token with your Google ID token',
-                'recommended_endpoint' => '/api/v1/auth/google/token'
-            ], 400);
+                'success' => true,
+                'user' => $user,
+                'token' => $token,
+                'token_type' => 'Bearer',
+            ]);
+            
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Authentication failed',
