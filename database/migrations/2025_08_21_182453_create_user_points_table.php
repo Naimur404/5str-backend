@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->integer('points');
-            $table->enum('point_type', ['review', 'helpful_vote', 'referral']);
+                        $table->enum('point_type', ['review', 'helpful_vote', 'referral']);
             $table->unsignedBigInteger('reference_id')->nullable();
             $table->string('reference_type')->nullable();
             $table->string('description');

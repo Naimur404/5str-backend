@@ -6,6 +6,7 @@ use App\Filament\Resources\OfferingSubmissionResource\Pages;
 use App\Models\OfferingSubmission;
 use App\Models\BusinessOffering;
 use App\Models\Business;
+use App\Traits\AwardsSubmissionPoints;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 
 class OfferingSubmissionResource extends Resource
 {
+    use AwardsSubmissionPoints;
     protected static ?string $model = OfferingSubmission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-gift';
@@ -247,6 +249,9 @@ class OfferingSubmissionResource extends Resource
                 'reviewed_at' => now(),
                 'approved_offering_id' => $offering->id,
             ]);
+            
+            // Award points to the user for approved submission
+            self::awardSubmissionPoints($submission);
             
             Notification::make()
                 ->title('Offering Approved Successfully')

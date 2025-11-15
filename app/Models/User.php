@@ -140,6 +140,21 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(UserInteraction::class);
     }
 
+    public function businessSubmissions()
+    {
+        return $this->hasMany(BusinessSubmission::class);
+    }
+
+    public function attractionSubmissions()
+    {
+        return $this->hasMany(AttractionSubmission::class);
+    }
+
+    public function offeringSubmissions()
+    {
+        return $this->hasMany(OfferingSubmission::class);
+    }
+
     /**
      * Check if user can access Filament admin panel
      */

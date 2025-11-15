@@ -8,6 +8,7 @@ use App\Models\BusinessSubmission;
 use App\Models\Business;
 use App\Models\User;
 use App\Models\Category;
+use App\Traits\AwardsSubmissionPoints;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 
 class BusinessSubmissionResource extends Resource
 {
+    use AwardsSubmissionPoints;
     protected static ?string $model = BusinessSubmission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
@@ -249,6 +251,9 @@ class BusinessSubmissionResource extends Resource
                 'reviewed_at' => now(),
                 'approved_business_id' => $business->id,
             ]);
+            
+            // Award points to the user for approved submission
+            self::awardSubmissionPoints($submission);
             
             Notification::make()
                 ->title('Business Approved Successfully')

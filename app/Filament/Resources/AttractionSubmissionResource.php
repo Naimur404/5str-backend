@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AttractionSubmissionResource\Pages;
 use App\Models\AttractionSubmission;
 use App\Models\Attraction;
+use App\Traits\AwardsSubmissionPoints;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 
 class AttractionSubmissionResource extends Resource
 {
+    use AwardsSubmissionPoints;
     protected static ?string $model = AttractionSubmission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-camera';
@@ -233,6 +235,9 @@ class AttractionSubmissionResource extends Resource
                 'reviewed_at' => now(),
                 'approved_attraction_id' => $attraction->id,
             ]);
+            
+            // Award points to the user for approved submission
+            self::awardSubmissionPoints($submission);
             
             Notification::make()
                 ->title('Attraction Approved Successfully')
