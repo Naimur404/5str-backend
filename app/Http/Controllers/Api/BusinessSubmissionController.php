@@ -314,6 +314,8 @@ class BusinessSubmissionController extends Controller
                             'type' => 'attraction',
                             'name' => $submission->name,
                             'status' => $submission->status,
+                            'address' => $submission->address,
+                            'city' => $submission->city,
                             'submitted_at' => $submission->created_at,
                             'reviewed_at' => $submission->reviewed_at,
                             'admin_notes' => $submission->admin_notes,
