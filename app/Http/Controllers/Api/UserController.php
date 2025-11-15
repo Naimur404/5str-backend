@@ -166,8 +166,7 @@ class UserController extends Controller
             }
 
             // Privacy settings - hide sensitive info if not own profile
-            if (!$authUser || $authUser->id !== $user->id) {
-                unset($profileData['total_points']); // Hide exact points from other users
+            if (!$authUser || $authUser->id !== $user->id) { // Hide exact points from other users
                 $profileData['points_range'] = $this->getPointsRange($user->total_points);
             }
 
