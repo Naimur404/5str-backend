@@ -216,7 +216,7 @@ class AuthController extends Controller
                     'total_points' => $user->total_points,
                     'total_favorites' => $totalFavorites,
                     'total_reviews' => $totalReviews,
-                    'total_submissions' => $user->attractionSubmissions()->count() + $user->businessSubmissions()->count() + $user->offeringSubmissions()->count(),
+                    'total_submissions' => $this->getTotalSubmissionsCount($user),
                     'user_level' => $userLevel,
                     'is_active' => $user->is_active,
                     'role' => $user->roles->first()?->name ?? 'user',
@@ -428,5 +428,23 @@ class AuthController extends Controller
             'trust_contribution' => round($trustScore, 2),
             'next_level_threshold' => $level < 5 ? $nextThreshold : null,
         ];
+    }
+
+    /**
+     * Get total submissions count safely
+     */
+    private function getTotalSubmissionsCount($user)
+    {
+        try {
+            $businessCount = method_exists($user, 'businessSubmissions') ? $user->businessSubmissions()->count() : 0;
+            $attractionCount = method_exists($user, 'attractionSubmissions') ? $user->attractionSubmissions()->count() : 0;
+            $offeringCount = method_exists($user, 'offeringSubmissions') ? $user->offeringSubmissions()->count() : 0;
+            
+            return $businessCount + $attractionCount + $offeringCount;
+        } catch (\Exception $e) {
+            // Log the error for debugging
+            Log::warning('Error calculating total submissions count: ' . $e->getMessage());
+            return 0;
+        }
     }
 }
