@@ -216,6 +216,7 @@ class AuthController extends Controller
                     'total_points' => $user->total_points,
                     'total_favorites' => $totalFavorites,
                     'total_reviews' => $totalReviews,
+                    'total_submissions' => $user->attractionSubmissions()->count() + $user->businessSubmissions()->count() + $user->offeringSubmissions()->count(),
                     'user_level' => $userLevel,
                     'is_active' => $user->is_active,
                     'role' => $user->roles->first()?->name ?? 'user',

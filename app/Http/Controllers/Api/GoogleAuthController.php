@@ -19,13 +19,12 @@ class GoogleAuthController extends Controller
     {
         try {
             return response()->json([
-                'success' => true,
-                'url' => Socialite::driver('google')->stateless()->redirect()->getTargetUrl(),
+                'url' => Socialite::driver('google')->redirect()->getTargetUrl(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to generate Google OAuth URL',
-                'message' => $e->getMessage()
+                'message' => 'Failed to generate Google auth URL',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -37,7 +36,7 @@ class GoogleAuthController extends Controller
     {
         try {
             // Get user info from Google
-            $googleUser = Socialite::driver('google')->stateless()->user();
+            $googleUser = Socialite::driver('google')->user();
             
             // Find or create user
             $user = User::where('email', $googleUser->email)

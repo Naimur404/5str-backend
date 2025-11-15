@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\AttractionController;
 use App\Http\Controllers\Api\AttractionInteractionController;
 use App\Http\Controllers\Api\AttractionReviewController;
 use App\Http\Controllers\Api\GoogleAuthController;
+use App\Http\Controllers\Api\BusinessSubmissionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -118,6 +119,7 @@ Route::prefix('v1')->group(function () {
     // Public business routes (with optional authentication for favorites)
     Route::prefix('businesses')->group(function () {
         Route::get('/', [BusinessController::class, 'index']);
+        Route::get('/categories', [BusinessSubmissionController::class, 'getBusinessCategories']); // Business categories endpoint
         Route::get('/search', [BusinessController::class, 'search']);
         Route::get('/nearby', [BusinessController::class, 'nearby']);
         Route::get('/featured', [BusinessController::class, 'featured']);
@@ -291,6 +293,19 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::post('/batch', [\App\Http\Controllers\Api\UserInteractionController::class, 'batch']);
         Route::get('/history', [\App\Http\Controllers\Api\UserInteractionController::class, 'history']);
         Route::get('/personalization-summary', [\App\Http\Controllers\Api\UserInteractionController::class, 'personalizationSummary']);
+    });
+
+    // Business, Attraction & Offering Submissions (Community Contributions)
+    Route::prefix('submissions')->group(function () {
+        // Submit new content
+        Route::post('/business', [BusinessSubmissionController::class, 'submitBusiness']);
+        Route::post('/attraction', [BusinessSubmissionController::class, 'submitAttraction']);
+        Route::post('/offering', [BusinessSubmissionController::class, 'submitOffering']);
+        
+        // Get user's submissions
+        Route::get('/my-submissions', [BusinessSubmissionController::class, 'getUserSubmissions']);
+        Route::get('/{type}/{id}', [BusinessSubmissionController::class, 'getSubmissionDetails'])
+            ->where('type', 'business|attraction|offering');
     });
 
     // Attraction user interactions (require login)
