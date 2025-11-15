@@ -186,7 +186,7 @@ class GoogleAuthController extends Controller
                                 'name' => $user->name,
                                 'email' => $user->email,
                                 'phone' => $user->phone,
-                                'profile_image' => $user->profile_image,
+                                'profile_image' => $user->avatar,
                                 'current_latitude' => $user->current_latitude,
                                 'current_longitude' => $user->current_longitude,
                                 'city' => $user->city,

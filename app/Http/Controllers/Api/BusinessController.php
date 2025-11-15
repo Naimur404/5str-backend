@@ -941,7 +941,7 @@ public function offerings(Request $request, $businessId)
                     'user' => [
                         'id' => $review->user->id,
                         'name' => $review->user->name,
-                        'profile_image' => $review->user->profile_image,
+                        'profile_image' => $review->user->profile_image ? $review->user->avatar : null,
                         'user_level' => $review->user->getUserLevel(),
                         'trust_level' => $review->user->trust_level,
                         'total_points' => $review->user->total_points,
