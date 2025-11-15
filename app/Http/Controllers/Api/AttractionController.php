@@ -339,7 +339,8 @@ class AttractionController extends Controller
                             'id' => $review->user->id,
                             'name' => $review->user->name,
                             'profile_image' => $review->user->profile_image,
-                            'trust_level' => $review->user->trust_level,
+                            'trust_level' => $review->user->getUserLevel,
+                            'total_points' => $review->user->total_points
                         ],
                         'rating' => (float) $review->rating,
                         'title' => $review->title,

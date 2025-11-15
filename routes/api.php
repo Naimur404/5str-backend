@@ -207,6 +207,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('/points', [UserController::class, 'points']);
     });
 
+    // User profiles (public access with auth for enhanced features)
+    Route::get('/users/{user}/profile', [UserController::class, 'profile']);
+
     // Notification management (require login)
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);

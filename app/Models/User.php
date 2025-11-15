@@ -162,4 +162,90 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasAnyRole(['admin', 'super-admin', 'moderator', 'business-owner']);
     }
+
+    /**
+     * Check if user is a verified reviewer
+     */
+    public function isVerifiedReviewer(): bool
+    {
+        // Define criteria for a verified reviewer
+        return $this->trust_level >= 3 && $this->total_reviews_written >= 5;
+    }
+
+    /**
+     * Get user's achievements and badges
+     */
+    public function getAchievements(): array
+    {
+        $achievements = [];
+
+        // Review milestones
+        if ($this->total_reviews_written >= 100) {
+            $achievements[] = ['name' => 'Master Reviewer', 'icon' => '🌟', 'description' => '100+ reviews written'];
+        } elseif ($this->total_reviews_written >= 50) {
+            $achievements[] = ['name' => 'Expert Reviewer', 'icon' => '⭐', 'description' => '50+ reviews written'];
+        } elseif ($this->total_reviews_written >= 20) {
+            $achievements[] = ['name' => 'Active Reviewer', 'icon' => '📝', 'description' => '20+ reviews written'];
+        } elseif ($this->total_reviews_written >= 10) {
+            $achievements[] = ['name' => 'Regular Contributor', 'icon' => '✍️', 'description' => '10+ reviews written'];
+        }
+
+        // Trust level badges
+        switch ($this->trust_level) {
+            case 5:
+                $achievements[] = ['name' => 'Community Leader', 'icon' => '👑', 'description' => 'Maximum trust level'];
+                break;
+            case 4:
+                $achievements[] = ['name' => 'Trusted Member', 'icon' => '🛡️', 'description' => 'High trust level'];
+                break;
+            case 3:
+                $achievements[] = ['name' => 'Verified User', 'icon' => '✓', 'description' => 'Verified reviewer status'];
+                break;
+        }
+
+        // Points milestones
+        if ($this->total_points >= 10000) {
+            $achievements[] = ['name' => 'Point Master', 'icon' => '💎', 'description' => '10,000+ points earned'];
+        } elseif ($this->total_points >= 5000) {
+            $achievements[] = ['name' => 'Point Collector', 'icon' => '💰', 'description' => '5,000+ points earned'];
+        } elseif ($this->total_points >= 1000) {
+            $achievements[] = ['name' => 'Point Earner', 'icon' => '🪙', 'description' => '1,000+ points earned'];
+        }
+
+        return $achievements;
+    }
+
+    /**
+     * Get user's level based on points or activity
+     */
+    public function getUserLevel(): array
+    {
+        $points = $this->total_points ?? 0;
+        $reviews = $this->total_reviews_written ?? 0;
+        
+        // Calculate level based on combined activity
+        $activityScore = $points + ($reviews * 50); // Reviews worth 50 points each for level calculation
+        
+        if ($activityScore >= 20000) {
+            return ['level' => 10, 'title' => 'Legend', 'icon' => '👑', 'color' => '#FFD700'];
+        } elseif ($activityScore >= 15000) {
+            return ['level' => 9, 'title' => 'Master', 'icon' => '🏆', 'color' => '#C0C0C0'];
+        } elseif ($activityScore >= 10000) {
+            return ['level' => 8, 'title' => 'Expert', 'icon' => '🥇', 'color' => '#CD7F32'];
+        } elseif ($activityScore >= 7500) {
+            return ['level' => 7, 'title' => 'Veteran', 'icon' => '🎖️', 'color' => '#9370DB'];
+        } elseif ($activityScore >= 5000) {
+            return ['level' => 6, 'title' => 'Advanced', 'icon' => '⭐', 'color' => '#FF6347'];
+        } elseif ($activityScore >= 3000) {
+            return ['level' => 5, 'title' => 'Experienced', 'icon' => '🌟', 'color' => '#32CD32'];
+        } elseif ($activityScore >= 2000) {
+            return ['level' => 4, 'title' => 'Regular', 'icon' => '📝', 'color' => '#4169E1'];
+        } elseif ($activityScore >= 1000) {
+            return ['level' => 3, 'title' => 'Active', 'icon' => '✍️', 'color' => '#FF8C00'];
+        } elseif ($activityScore >= 500) {
+            return ['level' => 2, 'title' => 'Contributor', 'icon' => '📋', 'color' => '#20B2AA'];
+        } else {
+            return ['level' => 1, 'title' => 'Newcomer', 'icon' => '🆕', 'color' => '#808080'];
+        }
+    }
 }

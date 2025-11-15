@@ -10,11 +10,209 @@ use App\Models\Business;
 use App\Models\BusinessOffering;
 use App\Models\Attraction;
 use App\Models\UserAttractionInteraction;
+use App\Models\User;
+use App\Models\BusinessSubmission;
+use App\Models\AttractionSubmission;
+use App\Models\OfferingSubmission;
+use App\Models\UserCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
+    /**
+     * Get user profile information (public profile view)
+     */
+    public function profile(Request $request, $userId)
+    {
+        try {
+            $user = User::findOrFail($userId);
+            $authUser = Auth::user();
+
+            // Basic user information
+            $profileData = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'profile_image' => $user->profile_image,
+                'city' => $user->city,
+                'trust_level' => $user->trust_level,
+                'total_points' => $user->total_points,
+                'total_reviews_written' => $user->total_reviews_written,
+                'is_verified_reviewer' => $user->isVerifiedReviewer(),
+                'member_since' => $user->created_at->format('F Y'),
+                'is_active' => $user->is_active,
+            ];
+
+            // Add user level and achievements
+            $profileData['user_level'] = $user->getUserLevel();
+            $profileData['achievements'] = $user->getAchievements();
+
+            // Statistics
+            $stats = [
+                'total_reviews' => $user->reviews()->approved()->count(),
+                'total_helpful_votes_received' => $user->reviews()->sum('helpful_count'),
+                'total_businesses_reviewed' => $user->reviews()
+                    ->where('reviewable_type', 'App\\Models\\Business')
+                    ->approved()
+                    ->distinct('reviewable_id')
+                    ->count('reviewable_id'),
+                'total_offerings_reviewed' => $user->reviews()
+                    ->where('reviewable_type', 'App\\Models\\BusinessOffering')
+                    ->approved()
+                    ->distinct('reviewable_id')
+                    ->count('reviewable_id'),
+                'average_rating_given' => round($user->reviews()->approved()->avg('overall_rating') ?? 0, 1),
+            ];
+
+            // Submission statistics
+            $submissionStats = [
+                'business_submissions' => $user->businessSubmissions()->count(),
+                'approved_business_submissions' => $user->businessSubmissions()->where('status', 'approved')->count(),
+                'attraction_submissions' => $user->attractionSubmissions()->count(),
+                'approved_attraction_submissions' => $user->attractionSubmissions()->where('status', 'approved')->count(),
+                'offering_submissions' => $user->offeringSubmissions()->count(),
+                'approved_offering_submissions' => $user->offeringSubmissions()->where('status', 'approved')->count(),
+            ];
+
+            $submissionStats['total_submissions'] = $submissionStats['business_submissions'] + 
+                                                  $submissionStats['attraction_submissions'] + 
+                                                  $submissionStats['offering_submissions'];
+
+            $submissionStats['total_approved_submissions'] = $submissionStats['approved_business_submissions'] + 
+                                                           $submissionStats['approved_attraction_submissions'] + 
+                                                           $submissionStats['approved_offering_submissions'];
+
+            // Collection statistics
+            $collectionStats = [
+                'total_collections' => $user->collections()->count(),
+                'public_collections' => $user->collections()->where('is_public', true)->count(),
+                'total_collection_followers' => $user->collections()
+                    ->withCount('followers')
+                    ->get()
+                    ->sum('followers_count'),
+            ];
+
+            // Recent activity (last 5 approved reviews)
+            $recentReviews = $user->reviews()
+                ->approved()
+                ->with(['reviewable'])
+                ->orderBy('created_at', 'desc')
+                ->take(5)
+                ->get()
+                ->map(function($review) {
+                    $reviewable = $review->reviewable;
+                    if (!$reviewable) return null;
+
+                    $baseData = [
+                        'id' => $review->id,
+                        'overall_rating' => $review->overall_rating,
+                        'title' => $review->title,
+                        'review_text' => strlen($review->review_text) > 150 
+                            ? substr($review->review_text, 0, 150) . '...' 
+                            : $review->review_text,
+                        'helpful_count' => $review->helpful_count,
+                        'created_at' => $review->created_at->diffForHumans(),
+                        'review_type' => $review->reviewable_type === 'App\\Models\\Business' ? 'business' : 'offering',
+                    ];
+
+                    if ($review->reviewable_type === 'App\\Models\\Business') {
+                        $baseData['business'] = [
+                            'id' => $reviewable->id,
+                            'name' => $reviewable->business_name,
+                            'slug' => $reviewable->slug,
+                        ];
+                    } else {
+                        $baseData['offering'] = [
+                            'id' => $reviewable->id,
+                            'name' => $reviewable->name,
+                            'business_name' => $reviewable->business->business_name ?? null,
+                        ];
+                    }
+
+                    return $baseData;
+                })->filter();
+
+            // Recent public collections (if any)
+            $recentCollections = $user->collections()
+                ->where('is_public', true)
+                ->withCount('businesses')
+                ->orderBy('updated_at', 'desc')
+                ->take(3)
+                ->get()
+                ->map(function($collection) {
+                    return [
+                        'id' => $collection->id,
+                        'name' => $collection->name,
+                        'description' => $collection->description,
+                        'businesses_count' => $collection->businesses_count,
+                        'is_featured' => $collection->is_featured,
+                        'updated_at' => $collection->updated_at->diffForHumans(),
+                    ];
+                });
+
+            // Points breakdown (if viewing own profile or admin)
+            $pointsBreakdown = null;
+            if ($authUser && ($authUser->id === $user->id || $authUser->hasAnyRole(['admin', 'super-admin']))) {
+                $pointsBreakdown = $user->points()
+                    ->selectRaw('point_type, SUM(points) as total_points, COUNT(*) as total_activities')
+                    ->groupBy('point_type')
+                    ->get()
+                    ->mapWithKeys(function($item) {
+                        return [$item->point_type => [
+                            'total_points' => (int) $item->total_points,
+                            'total_activities' => (int) $item->total_activities
+                        ]];
+                    });
+            }
+
+            // Privacy settings - hide sensitive info if not own profile
+            if (!$authUser || $authUser->id !== $user->id) {
+                unset($profileData['total_points']); // Hide exact points from other users
+                $profileData['points_range'] = $this->getPointsRange($user->total_points);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'profile' => $profileData,
+                    'statistics' => $stats,
+                    'submissions' => $submissionStats,
+                    'collections' => $collectionStats,
+                    'recent_reviews' => $recentReviews,
+                    'recent_collections' => $recentCollections,
+                    'points_breakdown' => $pointsBreakdown,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User profile not found',
+                'error' => $e->getMessage()
+            ], 404);
+        }
+    }
+
+    /**
+     * Get points range for privacy (instead of exact points)
+     */
+    private function getPointsRange($points)
+    {
+        if ($points >= 10000) {
+            return '10,000+';
+        } elseif ($points >= 5000) {
+            return '5,000 - 9,999';
+        } elseif ($points >= 1000) {
+            return '1,000 - 4,999';
+        } elseif ($points >= 500) {
+            return '500 - 999';
+        } elseif ($points >= 100) {
+            return '100 - 499';
+        } else {
+            return '0 - 99';
+        }
+    }
+
     /**
      * Get user's favorite businesses and offerings
      */
