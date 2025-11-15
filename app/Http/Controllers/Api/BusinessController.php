@@ -942,8 +942,9 @@ public function offerings(Request $request, $businessId)
                         'id' => $review->user->id,
                         'name' => $review->user->name,
                         'profile_image' => $review->user->profile_image,
-                        'trust_level' => $review->user->getUserLevel,
-                        'total_points' => $review->user->total_points
+                        'user_level' => $review->user->getUserLevel(),
+                        'trust_level' => $review->user->trust_level,
+                        'total_points' => $review->user->total_points,
                     ],
                     'images' => $review->images->map(function($image) {
                         return [
