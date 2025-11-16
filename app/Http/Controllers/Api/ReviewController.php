@@ -232,7 +232,7 @@ class ReviewController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Review submitted successfully. It will be visible after admin approval.',
+                'message' => 'Review submitted successfully. It will be visible now.',
                 'data' => [
                     'review' => [
                         'id' => $review->id,
