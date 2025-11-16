@@ -194,7 +194,7 @@ class ReviewController extends Controller
                 'party_size' => $request->party_size,
                 'is_recommended' => $request->is_recommended ?? true,
                 'is_verified_visit' => $request->is_verified_visit ?? false,
-                'status' => 'pending', // Reviews need approval by default
+                'status' => 'approved', // Reviews need approval by default
             ]);
 
             // Handle image uploads if provided
