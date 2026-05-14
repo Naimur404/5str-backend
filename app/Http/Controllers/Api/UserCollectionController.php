@@ -60,11 +60,10 @@ class UserCollectionController extends Controller
             $image = $request->file('cover_image');
             $imageName = 'collection_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
             
-            // Store in public/storage/collections directory
-            $imagePath = $image->storeAs('collections', $imageName, 'public');
-            $coverImageUrl = asset('storage/' . $imagePath);
+            $imagePath = $image->storeAs('collections', $imageName, 'r2');
+            $coverImageUrl = Storage::disk('r2')->url($imagePath);
         }
-        
+
         $collection = UserCollection::create([
             'user_id' => $user->id,
             'name' => $request->name,
@@ -169,17 +168,17 @@ class UserCollectionController extends Controller
         if ($request->hasFile('cover_image')) {
             // Delete old image if it exists
             if ($collection->cover_image) {
-                $oldImagePath = str_replace(url('storage/'), '', $collection->cover_image);
-                if (Storage::disk('public')->exists($oldImagePath)) {
-                    Storage::disk('public')->delete($oldImagePath);
+                $oldImagePath = ltrim(parse_url($collection->cover_image, PHP_URL_PATH) ?? '', '/');
+                if ($oldImagePath && Storage::disk('r2')->exists($oldImagePath)) {
+                    Storage::disk('r2')->delete($oldImagePath);
                 }
             }
-            
+
             // Upload new image
             $image = $request->file('cover_image');
             $imageName = 'collection_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('collections', $imageName, 'public');
-            $coverImageUrl = asset('storage/' . $imagePath);
+            $imagePath = $image->storeAs('collections', $imageName, 'r2');
+            $coverImageUrl = Storage::disk('r2')->url($imagePath);
         }
 
         $collection->update([

@@ -22,8 +22,7 @@ class GalleriesRelationManager extends RelationManager
                 Forms\Components\FileUpload::make('image_path')
                     ->label('Upload Image')
                     ->image()
-                    ->disk('public')
-                    ->directory('attractions/gallery')
+                    ->r2Storage('attractions/gallery')
                     ->imageEditor()
                     ->helperText('Upload an image file or use the external URL field below'),
                 Forms\Components\TextInput::make('image_url')

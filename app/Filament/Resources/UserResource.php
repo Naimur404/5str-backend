@@ -73,7 +73,7 @@ class UserResource extends Resource
                             ->maxLength(255),
                         Forms\Components\FileUpload::make('profile_image')
                             ->image()
-                            ->directory('profile-images'),
+                            ->r2Storage('profile-images'),
                     ])->columns(2),
                     
                 Forms\Components\Section::make('Location')

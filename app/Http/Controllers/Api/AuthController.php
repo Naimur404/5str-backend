@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\EmailVerificationCode;
 use App\Mail\EmailVerification;
+use App\Support\R2Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -209,7 +210,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'phone' => $user->phone,
                     'city' => $user->city,
-                    'profile_image' => $user->profile_image ? url('storage/' . $user->profile_image) : null,
+                    'profile_image' => R2Storage::urlFromValue($user->profile_image),
                     'current_latitude' => $user->current_latitude,
                     'current_longitude' => $user->current_longitude,
                     'trust_level' => $user->trust_level,
@@ -270,13 +271,11 @@ class AuthController extends Controller
 
             // Handle base64 image upload
             if ($request->has('profile_image') && !empty($request->profile_image)) {
-                $profileImagePath = $this->handleBase64ImageUpload($request->profile_image, $user->id);
-                if ($profileImagePath) {
+                $profileImageUrl = $this->handleBase64ImageUpload($request->profile_image, $user->id);
+                if ($profileImageUrl) {
                     // Delete old profile image if exists
-                    if ($user->profile_image && Storage::disk('public')->exists($user->profile_image)) {
-                        Storage::disk('public')->delete($user->profile_image);
-                    }
-                    $updateData['profile_image'] = $profileImagePath;
+                    R2Storage::delete($user->profile_image);
+                    $updateData['profile_image'] = $profileImageUrl;
                 }
             }
 
@@ -292,7 +291,7 @@ class AuthController extends Controller
                         'email' => $user->email,
                         'phone' => $user->phone,
                         'city' => $user->city,
-                        'profile_image' => $user->profile_image ? url('storage/' . $user->profile_image) : null,
+                        'profile_image' => R2Storage::urlFromValue($user->profile_image),
                         'current_latitude' => $user->current_latitude,
                         'current_longitude' => $user->current_longitude,
                         'trust_level' => $user->trust_level,
@@ -348,14 +347,7 @@ class AuthController extends Controller
             $filename = 'profile_' . $userId . '_' . time() . '.' . $imageType;
             $filePath = 'profile-images/' . $filename;
 
-            // Save to storage
-            $saved = Storage::disk('public')->put($filePath, $imageData);
-            
-            if (!$saved) {
-                throw new \Exception('Failed to save image');
-            }
-
-            return $filePath;
+            return R2Storage::putUrl($filePath, $imageData);
 
         } catch (\Exception $e) {
             // Log error and return null

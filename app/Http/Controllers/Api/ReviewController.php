@@ -205,12 +205,12 @@ class ReviewController extends Controller
                     $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
                     
                     // Store the image (you can customize the storage path)
-                    $path = $image->storeAs('review-images', $filename, 'public');
-                    
+                    $path = $image->storeAs('review-images', $filename, 'r2');
+
                     // Create review image record
                     $reviewImage = ReviewImage::create([
                         'review_id' => $review->id,
-                        'image_url' => '/storage/' . $path,
+                        'image_url' => Storage::disk('r2')->url($path),
                         'original_filename' => $image->getClientOriginalName(),
                     ]);
 
@@ -402,10 +402,9 @@ class ReviewController extends Controller
 
             // Delete associated images
             foreach ($review->images as $image) {
-                // Delete the physical file
-                $imagePath = str_replace('/storage/', '', $image->image_url);
-                if (Storage::disk('public')->exists($imagePath)) {
-                    Storage::disk('public')->delete($imagePath);
+                $imagePath = ltrim(parse_url($image->image_url, PHP_URL_PATH) ?? '', '/');
+                if ($imagePath && Storage::disk('r2')->exists($imagePath)) {
+                    Storage::disk('r2')->delete($imagePath);
                 }
                 $image->delete();
             }

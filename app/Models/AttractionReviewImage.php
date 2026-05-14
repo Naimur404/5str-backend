@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\R2Storage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
@@ -50,21 +51,25 @@ class AttractionReviewImage extends Model
     public function getFullUrlAttribute()
     {
         if ($this->image_url) {
-            return $this->image_url;
+            return R2Storage::urlFromValue($this->image_url);
         }
-        
-        return $this->image_path ? Storage::url($this->image_path) : null;
+
+        return R2Storage::urlFromValue($this->image_path);
     }
 
     public function getThumbnailUrlAttribute()
     {
-        // If we have a thumbnail path, use it; otherwise use the main image
-        $thumbnailPath = str_replace('.', '_thumb.', $this->image_path ?? '');
-        
-        if (Storage::exists($thumbnailPath)) {
-            return Storage::url($thumbnailPath);
+        $sourcePath = R2Storage::pathFromUrl($this->image_path);
+        if (! $sourcePath) {
+            return $this->full_url;
         }
-        
+
+        $thumbnailPath = str_replace('.', '_thumb.', $sourcePath);
+
+        if (Storage::disk(R2Storage::DISK)->exists($thumbnailPath)) {
+            return Storage::disk(R2Storage::DISK)->url($thumbnailPath);
+        }
+
         return $this->full_url;
     }
 
@@ -137,13 +142,13 @@ class AttractionReviewImage extends Model
         
         // When deleting an image, remove the file from storage
         static::deleting(function ($image) {
-            if ($image->image_path && Storage::exists($image->image_path)) {
-                Storage::delete($image->image_path);
-                
-                // Also try to delete thumbnail if it exists
-                $thumbnailPath = str_replace('.', '_thumb.', $image->image_path);
-                if (Storage::exists($thumbnailPath)) {
-                    Storage::delete($thumbnailPath);
+            $path = R2Storage::pathFromUrl($image->image_path);
+            if ($path && Storage::disk(R2Storage::DISK)->exists($path)) {
+                Storage::disk(R2Storage::DISK)->delete($path);
+
+                $thumbnailPath = str_replace('.', '_thumb.', $path);
+                if (Storage::disk(R2Storage::DISK)->exists($thumbnailPath)) {
+                    Storage::disk(R2Storage::DISK)->delete($thumbnailPath);
                 }
             }
         });

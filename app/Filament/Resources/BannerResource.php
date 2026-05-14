@@ -60,9 +60,7 @@ class BannerResource extends Resource
                             ->label('Banner Image')
                             ->image()
                             ->required()
-                            ->directory('banners/images')
-                            ->disk('public')
-                            ->visibility('public')
+                            ->r2Storage('banners/images')
                             ->imageEditor()
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                             ->maxSize(10240), // 10MB

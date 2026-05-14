@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CategoryResource\Pages;
 use App\Models\Category;
+use App\Support\R2Storage;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -78,9 +79,7 @@ class CategoryResource extends Resource
                         Forms\Components\FileUpload::make('icon_image')
                             ->label('Category Icon')
                             ->image()
-                            ->disk('public')
-                            ->directory('category-icons')
-                            ->visibility('public')
+                            ->r2Storage('category-icons')
                             ->imageEditor()
                             ->maxSize(2048)
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
@@ -88,9 +87,7 @@ class CategoryResource extends Resource
                         Forms\Components\FileUpload::make('banner_image')
                             ->label('Category Banner Image')
                             ->image()
-                            ->disk('public')
-                            ->directory('category-images')
-                            ->visibility('public')
+                            ->r2Storage('category-images')
                             ->imageEditor()
                             ->maxSize(2048)
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
@@ -114,7 +111,7 @@ class CategoryResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('icon_image')
                     ->label('Icon')
-                    ->disk('public')
+                    ->getStateUsing(fn ($record) => R2Storage::urlFromValue($record->icon_image))
                     ->size(40)
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
@@ -182,7 +179,7 @@ class CategoryResource extends Resource
                             ->maxLength(1000),
                         Forms\Components\FileUpload::make('icon_image')
                             ->image()
-                            ->directory('categories'),
+                            ->r2Storage('categories'),
                         Forms\Components\ColorPicker::make('color_code'),
                         Forms\Components\Toggle::make('is_active')
                             ->default(true),

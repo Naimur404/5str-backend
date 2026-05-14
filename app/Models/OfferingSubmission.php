@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\R2Storage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -93,8 +94,6 @@ class OfferingSubmission extends Model
             return [];
         }
 
-        return collect($this->images)->map(function ($image) {
-            return url('storage/' . $image);
-        })->toArray();
+        return collect($this->images)->map(fn ($image) => R2Storage::urlFromValue($image))->toArray();
     }
 }

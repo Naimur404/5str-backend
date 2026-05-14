@@ -96,9 +96,7 @@ class BusinessOfferingResource extends Resource
                         Forms\Components\FileUpload::make('image_url')
                             ->label('Image')
                             ->image()
-                            ->directory('offerings/images')
-                            ->disk('public')
-                            ->visibility('public')
+                            ->r2Storage('offerings/images')
                             ->imageEditor()
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                             ->maxSize(5120), // 5MB

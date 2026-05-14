@@ -6,6 +6,7 @@ use App\Filament\Resources\OfferingSubmissionResource\Pages;
 use App\Models\OfferingSubmission;
 use App\Models\BusinessOffering;
 use App\Models\Business;
+use App\Support\R2Storage;
 use App\Traits\AwardsSubmissionPoints;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -109,7 +110,7 @@ class OfferingSubmissionResource extends Resource
                     ->label('Images')
                     ->getStateUsing(function ($record) {
                         $images = json_decode($record->images, true);
-                        return $images ? Storage::url($images[0]) : null;
+                        return $images ? R2Storage::urlFromValue($images[0]) : null;
                     })
                     ->size(60),
                 Tables\Columns\TextColumn::make('created_at')
@@ -233,11 +234,14 @@ class OfferingSubmissionResource extends Resource
             // Handle images if they exist
             if ($submission->images) {
                 $images = json_decode($submission->images, true);
-                foreach ($images as $imagePath) {
-                    // Move from submission folder to offering folder
-                    $newPath = str_replace('offering_submissions/', 'offerings/', $imagePath);
-                    if (Storage::disk('public')->exists($imagePath)) {
-                        Storage::disk('public')->copy($imagePath, $newPath);
+                foreach ($images as $imageRef) {
+                    $oldPath = R2Storage::pathFromUrl($imageRef);
+                    if (! $oldPath) {
+                        continue;
+                    }
+                    $newPath = str_replace('offering_submissions/', 'offerings/', $oldPath);
+                    if (Storage::disk('r2')->exists($oldPath)) {
+                        Storage::disk('r2')->copy($oldPath, $newPath);
                     }
                 }
             }

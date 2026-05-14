@@ -7,6 +7,7 @@ use App\Models\BusinessSubmission;
 use App\Models\AttractionSubmission;
 use App\Models\OfferingSubmission;
 use App\Models\Category;
+use App\Support\R2Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
@@ -457,14 +458,7 @@ class BusinessSubmissionController extends Controller
             $filename = uniqid() . '_' . time() . '.' . $imageType;
             $filePath = $folder . '/' . $filename;
 
-            // Save to storage
-            $saved = Storage::disk('public')->put($filePath, $imageData);
-            
-            if (!$saved) {
-                throw new \Exception('Failed to save image');
-            }
-
-            return $filePath;
+            return R2Storage::putUrl($filePath, $imageData);
 
         } catch (\Exception $e) {
             Log::error('Image upload failed: ' . $e->getMessage());

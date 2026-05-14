@@ -30,9 +30,7 @@ class BusinessImagesRelationManager extends RelationManager
                     ->label('Image')
                     ->image()
                     ->required()
-                    ->directory('business/images')
-                    ->disk('public')
-                    ->visibility('public')
+                    ->r2Storage('business/images')
                     ->imageEditor()
                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                     ->maxSize(10240), // 10MB

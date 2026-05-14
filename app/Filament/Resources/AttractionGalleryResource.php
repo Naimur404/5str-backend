@@ -49,15 +49,14 @@ class AttractionGalleryResource extends Resource
                         Forms\Components\FileUpload::make('image_path')
                             ->label('Upload Image')
                             ->image()
-                            ->disk('public')
-                            ->directory('attractions/gallery')
+                            ->r2Storage('attractions/gallery')
                             ->imageEditor()
                             ->imageEditorAspectRatios([
                                 '16:9',
-                                '4:3', 
+                                '4:3',
                                 '1:1',
                             ])
-                            ->helperText('Upload an image file. This will be stored locally.'),
+                            ->helperText('Upload an image file. Will be stored on Cloudflare R2.'),
                         
                         Forms\Components\TextInput::make('image_url')
                             ->label('External Image URL')

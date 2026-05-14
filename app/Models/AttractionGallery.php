@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\R2Storage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
@@ -55,35 +56,25 @@ class AttractionGallery extends Model
      */
     public function getFullImageUrlAttribute()
     {
-        // If image_path exists and the file exists, use it
-        if ($this->image_path && Storage::exists($this->image_path)) {
-            return Storage::url($this->image_path);
+        if ($this->image_path) {
+            return R2Storage::urlFromValue($this->image_path);
         }
-        
-        // If image_url looks like a file path (no http/https), treat it as a storage path
-        if ($this->image_url && !str_starts_with($this->image_url, 'http')) {
-            if (Storage::exists($this->image_url)) {
-                return Storage::url($this->image_url);
-            }
-        }
-        
-        // Otherwise, return the image_url as is (external URL)
-        return $this->image_url;
+
+        return R2Storage::urlFromValue($this->image_url);
     }
 
     public function getThumbnailUrlAttribute()
     {
-        // Generate thumbnail URL based on image path or URL
-        if ($this->image_path) {
-            $pathInfo = pathinfo($this->image_path);
+        $sourcePath = R2Storage::pathFromUrl($this->image_path);
+        if ($sourcePath) {
+            $pathInfo = pathinfo($sourcePath);
             $thumbnailPath = $pathInfo['dirname'] . '/thumbs/' . $pathInfo['filename'] . '_thumb.' . $pathInfo['extension'];
-            
-            if (Storage::exists($thumbnailPath)) {
-                return Storage::url($thumbnailPath);
+
+            if (Storage::disk(R2Storage::DISK)->exists($thumbnailPath)) {
+                return Storage::disk(R2Storage::DISK)->url($thumbnailPath);
             }
         }
-        
-        // Fallback to original image
+
         return $this->full_image_url;
     }
 

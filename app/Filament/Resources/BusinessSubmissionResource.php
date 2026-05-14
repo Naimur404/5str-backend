@@ -8,6 +8,7 @@ use App\Models\BusinessSubmission;
 use App\Models\Business;
 use App\Models\User;
 use App\Models\Category;
+use App\Support\R2Storage;
 use App\Traits\AwardsSubmissionPoints;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -105,7 +106,7 @@ class BusinessSubmissionResource extends Resource
                     ->label('Images')
                     ->getStateUsing(function ($record) {
                         $images = json_decode($record->images, true);
-                        return $images ? Storage::url($images[0]) : null;
+                        return $images ? R2Storage::urlFromValue($images[0]) : null;
                     })
                     ->size(60),
                 Tables\Columns\TextColumn::make('created_at')
@@ -229,17 +230,14 @@ class BusinessSubmissionResource extends Resource
             // Handle images if they exist
             if ($submission->images) {
                 $images = json_decode($submission->images, true);
-                foreach ($images as $imagePath) {
-                    // Move from submission folder to business folder
-                    $newPath = str_replace('business_submissions/', 'businesses/', $imagePath);
-                    if (Storage::disk('public')->exists($imagePath)) {
-                        Storage::disk('public')->copy($imagePath, $newPath);
-                        
-                        // Create gallery entry (if you have a business gallery model)
-                        // BusinessGallery::create([
-                        //     'business_id' => $business->id,
-                        //     'image_path' => $newPath,
-                        // ]);
+                foreach ($images as $imageRef) {
+                    $oldPath = R2Storage::pathFromUrl($imageRef);
+                    if (! $oldPath) {
+                        continue;
+                    }
+                    $newPath = str_replace('business_submissions/', 'businesses/', $oldPath);
+                    if (Storage::disk('r2')->exists($oldPath)) {
+                        Storage::disk('r2')->copy($oldPath, $newPath);
                     }
                 }
             }

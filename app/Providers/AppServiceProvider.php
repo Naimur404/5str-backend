@@ -9,6 +9,10 @@ use App\Models\Review;
 use App\Observers\BusinessObserver;
 use App\Observers\OfferObserver;
 use App\Observers\ReviewObserver;
+use App\Support\R2Storage;
+use Filament\Forms\Components\FileUpload;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +33,41 @@ class AppServiceProvider extends ServiceProvider
         Business::observe(BusinessObserver::class);
         Offer::observe(OfferObserver::class);
         Review::observe(ReviewObserver::class);
+
+        FileUpload::macro('r2Storage', function (string $directory) {
+            /** @var FileUpload $this */
+            return $this
+                ->disk(R2Storage::DISK)
+                ->directory($directory)
+                ->visibility('public')
+                ->fetchFileInformation(false)
+                ->saveUploadedFileUsing(function (FileUpload $component, UploadedFile $file) {
+                    $directory = $component->getDirectory();
+                    $name = $component->getUploadedFileNameForStorage($file);
+                    $path = trim(($directory ? rtrim($directory, '/') . '/' : '') . $name, '/');
+                    $stream = fopen($file->getRealPath(), 'rb');
+                    Storage::disk(R2Storage::DISK)->put($path, $stream, $component->getVisibility());
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                    return Storage::disk(R2Storage::DISK)->url($path);
+                })
+                ->getUploadedFileUsing(function (FileUpload $component, string $file, string | array | null $storedFileNames): ?array {
+                    $url = R2Storage::urlFromValue($file);
+                    if (! $url) {
+                        return null;
+                    }
+                    return [
+                        'name' => ($component->isMultiple() ? ($storedFileNames[$file] ?? null) : $storedFileNames) ?? basename(parse_url($url, PHP_URL_PATH) ?? $url),
+                        'size' => 0,
+                        'type' => null,
+                        'url' => $url,
+                    ];
+                })
+                ->deleteUploadedFileUsing(function ($file) {
+                    R2Storage::delete($file);
+                });
+        });
 
         // Register all Filament widgets with Livewire
         Livewire::component('app.filament.widgets.platform-stats-overview', \App\Filament\Widgets\PlatformStatsOverview::class);

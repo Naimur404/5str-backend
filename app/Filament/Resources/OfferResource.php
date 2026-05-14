@@ -116,9 +116,7 @@ class OfferResource extends Resource
                         Forms\Components\FileUpload::make('banner_image')
                             ->label('Banner Image')
                             ->image()
-                            ->directory('offers/banners')
-                            ->disk('public')
-                            ->visibility('public')
+                            ->r2Storage('offers/banners')
                             ->imageEditor()
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                             ->maxSize(5120), // 5MB
