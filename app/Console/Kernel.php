@@ -34,16 +34,25 @@ class Kernel extends ConsoleKernel
                  ->withoutOverlapping()
                  ->runInBackground();
 
-        // Update user recommendation cache - every hour for personalized recommendations
-        $schedule->command('queue:work --stop-when-empty')
-                 ->everyMinute()
-                 ->withoutOverlapping()
-                 ->runInBackground();
+        // NOTE: queue jobs are processed by the dedicated supervisor "queue-worker"
+        // process inside the Docker container, so no queue:work is scheduled here.
 
         // Sync category business counts - daily at 4 AM (as a backup to observer)
         $schedule->command('categories:sync-business-counts')
                  ->dailyAt('04:00')
                  ->withoutOverlapping()
+                 ->runInBackground();
+
+        // --- Cleanup tasks -------------------------------------------------
+        // Remove incorrect cross-category business similarities - daily at 4:30 AM
+        $schedule->command('business:clean-wrong-similarities')
+                 ->dailyAt('04:30')
+                 ->withoutOverlapping()
+                 ->runInBackground();
+
+        // Prune failed queue jobs older than 7 days - daily at 5 AM
+        $schedule->command('queue:prune-failed --hours=168')
+                 ->dailyAt('05:00')
                  ->runInBackground();
     }
 
