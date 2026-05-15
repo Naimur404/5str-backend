@@ -87,6 +87,12 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh  /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# Nginx runs its workers as www-data, so its temp/cache/log directories must
+# be writable by that user — otherwise large FastCGI responses that spill to
+# disk fail with "Permission denied" and get truncated.
+RUN mkdir -p /var/lib/nginx/tmp /var/log/nginx \
+    && chown -R www-data:www-data /var/lib/nginx /var/log/nginx
+
 # --- Application code ----------------------------------------
 COPY --chown=www-data:www-data . .
 COPY --chown=www-data:www-data --from=vendor /app/vendor ./vendor
