@@ -10,9 +10,13 @@ class TrustProxies extends Middleware
     /**
      * The trusted proxies for this application.
      *
+     * Trust all proxies — the container is only reachable through Coolify's
+     * Traefik reverse proxy, which terminates TLS and forwards
+     * X-Forwarded-Proto so Laravel can detect HTTPS.
+     *
      * @var array<int, string>|string|null
      */
-    protected $proxies;
+    protected $proxies = '*';
 
     /**
      * The headers that should be used to detect proxies.

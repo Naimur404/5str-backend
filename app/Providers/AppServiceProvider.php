@@ -12,6 +12,7 @@ use App\Observers\ReviewObserver;
 use App\Support\R2Storage;
 use Filament\Forms\Components\FileUpload;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +30,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Force HTTPS URL generation when the app is served over HTTPS
+        // (behind Coolify's TLS-terminating proxy). Local http dev is untouched.
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         Business::observe(BusinessObserver::class);
         Offer::observe(OfferObserver::class);
         Review::observe(ReviewObserver::class);
