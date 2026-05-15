@@ -22,7 +22,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Force HTTPS URL generation when served over HTTPS (behind Coolify's
+        // TLS-terminating proxy). Done in register() so it applies before
+        // Filament's panel provider evaluates asset() for logo/favicon URLs.
+        // Triggers on a production env OR an https APP_URL; local dev is untouched.
+        if ($this->app->environment('production')
+            || str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
     }
 
     /**
@@ -30,12 +37,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Force HTTPS URL generation when the app is served over HTTPS
-        // (behind Coolify's TLS-terminating proxy). Local http dev is untouched.
-        if (str_starts_with((string) config('app.url'), 'https://')) {
-            URL::forceScheme('https');
-        }
-
         Business::observe(BusinessObserver::class);
         Offer::observe(OfferObserver::class);
         Review::observe(ReviewObserver::class);

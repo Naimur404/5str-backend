@@ -4,8 +4,8 @@
             <div class="flex flex-col items-center">
                 {{-- Custom Logo Display (this replaces the default brand logo) --}}
                 <div class="mb-6">
-                    <img src="{{ asset('images/logo.png') }}" 
-                         alt="5SRT Business Discovery" 
+                    <img src="/images/logo.png"
+                         alt="5SRT Business Discovery"
                          class="h-16 w-auto mx-auto login-custom-logo">
                 </div>
                 
@@ -62,13 +62,9 @@
             width: auto;
         }
         
-        /* Simple white background */
-        .fi-simple-page {
-            background: white;
-        }
-        
+        /* Card styling — let Filament handle light/dark backgrounds itself
+           so text stays readable in both modes. */
         .fi-simple-main {
-            background: white;
             border-radius: 12px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }

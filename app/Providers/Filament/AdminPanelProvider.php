@@ -28,10 +28,13 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login(\App\Filament\Pages\Auth\Login::class)
             ->brandName('5SRT Business Discovery')
-            ->brandLogo(asset('images/logo.png'))
-            ->darkModeBrandLogo(asset('images/logo.png'))
+            // Root-relative paths — the browser resolves these against the
+            // current page scheme (https), avoiding mixed-content issues
+            // regardless of how asset() URLs are generated server-side.
+            ->brandLogo('/images/logo.png')
+            ->darkModeBrandLogo('/images/logo.png')
             ->brandLogoHeight('2.5rem')
-            ->favicon(asset('images/logo.png'))
+            ->favicon('/images/logo.png')
             ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
                 'Business Management',
