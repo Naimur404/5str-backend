@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Offer;
 use App\Models\User;
+use App\Services\CacheInvalidationService;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Auth;
 
@@ -40,6 +41,9 @@ class OfferObserver
                     ->sendToDatabase($currentUser);
             }
         }
+
+        // Invalidate caches affected by new offer
+        CacheInvalidationService::onOfferChange();
     }
 
     /**
@@ -59,6 +63,9 @@ class OfferObserver
                     ->sendToDatabase($owner);
             }
         }
+
+        // Invalidate caches affected by offer update
+        CacheInvalidationService::onOfferChange();
     }
 
     /**
@@ -66,7 +73,8 @@ class OfferObserver
      */
     public function deleted(Offer $offer): void
     {
-        //
+        // Invalidate caches affected by offer deletion
+        CacheInvalidationService::onOfferChange();
     }
 
     /**

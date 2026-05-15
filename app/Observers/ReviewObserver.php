@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Review;
 use App\Models\User;
+use App\Services\CacheInvalidationService;
 use Filament\Notifications\Notification;
 
 class ReviewObserver
@@ -30,6 +31,9 @@ class ReviewObserver
                     ->sendToDatabase($admin);
             }
         }
+
+        // Invalidate caches affected by new review (ratings may have changed)
+        CacheInvalidationService::onReviewChange();
     }
 
     /**
@@ -62,6 +66,9 @@ class ReviewObserver
                     ->sendToDatabase($reviewer);
             }
         }
+
+        // Invalidate caches affected by review status change
+        CacheInvalidationService::onReviewChange();
     }
 
     /**
@@ -79,6 +86,9 @@ class ReviewObserver
                 ->color('danger')
                 ->sendToDatabase($reviewer);
         }
+
+        // Invalidate caches affected by review deletion
+        CacheInvalidationService::onReviewChange();
     }
 
     /**

@@ -11,8 +11,10 @@ use App\Models\SearchLog;
 use App\Models\Favorite;
 use App\Models\ReviewHelpfulVote;
 use App\Services\AnalyticsService;
+use App\Services\CacheInvalidationService;
 use App\Services\LocationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Support\Facades\Auth;
@@ -458,13 +460,16 @@ class BusinessController extends Controller
     {
         try {
             $limit = $request->input('limit', 10);
+            $cacheKey = CacheInvalidationService::key('businesses:featured', $limit);
 
-            $businesses = Business::active()
-                ->featured()
-                ->with(['category', 'logoImage'])
-                ->orderBy('overall_rating', 'desc')
-                ->take($limit)
-                ->get();
+            $businesses = Cache::remember($cacheKey, CacheInvalidationService::TTL_BUSINESS_FEATURED, function () use ($limit) {
+                return Business::active()
+                    ->featured()
+                    ->with(['category', 'logoImage'])
+                    ->orderBy('overall_rating', 'desc')
+                    ->take($limit)
+                    ->get();
+            });
 
             return response()->json([
                 'success' => true,
@@ -488,135 +493,147 @@ class BusinessController extends Controller
         try {
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
-
-            $query = Business::active()
-                ->national()
-                ->with(['category', 'logoImage']);
-
-            // Category filter
-            if ($request->has('category_id')) {
-                $query->inCategory($request->category_id);
-            }
-            
-            // Category name filter (alternative to category_id)
-            if ($request->has('category')) {
-                $categoryName = $request->category;
-                $query->whereHas('category', function($q) use ($categoryName) {
-                    $q->where('name', 'LIKE', "%{$categoryName}%");
-                });
-            }
-
-            // Business model filter
-            if ($request->has('business_model')) {
-                $query->byBusinessModel($request->business_model);
-            }
-
-            // Product tag filters - NEW
-            if ($request->has('product_tag')) {
-                $query->withProductTag($request->product_tag);
-            }
-
-            if ($request->has('product_tags')) {
-                $tags = is_array($request->product_tags) 
-                    ? $request->product_tags 
-                    : explode(',', $request->product_tags);
-                $query->withAnyProductTag($tags);
-            }
-
-            // Business tag filters - NEW
-            if ($request->has('business_tag')) {
-                $query->withBusinessTag($request->business_tag);
-            }
-
-            // Specific item type filters - NEW
-            if ($request->has('item_type')) {
-                $itemType = $request->item_type;
-                // Normalize item type to handle different formats
-                $normalizedItemType = strtolower(str_replace(['&', ' ', '_'], ['_', '_', '_'], $itemType));
-                $normalizedItemType = preg_replace('/_+/', '_', trim($normalizedItemType, '_'));
-                
-                switch ($normalizedItemType) {
-                    case 'ice_cream':
-                        $query->withAnyProductTag(['ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi']);
-                        break;
-                    case 'biscuits_snacks':
-                        $query->withAnyProductTag(['biscuit', 'cookie', 'snack', 'chips', 'crackers', 'wafer']);
-                        break;
-                    case 'beverages':
-                        $query->withAnyProductTag(['beverage', 'soft drink', 'juice', 'water', 'tea', 'coffee']);
-                        break;
-                    case 'food_processing':
-                        $query->withAnyProductTag(['food processing', 'manufacturing', 'packaged food', 'ready meals']);
-                        break;
-                    case 'food_beverages':
-                    case 'food_and_beverages':
-                        $query->withAnyProductTag(['food', 'beverage', 'restaurant', 'cafe', 'snack', 'meal', 'drink', 'juice', 'coffee', 'tea', 'bakery']);
-                        break;
-                    case 'bakery_cafe':
-                    case 'bakery_and_cafe':
-                        $query->withAnyProductTag(['bakery', 'cafe', 'coffee', 'pastry', 'bread', 'cake', 'biscuit']);
-                        break;
-                }
-            }
-
-            // Rating filter
-            if ($request->has('min_rating')) {
-                $query->where('overall_rating', '>=', $request->min_rating);
-            }
-
-            // Sort options
+            $categoryId = $request->input('category_id');
+            $categoryName = $request->input('category');
+            $businessModel = $request->input('business_model');
+            $productTag = $request->input('product_tag');
+            $productTags = $request->input('product_tags');
+            $businessTag = $request->input('business_tag');
+            $itemType = $request->input('item_type');
+            $minRating = $request->input('min_rating');
             $sortBy = $request->input('sort', 'rating');
-            switch ($sortBy) {
-                case 'rating':
-                    $query->orderByDesc('overall_rating')
-                          ->orderByDesc('total_reviews');
-                    break;
-                case 'popular':
-                    $query->orderByDesc('total_reviews')
-                          ->orderByDesc('overall_rating');
-                    break;
-                case 'name':
-                    $query->orderBy('business_name');
-                    break;
-                case 'featured':
-                    $query->orderByDesc('is_featured')
-                          ->orderByDesc('overall_rating');
-                    break;
-                default:
-                    $query->orderByDesc('overall_rating');
-            }
 
-            $businesses = $query->paginate($limit, ['*'], 'page', $page);
+            $cacheKey = CacheInvalidationService::key(
+                'businesses:national',
+                $categoryId, $categoryName, $businessModel, $productTag,
+                is_array($productTags) ? implode(',', $productTags) : $productTags,
+                $businessTag, $itemType, $minRating, $sortBy, $page, $limit
+            );
 
-            // Transform businesses
-            $transformedBusinesses = collect($businesses->items())->map(function($business) {
-                $businessData = $business->toArray();
-                
-                // Add additional data for national businesses
-                $businessData['is_national'] = true;
-                $businessData['service_coverage'] = $business->service_coverage;
-                $businessData['business_model'] = $business->business_model;
-                $businessData['service_areas'] = $business->service_areas;
-                $businessData['product_tags'] = $business->product_tags; // NEW - Include tags in response
-                $businessData['business_tags'] = $business->business_tags; // NEW - Include tags in response
-                
-                // Add free map alternatives (national businesses may not have specific location)
-                if ($business->latitude && $business->longitude) {
-                    $businessData['free_maps'] = [
-                        'openstreetmap_url' => $business->getOpenStreetMapUrl(),
-                        'leaflet_data' => $business->getLeafletMapData(),
-                        'mapbox_url' => $business->getMapBoxUrl(),
-                    ];
-                } else {
-                    $businessData['free_maps'] = null;
+            $result = Cache::remember($cacheKey, CacheInvalidationService::TTL_NATIONAL_LIST, function () use (
+                $page, $limit, $categoryId, $categoryName, $businessModel,
+                $productTag, $productTags, $businessTag, $itemType, $minRating, $sortBy
+            ) {
+                $query = Business::active()
+                    ->national()
+                    ->with(['category', 'logoImage']);
+
+                // Category filter
+                if ($categoryId) {
+                    $query->inCategory($categoryId);
                 }
                 
-                return $businessData;
-            });
+                // Category name filter
+                if ($categoryName) {
+                    $query->whereHas('category', function($q) use ($categoryName) {
+                        $q->where('name', 'LIKE', "%{$categoryName}%");
+                    });
+                }
 
-            return response()->json([
-                'success' => true,
-                'data' => [
+                // Business model filter
+                if ($businessModel) {
+                    $query->byBusinessModel($businessModel);
+                }
+
+                // Product tag filters
+                if ($productTag) {
+                    $query->withProductTag($productTag);
+                }
+
+                if ($productTags) {
+                    $tags = is_array($productTags) 
+                        ? $productTags 
+                        : explode(',', $productTags);
+                    $query->withAnyProductTag($tags);
+                }
+
+                // Business tag filters
+                if ($businessTag) {
+                    $query->withBusinessTag($businessTag);
+                }
+
+                // Specific item type filters
+                if ($itemType) {
+                    $normalizedItemType = strtolower(str_replace(['&', ' ', '_'], ['_', '_', '_'], $itemType));
+                    $normalizedItemType = preg_replace('/_+/', '_', trim($normalizedItemType, '_'));
+                    
+                    switch ($normalizedItemType) {
+                        case 'ice_cream':
+                            $query->withAnyProductTag(['ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi']);
+                            break;
+                        case 'biscuits_snacks':
+                            $query->withAnyProductTag(['biscuit', 'cookie', 'snack', 'chips', 'crackers', 'wafer']);
+                            break;
+                        case 'beverages':
+                            $query->withAnyProductTag(['beverage', 'soft drink', 'juice', 'water', 'tea', 'coffee']);
+                            break;
+                        case 'food_processing':
+                            $query->withAnyProductTag(['food processing', 'manufacturing', 'packaged food', 'ready meals']);
+                            break;
+                        case 'food_beverages':
+                        case 'food_and_beverages':
+                            $query->withAnyProductTag(['food', 'beverage', 'restaurant', 'cafe', 'snack', 'meal', 'drink', 'juice', 'coffee', 'tea', 'bakery']);
+                            break;
+                        case 'bakery_cafe':
+                        case 'bakery_and_cafe':
+                            $query->withAnyProductTag(['bakery', 'cafe', 'coffee', 'pastry', 'bread', 'cake', 'biscuit']);
+                            break;
+                    }
+                }
+
+                // Rating filter
+                if ($minRating) {
+                    $query->where('overall_rating', '>=', $minRating);
+                }
+
+                // Sort options
+                switch ($sortBy) {
+                    case 'rating':
+                        $query->orderByDesc('overall_rating')
+                              ->orderByDesc('total_reviews');
+                        break;
+                    case 'popular':
+                        $query->orderByDesc('total_reviews')
+                              ->orderByDesc('overall_rating');
+                        break;
+                    case 'name':
+                        $query->orderBy('business_name');
+                        break;
+                    case 'featured':
+                        $query->orderByDesc('is_featured')
+                              ->orderByDesc('overall_rating');
+                        break;
+                    default:
+                        $query->orderByDesc('overall_rating');
+                }
+
+                $businesses = $query->paginate($limit, ['*'], 'page', $page);
+
+                // Transform businesses
+                $transformedBusinesses = collect($businesses->items())->map(function($business) {
+                    $businessData = $business->toArray();
+                    
+                    $businessData['is_national'] = true;
+                    $businessData['service_coverage'] = $business->service_coverage;
+                    $businessData['business_model'] = $business->business_model;
+                    $businessData['service_areas'] = $business->service_areas;
+                    $businessData['product_tags'] = $business->product_tags;
+                    $businessData['business_tags'] = $business->business_tags;
+                    
+                    if ($business->latitude && $business->longitude) {
+                        $businessData['free_maps'] = [
+                            'openstreetmap_url' => $business->getOpenStreetMapUrl(),
+                            'leaflet_data' => $business->getLeafletMapData(),
+                            'mapbox_url' => $business->getMapBoxUrl(),
+                        ];
+                    } else {
+                        $businessData['free_maps'] = null;
+                    }
+                    
+                    return $businessData;
+                });
+
+                return [
                     'businesses' => $transformedBusinesses,
                     'pagination' => [
                         'current_page' => $businesses->currentPage(),
@@ -625,7 +642,7 @@ class BusinessController extends Controller
                         'total' => $businesses->total(),
                         'has_more' => $businesses->hasMorePages()
                     ],
-                    'available_filters' => [ // NEW - Show available filter options
+                    'available_filters' => [
                         'item_types' => [
                             'ice_cream' => 'Ice Cream & Dairy',
                             'biscuits_snacks' => 'Biscuits & Snacks', 
@@ -635,7 +652,12 @@ class BusinessController extends Controller
                         'business_models' => ['manufacturing', 'brand', 'delivery_only', 'online_service'],
                         'sort_options' => ['rating', 'popular', 'name', 'featured']
                     ]
-                ]
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $result
             ]);
 
         } catch (\Exception $e) {
@@ -653,44 +675,43 @@ class BusinessController extends Controller
     public function nationalFilters(Request $request)
     {
         try {
-            // Get available product tags from existing national businesses
-            $productTags = Business::active()
-                ->national()
-                ->whereNotNull('product_tags')
-                ->pluck('product_tags')
-                ->flatten()
-                ->unique()
-                ->sort()
-                ->values();
+            $data = Cache::remember('businesses:national_filters', CacheInvalidationService::TTL_NATIONAL_FILTERS, function () {
+                // Get available product tags from existing national businesses
+                $productTags = Business::active()
+                    ->national()
+                    ->whereNotNull('product_tags')
+                    ->pluck('product_tags')
+                    ->flatten()
+                    ->unique()
+                    ->sort()
+                    ->values();
 
-            // Get available business tags from existing national businesses  
-            $businessTags = Business::active()
-                ->national()
-                ->whereNotNull('business_tags')
-                ->pluck('business_tags')
-                ->flatten()
-                ->unique()
-                ->sort()
-                ->values();
+                // Get available business tags from existing national businesses  
+                $businessTags = Business::active()
+                    ->national()
+                    ->whereNotNull('business_tags')
+                    ->pluck('business_tags')
+                    ->flatten()
+                    ->unique()
+                    ->sort()
+                    ->values();
 
-            // Get counts for each item type
-            $itemTypeCounts = [
-                'ice_cream' => Business::active()->national()->withAnyProductTag(['ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi'])->count(),
-                'biscuits_snacks' => Business::active()->national()->withAnyProductTag(['biscuit', 'cookie', 'snack', 'chips', 'crackers', 'wafer'])->count(),
-                'beverages' => Business::active()->national()->withAnyProductTag(['beverage', 'soft drink', 'juice', 'water', 'tea', 'coffee'])->count(),
-                'food_processing' => Business::active()->national()->withAnyProductTag(['food processing', 'manufacturing', 'packaged food', 'ready meals'])->count(),
-            ];
+                // Get counts for each item type
+                $itemTypeCounts = [
+                    'ice_cream' => Business::active()->national()->withAnyProductTag(['ice cream', 'dairy', 'frozen dessert', 'gelato', 'kulfi'])->count(),
+                    'biscuits_snacks' => Business::active()->national()->withAnyProductTag(['biscuit', 'cookie', 'snack', 'chips', 'crackers', 'wafer'])->count(),
+                    'beverages' => Business::active()->national()->withAnyProductTag(['beverage', 'soft drink', 'juice', 'water', 'tea', 'coffee'])->count(),
+                    'food_processing' => Business::active()->national()->withAnyProductTag(['food processing', 'manufacturing', 'packaged food', 'ready meals'])->count(),
+                ];
 
-            // Get business model counts
-            $businessModelCounts = Business::active()
-                ->national()
-                ->selectRaw('business_model, COUNT(*) as count')
-                ->groupBy('business_model')
-                ->pluck('count', 'business_model');
+                // Get business model counts
+                $businessModelCounts = Business::active()
+                    ->national()
+                    ->selectRaw('business_model, COUNT(*) as count')
+                    ->groupBy('business_model')
+                    ->pluck('count', 'business_model');
 
-            return response()->json([
-                'success' => true,
-                'data' => [
+                return [
                     'item_types' => [
                         'ice_cream' => [
                             'label' => 'Ice Cream & Dairy',
@@ -723,7 +744,12 @@ class BusinessController extends Controller
                         'featured' => 'Featured First'
                     ],
                     'total_national_businesses' => Business::active()->national()->count()
-                ]
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
             ]);
 
         } catch (\Exception $e) {

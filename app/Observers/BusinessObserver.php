@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Business;
 use App\Models\User;
 use App\Models\Category;
+use App\Services\CacheInvalidationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Filament\Notifications\Notification;
@@ -49,6 +50,9 @@ class BusinessObserver
 
         // Update category business count when a new business is created
         $this->updateCategoryBusinessCount($business->category_id);
+
+        // Invalidate caches affected by new business
+        CacheInvalidationService::onBusinessChange();
     }
 
     /**
@@ -108,6 +112,9 @@ class BusinessObserver
         if ($business->isDirty('is_active')) {
             $this->updateCategoryBusinessCount($business->category_id);
         }
+
+        // Invalidate caches affected by business update
+        CacheInvalidationService::onBusinessChange();
     }
 
     /**
@@ -117,6 +124,9 @@ class BusinessObserver
     {
         // Update category business count when a business is deleted
         $this->updateCategoryBusinessCount($business->category_id);
+
+        // Invalidate caches affected by business deletion
+        CacheInvalidationService::onBusinessChange();
     }
 
     /**
@@ -126,6 +136,9 @@ class BusinessObserver
     {
         // Update category business count when a business is restored
         $this->updateCategoryBusinessCount($business->category_id);
+
+        // Invalidate caches affected by business restoration
+        CacheInvalidationService::onBusinessChange();
     }
 
     /**
@@ -135,6 +148,9 @@ class BusinessObserver
     {
         // Update category business count when a business is force deleted
         $this->updateCategoryBusinessCount($business->category_id);
+
+        // Invalidate caches affected by business force deletion
+        CacheInvalidationService::onBusinessChange();
     }
 
     /**

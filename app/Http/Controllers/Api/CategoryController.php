@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Business;
 use App\Observers\BusinessObserver;
+use App\Services\CacheInvalidationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class CategoryController extends Controller
@@ -17,45 +19,52 @@ class CategoryController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Category::active();
+            $level = $request->input('level');
+            $parentId = $request->input('parent_id');
+            $includeChildren = $request->boolean('include_children');
 
-            // Filter by level if specified
-            if ($request->has('level')) {
-                $query->level($request->level);
-            }
+            $cacheKey = CacheInvalidationService::key('categories:index', $level, $parentId, $includeChildren ? '1' : '0');
 
-            // Filter by parent if specified
-            if ($request->has('parent_id')) {
-                $query->where('parent_id', $request->parent_id);
-            }
+            $categories = Cache::remember($cacheKey, CacheInvalidationService::TTL_CATEGORIES, function () use ($level, $parentId, $includeChildren) {
+                $query = Category::active();
 
-            // Include children if requested
-            $with = [];
-            if ($request->boolean('include_children')) {
-                $with[] = 'children';
-            }
+                // Filter by level if specified
+                if ($level) {
+                    $query->level($level);
+                }
 
-            // Always include actual business count (dynamic calculation)
-            $query->withCount(['businesses' => function($q) {
-                $q->where('is_active', true);
-            }]);
+                // Filter by parent if specified
+                if ($parentId) {
+                    $query->where('parent_id', $parentId);
+                }
 
-            $categories = $query->with($with)
-                ->orderBy('businesses_count', 'desc') // Use dynamic count instead of static total_businesses
-                ->orderBy('sort_order')              // then sort_order
-                ->orderBy('name')                    // then name
-                ->take(10)
-                ->get();
+                // Include children if requested
+                $with = [];
+                if ($includeChildren) {
+                    $with[] = 'children';
+                }
 
-            // Transform the data to include both counts for comparison
-            $categories->transform(function($category) {
-                $category->actual_businesses_count = $category->businesses_count;
-                $category->stored_total_businesses = $category->total_businesses;
-                
-                // Use the actual count as the main total_businesses field
-                $category->total_businesses = $category->businesses_count;
-                
-                return $category;
+                // Always include actual business count (dynamic calculation)
+                $query->withCount(['businesses' => function($q) {
+                    $q->where('is_active', true);
+                }]);
+
+                $categories = $query->with($with)
+                    ->orderBy('businesses_count', 'desc')
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->take(10)
+                    ->get();
+
+                // Transform the data to include both counts for comparison
+                $categories->transform(function($category) {
+                    $category->actual_businesses_count = $category->businesses_count;
+                    $category->stored_total_businesses = $category->total_businesses;
+                    $category->total_businesses = $category->businesses_count;
+                    return $category;
+                });
+
+                return $categories;
             });
 
             return response()->json([
@@ -77,11 +86,13 @@ class CategoryController extends Controller
     public function mainCategories(Request $request)
     {
         try {
-            $categories = Category::active()
-                ->mainCategories()
-                ->with('children')
-                ->orderBy('sort_order')
-                ->get();
+            $categories = Cache::remember('categories:main', CacheInvalidationService::TTL_CATEGORIES_MAIN, function () {
+                return Category::active()
+                    ->mainCategories()
+                    ->with('children')
+                    ->orderBy('sort_order')
+                    ->get();
+            });
 
             return response()->json([
                 'success' => true,
@@ -102,11 +113,13 @@ class CategoryController extends Controller
     public function featuredCategories(Request $request)
     {
         try {
-            $categories = Category::active()
-                ->featured()
-                ->orderBy('sort_order')
-                ->take(12)
-                ->get();
+            $categories = Cache::remember('categories:featured', CacheInvalidationService::TTL_CATEGORIES_MAIN, function () {
+                return Category::active()
+                    ->featured()
+                    ->orderBy('sort_order')
+                    ->take(12)
+                    ->get();
+            });
 
             return response()->json([
                 'success' => true,
@@ -127,19 +140,23 @@ class CategoryController extends Controller
     public function popularCategories(Request $request)
     {
         try {
-            $categories = Category::active()
-                ->popular()
-                ->withCount(['businesses' => function($q) {
-                    $q->where('is_active', true);
-                }])
-                ->orderBy('businesses_count', 'desc') // Use dynamic count
-                ->take(10)
-                ->get();
+            $categories = Cache::remember('categories:popular', CacheInvalidationService::TTL_CATEGORIES, function () {
+                $categories = Category::active()
+                    ->popular()
+                    ->withCount(['businesses' => function($q) {
+                        $q->where('is_active', true);
+                    }])
+                    ->orderBy('businesses_count', 'desc')
+                    ->take(10)
+                    ->get();
 
-            // Transform to use actual count as total_businesses
-            $categories->transform(function($category) {
-                $category->total_businesses = $category->businesses_count;
-                return $category;
+                // Transform to use actual count as total_businesses
+                $categories->transform(function($category) {
+                    $category->total_businesses = $category->businesses_count;
+                    return $category;
+                });
+
+                return $categories;
             });
 
             return response()->json([
@@ -161,9 +178,13 @@ class CategoryController extends Controller
     public function show(Request $request, $categoryId)
     {
         try {
-            $category = Category::active()
-                ->with(['parent', 'children'])
-                ->findOrFail($categoryId);
+            $cacheKey = CacheInvalidationService::key('categories:show', $categoryId);
+
+            $category = Cache::remember($cacheKey, CacheInvalidationService::TTL_CATEGORIES, function () use ($categoryId) {
+                return Category::active()
+                    ->with(['parent', 'children'])
+                    ->findOrFail($categoryId);
+            });
 
             return response()->json([
                 'success' => true,
@@ -184,20 +205,26 @@ class CategoryController extends Controller
     public function subcategories(Request $request, $categoryId)
     {
         try {
-            $category = Category::active()->findOrFail($categoryId);
+            $cacheKey = CacheInvalidationService::key('categories:subs', $categoryId);
 
-            $subcategories = Category::active()
-                ->where('parent_id', $category->id)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get();
+            $data = Cache::remember($cacheKey, CacheInvalidationService::TTL_CATEGORIES, function () use ($categoryId) {
+                $category = Category::active()->findOrFail($categoryId);
+
+                $subcategories = Category::active()
+                    ->where('parent_id', $category->id)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get();
+
+                return [
+                    'category' => $category,
+                    'subcategories' => $subcategories
+                ];
+            });
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'category' => $category,
-                    'subcategories' => $subcategories
-                ]
+                'data' => $data
             ]);
         } catch (\Exception $e) {
             return response()->json([

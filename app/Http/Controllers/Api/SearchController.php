@@ -8,8 +8,10 @@ use App\Models\BusinessOffering;
 use App\Models\Category;
 use App\Models\Attraction;
 use App\Services\AnalyticsService;
+use App\Services\CacheInvalidationService;
 use App\Services\LocationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SearchController extends Controller
@@ -234,8 +236,11 @@ class SearchController extends Controller
             $limit = $request->input('limit', 20);
             $categoryId = $request->input('category_id');
 
-            // Get popular search terms from analytics
-            $popularSearches = $this->analyticsService->getPopularSearchTerms($limit, $categoryId);
+            $cacheKey = CacheInvalidationService::key('search:popular', $categoryId, $limit);
+
+            $popularSearches = Cache::remember($cacheKey, CacheInvalidationService::TTL_SEARCH_POPULAR, function () use ($limit, $categoryId) {
+                return $this->analyticsService->getPopularSearchTerms($limit, $categoryId);
+            });
 
             return response()->json([
                 'success' => true,

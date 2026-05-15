@@ -13,9 +13,11 @@ use App\Models\Review;
 use App\Models\TrendingData;
 use App\Models\Attraction;
 use App\Services\AnalyticsService;
+use App\Services\CacheInvalidationService;
 use App\Services\LocationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -91,78 +93,76 @@ class HomeController extends Controller
             // Determine user area from coordinates with enhanced precision
             $userArea = $this->locationService->determineUserAreaPrecise($latitude, $longitude);
 
-            // Track this API call for analytics with location data
+            // Track analytics OUTSIDE the cache (writes must always execute)
             $this->trackEndpointAnalytics('home_index', $latitude, $longitude, [
                 'radius_km' => $radiusKm,
                 'user_area' => $userArea
             ]);
-
-            // Track legacy interaction for compatibility
             $this->trackUserInteraction('home_view', null, $userArea, $latitude, $longitude);
 
-            // Get active banners
-            $banners = Banner::where('is_active', true)
-                ->where('start_date', '<=', now())
-                ->where('end_date', '>=', now())
-                ->orderBy('sort_order')
-                ->get();
+            // Cache the expensive data assembly
+            $grid = CacheInvalidationService::cacheGrid(
+                $latitude ? (float) $latitude : null,
+                $longitude ? (float) $longitude : null
+            );
+            $cacheKey = CacheInvalidationService::key('home:index', $grid, $radiusKm);
 
-            // Initialize arrays to track used businesses
-            $usedBusinessIds = [];
-            $sectionData = [];
+            $data = Cache::remember($cacheKey, CacheInvalidationService::TTL_HOME_INDEX, function () use ($latitude, $longitude, $radiusKm, $userArea) {
+                // Initialize arrays to track used businesses
+                $usedBusinessIds = [];
+                $sectionData = [];
 
-            // Get all potential businesses for analysis (both local and national)
-            $allBusinesses = $this->getAllPotentialBusinesses($latitude, $longitude, $radiusKm);
+                // Get all potential businesses for analysis (both local and national)
+                $allBusinesses = $this->getAllPotentialBusinesses($latitude, $longitude, $radiusKm);
 
-            // NOTE: National businesses are handled separately in their own section
-            // All other sections (trending, featured, popular, dynamic) will only show LOCAL businesses
-            
-            // 1. PRIORITY 1: Get trending businesses (highest priority - LOCAL ONLY)
-            $trendingBusinesses = $this->getTrendingBusinessesForHome($userArea, $allBusinesses, $usedBusinessIds);
-            $sectionData['trending_businesses'] = $trendingBusinesses;
+                // Get active banners
+                $banners = Banner::where('is_active', true)
+                    ->where('start_date', '<=', now())
+                    ->where('end_date', '>=', now())
+                    ->orderBy('sort_order')
+                    ->get();
 
-            // 2. PRIORITY 2: Get featured businesses (LOCAL ONLY - excluding already used)
-            $featuredBusinesses = $this->getFeaturedBusinessesForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
-            $sectionData['featured_businesses'] = $featuredBusinesses;
+                // 1. PRIORITY 1: Get trending businesses (highest priority - LOCAL ONLY)
+                $trendingBusinesses = $this->getTrendingBusinessesForHome($userArea, $allBusinesses, $usedBusinessIds);
+                $sectionData['trending_businesses'] = $trendingBusinesses;
 
-            // 3. PRIORITY 3: Get popular nearby (LOCAL ONLY - excluding already used)
-            $popularNearby = [];
-            if ($latitude && $longitude) {
-                $popularNearby = $this->getPopularNearbyForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
-            }
-            $sectionData['popular_nearby'] = $popularNearby;
+                // 2. PRIORITY 2: Get featured businesses (LOCAL ONLY - excluding already used)
+                $featuredBusinesses = $this->getFeaturedBusinessesForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
+                $sectionData['featured_businesses'] = $featuredBusinesses;
 
-            // 4. PRIORITY 4: Get dynamic sections by category (LOCAL ONLY - excluding already used)
-            $dynamicSections = [];
-            if ($latitude && $longitude) {
-                $dynamicSections = $this->getDynamicSectionsForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
-            }
-            $sectionData['dynamic_sections'] = $dynamicSections;
+                // 3. PRIORITY 3: Get popular nearby (LOCAL ONLY - excluding already used)
+                $popularNearby = [];
+                if ($latitude && $longitude) {
+                    $popularNearby = $this->getPopularNearbyForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
+                }
+                $sectionData['popular_nearby'] = $popularNearby;
 
-            // 5. Get top services (categories) - dynamic based on location and user behavior
-            $topServices = $this->getTopServicesForHome($latitude, $longitude, $radiusKm, $userArea);
+                // 4. PRIORITY 4: Get dynamic sections by category (LOCAL ONLY - excluding already used)
+                $dynamicSections = [];
+                if ($latitude && $longitude) {
+                    $dynamicSections = $this->getDynamicSectionsForHome($latitude, $longitude, $radiusKm, $allBusinesses, $usedBusinessIds);
+                }
+                $sectionData['dynamic_sections'] = $dynamicSections;
 
-            // 6. Get special offers
-            $specialOffers = $this->getSpecialOffersForHome($latitude, $longitude, $radiusKm, $usedBusinessIds);
+                // 5. Get top services (categories)
+                $topServices = $this->getTopServicesForHome($latitude, $longitude, $radiusKm, $userArea);
 
-            // 7. Get top national brands by category (ice cream, biscuits, drinks, etc.)
-            $topNationalBrands = $this->getTopNationalBrandsForHome($usedBusinessIds);
+                // 6. Get special offers
+                $specialOffers = $this->getSpecialOffersForHome($latitude, $longitude, $radiusKm, $usedBusinessIds);
 
-            // 8. Get featured attractions
-            $featuredAttractions = $this->getFeaturedAttractionsForHome($latitude, $longitude, $radiusKm);
+                // 7. Get top national brands by category
+                $topNationalBrands = $this->getTopNationalBrandsForHome($usedBusinessIds);
 
-            // 9. Get popular attractions nearby
-            $popularAttractions = [];
-            if ($latitude && $longitude) {
-                $popularAttractions = $this->getPopularAttractionsForHome($latitude, $longitude, $radiusKm);
-            }
+                // 8. Get featured attractions
+                $featuredAttractions = $this->getFeaturedAttractionsForHome($latitude, $longitude, $radiusKm);
 
-            // Track section performance for future optimization
-            $this->trackSectionPerformance($sectionData, $userArea);
+                // 9. Get popular attractions nearby
+                $popularAttractions = [];
+                if ($latitude && $longitude) {
+                    $popularAttractions = $this->getPopularAttractionsForHome($latitude, $longitude, $radiusKm);
+                }
 
-            return response()->json([
-                'success' => true,
-                'data' => [
+                return [
                     'banners' => $banners,
                     'top_services' => $topServices,
                     'trending_businesses' => $sectionData['trending_businesses'],
@@ -173,8 +173,33 @@ class HomeController extends Controller
                     'top_national_brands' => $topNationalBrands,
                     'featured_attractions' => $featuredAttractions,
                     'popular_attractions' => $popularAttractions,
+                    'used_count' => count($usedBusinessIds),
+                ];
+            });
+
+            // Track section performance OUTSIDE cache (write operation)
+            $this->trackSectionPerformance([
+                'trending_businesses' => $data['trending_businesses'],
+                'featured_businesses' => $data['featured_businesses'],
+                'popular_nearby' => $data['popular_nearby'],
+                'dynamic_sections' => $data['dynamic_sections'],
+            ], $userArea);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'banners' => $data['banners'],
+                    'top_services' => $data['top_services'],
+                    'trending_businesses' => $data['trending_businesses'],
+                    'featured_businesses' => $data['featured_businesses'],
+                    'popular_nearby' => $data['popular_nearby'],
+                    'dynamic_sections' => $data['dynamic_sections'],
+                    'special_offers' => $data['special_offers'],
+                    'top_national_brands' => $data['top_national_brands'],
+                    'featured_attractions' => $data['featured_attractions'],
+                    'popular_attractions' => $data['popular_attractions'],
                     'analytics' => [
-                        'total_businesses_shown' => count($usedBusinessIds),
+                        'total_businesses_shown' => $data['used_count'],
                         'unique_business_placement' => true,
                         'location_based' => $latitude && $longitude ? true : false,
                         'trending_data_driven' => true,
@@ -205,9 +230,11 @@ class HomeController extends Controller
     public function featuredSections()
     {
         try {
-            $sections = FeaturedSection::active()
-                ->orderBy('sort_order')
-                ->get();
+            $sections = Cache::remember('home:featured_sections', CacheInvalidationService::TTL_FEATURED_SECTIONS, function () {
+                return FeaturedSection::active()
+                    ->orderBy('sort_order')
+                    ->get();
+            });
 
             return response()->json([
                 'success' => true,
@@ -328,27 +355,31 @@ class HomeController extends Controller
     public function statistics()
     {
         try {
-            $totalBusinesses = Business::active()->count();
-            $totalCategories = Category::active()->count();
-            $totalActiveOffers = Offer::where('is_active', true)
-                ->where('valid_from', '<=', now())
-                ->where('valid_to', '>=', now())
-                ->count();
+            $data = Cache::remember('home:statistics', CacheInvalidationService::TTL_STATISTICS, function () {
+                $totalBusinesses = Business::active()->count();
+                $totalCategories = Category::active()->count();
+                $totalActiveOffers = Offer::where('is_active', true)
+                    ->where('valid_from', '<=', now())
+                    ->where('valid_to', '>=', now())
+                    ->count();
 
-            // Get popular categories by business count
-            $popularCategories = Category::active()
-                ->orderBy('total_businesses', 'desc')
-                ->take(10)
-                ->get();
+                // Get popular categories by business count
+                $popularCategories = Category::active()
+                    ->orderBy('total_businesses', 'desc')
+                    ->take(10)
+                    ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => [
+                return [
                     'total_businesses' => $totalBusinesses,
                     'total_categories' => $totalCategories,
                     'total_active_offers' => $totalActiveOffers,
                     'popular_categories' => $popularCategories
-                ]
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
             ]);
 
         } catch (\Exception $e) {

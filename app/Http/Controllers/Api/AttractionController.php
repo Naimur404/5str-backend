@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Attraction;
 use App\Models\UserAttractionInteraction;
+use App\Services\CacheInvalidationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -392,45 +394,51 @@ class AttractionController extends Controller
     {
         try {
             $limit = min($request->limit ?? 10, 20);
-            
-            $query = Attraction::active()
-                ->featured()
-                ->with(['gallery', 'coverImage']);
-            
-            // Filter by city if provided
-            if ($request->has('city')) {
-                $query->inCity($request->city);
-            }
-            
-            // Filter by area if provided
-            if ($request->has('area')) {
-                $query->inArea($request->area);
-            }
-            
-            // Location-based filtering
-            if ($request->has('latitude') && $request->has('longitude')) {
-                $latitude = $request->latitude;
-                $longitude = $request->longitude;
-                $radius = $request->radius ?? 25; // Default 25km radius for featured
-                
-                $query->nearbyWithDistance($latitude, $longitude, $radius);
-                $attractions = $query->orderBy('distance')
-                    ->orderBy('discovery_score', 'desc')
-                    ->take($limit)
-                    ->get();
-                
-                // Update discovery scores based on user location
-                $attractions->each(function ($attraction) use ($latitude, $longitude) {
-                    $attraction->updateDiscoveryScore($latitude, $longitude);
-                });
-            } else {
-                // No location provided - use discovery score only
-                $attractions = $query->orderBy('discovery_score', 'desc')
-                    ->take($limit)
-                    ->get();
-            }
+            $city = $request->input('city');
+            $area = $request->input('area');
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radius = $request->input('radius', 25);
 
-            // Add user interaction data if authenticated
+            $cacheKey = CacheInvalidationService::key(
+                'attractions:featured',
+                $city, $area,
+                CacheInvalidationService::cacheGrid(
+                    $latitude ? (float) $latitude : null,
+                    $longitude ? (float) $longitude : null
+                ),
+                $limit
+            );
+
+            $attractions = Cache::remember($cacheKey, CacheInvalidationService::TTL_ATTRACTIONS, function () use ($limit, $city, $area, $latitude, $longitude, $radius) {
+                $query = Attraction::active()
+                    ->featured()
+                    ->with(['gallery', 'coverImage']);
+                
+                if ($city) {
+                    $query->inCity($city);
+                }
+                
+                if ($area) {
+                    $query->inArea($area);
+                }
+                
+                if ($latitude && $longitude) {
+                    $query->nearbyWithDistance($latitude, $longitude, $radius);
+                    $attractions = $query->orderBy('distance')
+                        ->orderBy('discovery_score', 'desc')
+                        ->take($limit)
+                        ->get();
+                } else {
+                    $attractions = $query->orderBy('discovery_score', 'desc')
+                        ->take($limit)
+                        ->get();
+                }
+
+                return $attractions;
+            });
+
+            // User interaction data must remain outside cache (user-specific)
             if (Auth::check()) {
                 $userId = Auth::id();
                 $attractions->transform(function ($attraction) use ($userId) {
@@ -445,20 +453,18 @@ class AttractionController extends Controller
                 'total_count' => $attractions->count()
             ];
             
-            // Add location info to meta if provided
-            if ($request->has('latitude') && $request->has('longitude')) {
+            if ($latitude && $longitude) {
                 $meta['search_location'] = [
-                    'latitude' => (float) $request->latitude,
-                    'longitude' => (float) $request->longitude,
-                    'radius_km' => $request->radius ?? 25
+                    'latitude' => (float) $latitude,
+                    'longitude' => (float) $longitude,
+                    'radius_km' => $radius
                 ];
             }
             
-            // Add city/area filters to meta
-            if ($request->has('city') || $request->has('area')) {
+            if ($city || $area) {
                 $meta['location_filters'] = array_filter([
-                    'city' => $request->city,
-                    'area' => $request->area
+                    'city' => $city,
+                    'area' => $area
                 ]);
             }
 
@@ -628,30 +634,34 @@ class AttractionController extends Controller
     public function categories(Request $request)
     {
         try {
-            $categories = DB::table('attractions')
-                ->select('category', DB::raw('count(*) as count'))
-                ->where('is_active', true)
-                ->where('status', 'active')
-                ->whereNotNull('category')
-                ->groupBy('category')
-                ->orderBy('count', 'desc')
-                ->get();
+            $data = Cache::remember('attractions:categories', CacheInvalidationService::TTL_CATEGORIES, function () {
+                $categories = DB::table('attractions')
+                    ->select('category', DB::raw('count(*) as count'))
+                    ->where('is_active', true)
+                    ->where('status', 'active')
+                    ->whereNotNull('category')
+                    ->groupBy('category')
+                    ->orderBy('count', 'desc')
+                    ->get();
 
-            $types = DB::table('attractions')
-                ->select('type', DB::raw('count(*) as count'))
-                ->where('is_active', true)
-                ->where('status', 'active')
-                ->groupBy('type')
-                ->orderBy('count', 'desc')
-                ->get();
+                $types = DB::table('attractions')
+                    ->select('type', DB::raw('count(*) as count'))
+                    ->where('is_active', true)
+                    ->where('status', 'active')
+                    ->groupBy('type')
+                    ->orderBy('count', 'desc')
+                    ->get();
+
+                return [
+                    'categories' => $categories,
+                    'types' => $types
+                ];
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Categories and types retrieved successfully',
-                'data' => [
-                    'categories' => $categories,
-                    'types' => $types
-                ]
+                'data' => $data
             ]);
 
         } catch (\Exception $e) {
@@ -669,33 +679,37 @@ class AttractionController extends Controller
     public function destinations(Request $request)
     {
         try {
-            $cities = DB::table('attractions')
-                ->select('city', DB::raw('count(*) as attractions_count'))
-                ->where('is_active', true)
-                ->where('status', 'active')
-                ->whereNotNull('city')
-                ->groupBy('city')
-                ->orderBy('attractions_count', 'desc')
-                ->limit(20)
-                ->get();
+            $data = Cache::remember('attractions:destinations', CacheInvalidationService::TTL_CATEGORIES, function () {
+                $cities = DB::table('attractions')
+                    ->select('city', DB::raw('count(*) as attractions_count'))
+                    ->where('is_active', true)
+                    ->where('status', 'active')
+                    ->whereNotNull('city')
+                    ->groupBy('city')
+                    ->orderBy('attractions_count', 'desc')
+                    ->limit(20)
+                    ->get();
 
-            $areas = DB::table('attractions')
-                ->select('area', 'city', DB::raw('count(*) as attractions_count'))
-                ->where('is_active', true)
-                ->where('status', 'active')
-                ->whereNotNull('area')
-                ->groupBy('area', 'city')
-                ->orderBy('attractions_count', 'desc')
-                ->limit(30)
-                ->get();
+                $areas = DB::table('attractions')
+                    ->select('area', 'city', DB::raw('count(*) as attractions_count'))
+                    ->where('is_active', true)
+                    ->where('status', 'active')
+                    ->whereNotNull('area')
+                    ->groupBy('area', 'city')
+                    ->orderBy('attractions_count', 'desc')
+                    ->limit(30)
+                    ->get();
+
+                return [
+                    'cities' => $cities,
+                    'areas' => $areas
+                ];
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Popular destinations retrieved successfully',
-                'data' => [
-                    'cities' => $cities,
-                    'areas' => $areas
-                ]
+                'data' => $data
             ]);
 
         } catch (\Exception $e) {
