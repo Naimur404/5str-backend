@@ -39,7 +39,7 @@ RUN npm run build
 # ============================================================
 # Stage 3 — Final runtime image
 # ============================================================
-FROM php:8.3-fpm-alpine AS app
+FROM php:8.4-fpm-alpine AS app
 
 WORKDIR /var/www/html
 
