@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\BusinessResource\RelationManagers;
 
+use App\Support\R2Storage;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -53,6 +54,7 @@ class BusinessImagesRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\ImageColumn::make('image_url')
                     ->label('Image')
+                    ->getStateUsing(fn ($record) => R2Storage::urlFromValue($record->image_url))
                     ->size(80),
                 Tables\Columns\TextColumn::make('image_type')
                     ->label('Type')

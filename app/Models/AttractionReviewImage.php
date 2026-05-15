@@ -66,8 +66,8 @@ class AttractionReviewImage extends Model
 
         $thumbnailPath = str_replace('.', '_thumb.', $sourcePath);
 
-        if (Storage::disk(R2Storage::DISK)->exists($thumbnailPath)) {
-            return Storage::disk(R2Storage::DISK)->url($thumbnailPath);
+        if (R2Storage::storage()->exists($thumbnailPath)) {
+            return R2Storage::storage()->url($thumbnailPath);
         }
 
         return $this->full_url;
@@ -143,12 +143,12 @@ class AttractionReviewImage extends Model
         // When deleting an image, remove the file from storage
         static::deleting(function ($image) {
             $path = R2Storage::pathFromUrl($image->image_path);
-            if ($path && Storage::disk(R2Storage::DISK)->exists($path)) {
-                Storage::disk(R2Storage::DISK)->delete($path);
+            if ($path && R2Storage::storage()->exists($path)) {
+                R2Storage::storage()->delete($path);
 
                 $thumbnailPath = str_replace('.', '_thumb.', $path);
-                if (Storage::disk(R2Storage::DISK)->exists($thumbnailPath)) {
-                    Storage::disk(R2Storage::DISK)->delete($thumbnailPath);
+                if (R2Storage::storage()->exists($thumbnailPath)) {
+                    R2Storage::storage()->delete($thumbnailPath);
                 }
             }
         });

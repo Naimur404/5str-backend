@@ -7,6 +7,7 @@ use App\Filament\Resources\BusinessOfferingResource\RelationManagers;
 use App\Models\BusinessOffering;
 use App\Models\Business;
 use App\Models\Category;
+use App\Support\R2Storage;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -121,6 +122,7 @@ class BusinessOfferingResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image_url')
+                    ->getStateUsing(fn ($record) => R2Storage::urlFromValue($record->image_url))
                     ->size(50),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()

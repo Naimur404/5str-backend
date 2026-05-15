@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource\RelationManagers;
 use App\Models\User;
+use App\Support\R2Storage;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Filament\Forms;
@@ -135,6 +136,7 @@ class UserResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('profile_image')
+                    ->getStateUsing(fn ($record) => R2Storage::urlFromValue($record->profile_image))
                     ->circular()
                     ->size(40),
                 Tables\Columns\TextColumn::make('name')

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\BusinessImageResource\Pages;
 use App\Models\BusinessImage;
 use App\Models\Business;
+use App\Support\R2Storage;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -68,6 +69,7 @@ class BusinessImageResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('image_url')
                     ->label('Image')
+                    ->getStateUsing(fn ($record) => R2Storage::urlFromValue($record->image_url))
                     ->size(80),
                 Tables\Columns\TextColumn::make('business.business_name')
                     ->label('Business')

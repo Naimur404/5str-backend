@@ -240,8 +240,8 @@ class OfferingSubmissionResource extends Resource
                         continue;
                     }
                     $newPath = str_replace('offering_submissions/', 'offerings/', $oldPath);
-                    if (Storage::disk('r2')->exists($oldPath)) {
-                        Storage::disk('r2')->copy($oldPath, $newPath);
+                    if (R2Storage::storage()->exists($oldPath)) {
+                        R2Storage::storage()->copy($oldPath, $newPath);
                     }
                 }
             }

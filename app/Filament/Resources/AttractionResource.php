@@ -222,7 +222,7 @@ class AttractionResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\ImageColumn::make('cover_image')
+                Tables\Columns\ImageColumn::make('cover_image_url')
                     ->label('Image')
                     ->defaultImageUrl('/images/default-attraction.jpg')
                     ->size(60)

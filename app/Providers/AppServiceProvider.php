@@ -12,7 +12,6 @@ use App\Observers\ReviewObserver;
 use App\Support\R2Storage;
 use Filament\Forms\Components\FileUpload;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
@@ -37,7 +36,7 @@ class AppServiceProvider extends ServiceProvider
         FileUpload::macro('r2Storage', function (string $directory) {
             /** @var FileUpload $this */
             return $this
-                ->disk(R2Storage::DISK)
+                ->disk(R2Storage::active())
                 ->directory($directory)
                 ->visibility('public')
                 ->fetchFileInformation(false)
@@ -46,11 +45,11 @@ class AppServiceProvider extends ServiceProvider
                     $name = $component->getUploadedFileNameForStorage($file);
                     $path = trim(($directory ? rtrim($directory, '/') . '/' : '') . $name, '/');
                     $stream = fopen($file->getRealPath(), 'rb');
-                    Storage::disk(R2Storage::DISK)->put($path, $stream, $component->getVisibility());
+                    R2Storage::storage()->put($path, $stream, $component->getVisibility());
                     if (is_resource($stream)) {
                         fclose($stream);
                     }
-                    return Storage::disk(R2Storage::DISK)->url($path);
+                    return R2Storage::storage()->url($path);
                 })
                 ->getUploadedFileUsing(function (FileUpload $component, string $file, string | array | null $storedFileNames): ?array {
                     $url = R2Storage::urlFromValue($file);

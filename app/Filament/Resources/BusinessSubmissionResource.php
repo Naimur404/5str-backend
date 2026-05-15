@@ -236,8 +236,8 @@ class BusinessSubmissionResource extends Resource
                         continue;
                     }
                     $newPath = str_replace('business_submissions/', 'businesses/', $oldPath);
-                    if (Storage::disk('r2')->exists($oldPath)) {
-                        Storage::disk('r2')->copy($oldPath, $newPath);
+                    if (R2Storage::storage()->exists($oldPath)) {
+                        R2Storage::storage()->copy($oldPath, $newPath);
                     }
                 }
             }

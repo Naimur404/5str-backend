@@ -10,6 +10,7 @@ use App\Models\ReviewImage;
 use App\Models\Favorite;
 use App\Models\ReviewHelpfulVote;
 use App\Services\PushNotificationService;
+use App\Support\R2Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -204,13 +205,13 @@ class ReviewController extends Controller
                     // Generate unique filename
                     $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
                     
-                    // Store the image (you can customize the storage path)
-                    $path = $image->storeAs('review-images', $filename, 'r2');
+                    // Store the image on the active default disk
+                    $path = $image->storeAs('review-images', $filename, R2Storage::active());
 
                     // Create review image record
                     $reviewImage = ReviewImage::create([
                         'review_id' => $review->id,
-                        'image_url' => Storage::disk('r2')->url($path),
+                        'image_url' => R2Storage::storage()->url($path),
                         'original_filename' => $image->getClientOriginalName(),
                     ]);
 
@@ -402,10 +403,7 @@ class ReviewController extends Controller
 
             // Delete associated images
             foreach ($review->images as $image) {
-                $imagePath = ltrim(parse_url($image->image_url, PHP_URL_PATH) ?? '', '/');
-                if ($imagePath && Storage::disk('r2')->exists($imagePath)) {
-                    Storage::disk('r2')->delete($imagePath);
-                }
+                R2Storage::delete($image->image_url);
                 $image->delete();
             }
 

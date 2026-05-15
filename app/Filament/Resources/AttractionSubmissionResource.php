@@ -226,8 +226,8 @@ class AttractionSubmissionResource extends Resource
                         continue;
                     }
                     $newPath = str_replace('attraction_submissions/', 'attractions/', $oldPath);
-                    if (Storage::disk('r2')->exists($oldPath)) {
-                        Storage::disk('r2')->copy($oldPath, $newPath);
+                    if (R2Storage::storage()->exists($oldPath)) {
+                        R2Storage::storage()->copy($oldPath, $newPath);
                     }
                 }
             }

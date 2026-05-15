@@ -53,7 +53,7 @@ class GalleriesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('title')
             ->columns([
-                Tables\Columns\ImageColumn::make('full_url')
+                Tables\Columns\ImageColumn::make('full_image_url')
                     ->label('Image')
                     ->size(80),
                 Tables\Columns\TextColumn::make('title')

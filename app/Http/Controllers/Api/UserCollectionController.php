@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\UserCollection;
 use App\Models\Business;
+use App\Support\R2Storage;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -60,8 +60,8 @@ class UserCollectionController extends Controller
             $image = $request->file('cover_image');
             $imageName = 'collection_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
             
-            $imagePath = $image->storeAs('collections', $imageName, 'r2');
-            $coverImageUrl = Storage::disk('r2')->url($imagePath);
+            $imagePath = $image->storeAs('collections', $imageName, R2Storage::active());
+            $coverImageUrl = R2Storage::storage()->url($imagePath);
         }
 
         $collection = UserCollection::create([
@@ -167,18 +167,13 @@ class UserCollectionController extends Controller
         $coverImageUrl = $collection->cover_image; // Keep existing image by default
         if ($request->hasFile('cover_image')) {
             // Delete old image if it exists
-            if ($collection->cover_image) {
-                $oldImagePath = ltrim(parse_url($collection->cover_image, PHP_URL_PATH) ?? '', '/');
-                if ($oldImagePath && Storage::disk('r2')->exists($oldImagePath)) {
-                    Storage::disk('r2')->delete($oldImagePath);
-                }
-            }
+            R2Storage::delete($collection->cover_image);
 
             // Upload new image
             $image = $request->file('cover_image');
             $imageName = 'collection_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-            $imagePath = $image->storeAs('collections', $imageName, 'r2');
-            $coverImageUrl = Storage::disk('r2')->url($imagePath);
+            $imagePath = $image->storeAs('collections', $imageName, R2Storage::active());
+            $coverImageUrl = R2Storage::storage()->url($imagePath);
         }
 
         $collection->update([

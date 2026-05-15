@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BannerResource\Pages;
 use App\Models\Banner;
+use App\Support\R2Storage;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -105,6 +106,7 @@ class BannerResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image_url')
+                    ->getStateUsing(fn ($record) => R2Storage::urlFromValue($record->image_url))
                     ->size(80),
                 Tables\Columns\TextColumn::make('title')
                     ->searchable()

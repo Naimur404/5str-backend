@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\TrendingBusinessResource\Pages;
 use App\Models\TrendingData;
 use App\Models\Business;
+use App\Support\R2Storage;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -82,6 +83,7 @@ class TrendingBusinessResource extends Resource
             ->columns([
                 ImageColumn::make('business.logoImage.image_url')
                     ->label('Logo')
+                    ->getStateUsing(fn ($record) => R2Storage::urlFromValue($record->business?->logoImage?->image_url))
                     ->circular()
                     ->size(40)
                     ->default('/images/default-business.png'),

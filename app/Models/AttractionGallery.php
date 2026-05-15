@@ -70,8 +70,8 @@ class AttractionGallery extends Model
             $pathInfo = pathinfo($sourcePath);
             $thumbnailPath = $pathInfo['dirname'] . '/thumbs/' . $pathInfo['filename'] . '_thumb.' . $pathInfo['extension'];
 
-            if (Storage::disk(R2Storage::DISK)->exists($thumbnailPath)) {
-                return Storage::disk(R2Storage::DISK)->url($thumbnailPath);
+            if (R2Storage::storage()->exists($thumbnailPath)) {
+                return R2Storage::storage()->url($thumbnailPath);
             }
         }
 
