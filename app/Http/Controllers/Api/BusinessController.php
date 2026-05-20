@@ -829,9 +829,9 @@ class BusinessController extends Controller
             $userLatitude = $request->input('latitude');
             $userLongitude = $request->input('longitude');
 
-            // If this is a parent brand/business, include its branches
+            // If this is a parent brand/business, include its branches sorted by distance and inject closest branch
             if ($business->isParent()) {
-                $businessData['branches'] = $business->branches()
+                $branches = $business->branches()
                     ->active()
                     ->get()
                     ->map(function ($branch) use ($request, $userLatitude, $userLongitude) {
@@ -852,12 +852,26 @@ class BusinessController extends Controller
                         if ($userLatitude && $userLongitude && $branch->latitude && $branch->longitude) {
                             $distance = $this->calculateDistance($userLatitude, $userLongitude, $branch->latitude, $branch->longitude);
                             $branchData['distance'] = $this->formatDistance($distance * 1000);
+                            $branchData['distance_km'] = (float) $distance;
+                        } else {
+                            $branchData['distance'] = null;
+                            $branchData['distance_km'] = null;
                         }
 
                         return $branchData;
                     });
+
+                if ($userLatitude && $userLongitude) {
+                    $branches = $branches->sortBy('distance_km')->values();
+                    $closestBranch = $branches->first();
+                    if ($closestBranch) {
+                        $businessData['closest_branch'] = $closestBranch;
+                    }
+                }
+
+                $businessData['branches'] = $branches;
             } else {
-                // If it is a branch, provide parent business info
+                // If it is a branch, provide parent business info and alternative nearby branches
                 $parent = $business->parentBusiness;
                 if ($parent) {
                     $businessData['parent_brand'] = [
@@ -865,6 +879,43 @@ class BusinessController extends Controller
                         'business_name' => $parent->business_name,
                         'slug' => $parent->slug,
                     ];
+
+                    $otherBranches = $parent->branches()
+                        ->active()
+                        ->where('id', '!=', $business->id)
+                        ->get()
+                        ->map(function ($branch) use ($request, $userLatitude, $userLongitude) {
+                            $branchData = [
+                                'id' => $branch->id,
+                                'business_name' => $branch->business_name,
+                                'slug' => $branch->slug,
+                                'full_address' => $branch->full_address,
+                                'city' => $branch->city,
+                                'area' => $branch->area,
+                                'latitude' => $branch->latitude,
+                                'longitude' => $branch->longitude,
+                                'overall_rating' => (float) $branch->overall_rating,
+                                'total_reviews' => $branch->total_reviews,
+                                'image_url' => $branch->image_url,
+                            ];
+
+                            if ($userLatitude && $userLongitude && $branch->latitude && $branch->longitude) {
+                                $distance = $this->calculateDistance($userLatitude, $userLongitude, $branch->latitude, $branch->longitude);
+                                $branchData['distance'] = $this->formatDistance($distance * 1000);
+                                $branchData['distance_km'] = (float) $distance;
+                            } else {
+                                $branchData['distance'] = null;
+                                $branchData['distance_km'] = null;
+                            }
+
+                            return $branchData;
+                        });
+
+                    if ($userLatitude && $userLongitude) {
+                        $otherBranches = $otherBranches->sortBy('distance_km')->values();
+                    }
+
+                    $businessData['other_branches'] = $otherBranches;
                 }
             }
             
@@ -911,7 +962,13 @@ public function offerings(Request $request, $businessId)
     try {
         $business = Business::active()->findOrFail($businessId);
         
-        $query = BusinessOffering::where('business_id', $businessId)
+        // Resolve target business for offerings (dynamic parent inheritance fallback)
+        $targetBusinessId = $businessId;
+        if ($business->parent_id && !$business->offerings()->exists()) {
+            $targetBusinessId = $business->parent_id;
+        }
+
+        $query = BusinessOffering::where('business_id', $targetBusinessId)
             ->available();
 
         // Filter by type
@@ -943,6 +1000,7 @@ public function offerings(Request $request, $businessId)
             'data' => [
                 'business_id' => (string)$business->id,
                 'business' => $business->only(['id', 'business_name']),
+                'inherited_from_parent' => $targetBusinessId !== $business->id,
                 'offerings' => $offeringsWithFavorites,
                 'total_count' => $offerings->count()
             ]

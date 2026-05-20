@@ -196,4 +196,153 @@ class BusinessBranchTest extends TestCase
         $this->assertTrue($businessIds->contains($this->parentBusiness->id));
         $this->assertFalse($businessIds->contains($this->branchBusiness->id));
     }
+
+    public function test_parent_business_api_returns_branches_sorted_by_distance_with_closest_branch()
+    {
+        // 1. Create a second branch in Gulshan (closer to Gulshan coordinates)
+        $gulshanBranch = Business::create([
+            'business_name' => 'Takeout Gulshan',
+            'slug' => 'takeout-gulshan',
+            'description' => 'Gulshan Branch of Takeout',
+            'category_id' => $this->category->id,
+            'parent_id' => $this->parentBusiness->id,
+            'full_address' => 'Gulshan Avenue, Dhaka',
+            'latitude' => 23.8120,
+            'longitude' => 90.4130,
+            'city' => 'Dhaka',
+            'area' => 'Gulshan',
+            'is_active' => true,
+            'is_national' => false,
+        ]);
+
+        // 2. Query parent business details from a location very close to Gulshan branch
+        $response = $this->getJson("/api/v1/businesses/{$this->parentBusiness->id}?latitude=23.8115&longitude=90.4120");
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    'closest_branch' => [
+                        'id',
+                        'business_name',
+                        'distance',
+                    ],
+                    'branches'
+                ]
+            ]);
+
+        // Gulshan branch is very close (~0.12 km), Dhanmondi is far (~8 km)
+        // Assert Gulshan branch is identified as the closest branch
+        $this->assertEquals($gulshanBranch->id, $response->json('data.closest_branch.id'));
+
+        // Assert branches list is sorted: Gulshan first, then Dhanmondi
+        $branches = $response->json('data.branches');
+        $this->assertCount(2, $branches);
+        $this->assertEquals($gulshanBranch->id, $branches[0]['id']);
+        $this->assertEquals($this->branchBusiness->id, $branches[1]['id']);
+
+        // 3. Query parent business details from a location very close to Dhanmondi branch
+        $response = $this->getJson("/api/v1/businesses/{$this->parentBusiness->id}?latitude=23.7460&longitude=90.3750");
+
+        $response->assertStatus(200);
+        $this->assertEquals($this->branchBusiness->id, $response->json('data.closest_branch.id'));
+
+        // Assert branches list is sorted: Dhanmondi first, then Gulshan
+        $branches = $response->json('data.branches');
+        $this->assertEquals($this->branchBusiness->id, $branches[0]['id']);
+        $this->assertEquals($gulshanBranch->id, $branches[1]['id']);
+    }
+
+    public function test_branch_business_api_returns_other_branches_sorted_by_distance()
+    {
+        // 1. Create a second branch in Gulshan
+        $gulshanBranch = Business::create([
+            'business_name' => 'Takeout Gulshan',
+            'slug' => 'takeout-gulshan',
+            'description' => 'Gulshan Branch of Takeout',
+            'category_id' => $this->category->id,
+            'parent_id' => $this->parentBusiness->id,
+            'full_address' => 'Gulshan Avenue, Dhaka',
+            'latitude' => 23.8120,
+            'longitude' => 90.4130,
+            'city' => 'Dhaka',
+            'area' => 'Gulshan',
+            'is_active' => true,
+            'is_national' => false,
+        ]);
+
+        // 2. Query Dhanmondi branch, passing coordinates close to Gulshan branch.
+        // The endpoint should calculate and include 'other_branches' (which contains Gulshan branch)
+        $response = $this->getJson("/api/v1/businesses/{$this->branchBusiness->id}?latitude=23.8115&longitude=90.4120");
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    'other_branches' => [
+                        '*' => [
+                            'id',
+                            'business_name',
+                            'distance',
+                        ]
+                    ]
+                ]
+            ]);
+
+        $otherBranches = $response->json('data.other_branches');
+        $this->assertCount(1, $otherBranches);
+        $this->assertEquals($gulshanBranch->id, $otherBranches[0]['id']);
+        // Verify it includes correct distance units/details
+        $this->assertNotNull($otherBranches[0]['distance']);
+    }
+
+    public function test_offerings_api_supports_inheritance_fallback_with_meta()
+    {
+        // 1. Query offerings of the branch. Initially should be empty, but inherited from parent (which is also empty).
+        $response = $this->getJson("/api/v1/businesses/{$this->branchBusiness->id}/offerings");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.inherited_from_parent', true)
+            ->assertJsonCount(0, 'data.offerings');
+
+
+        // 2. Create offerings on the parent business
+        $parentOffering = BusinessOffering::create([
+            'business_id' => $this->parentBusiness->id,
+            'name' => 'Parent Burger',
+            'description' => 'Beef Burger from parent',
+            'price' => 350.00,
+            'offering_type' => 'product',
+            'is_available' => true,
+        ]);
+
+        // 3. Query branch offerings. Since branch has no offerings, it should inherit parent's,
+        // and setting inherited_from_parent => true
+        $response = $this->getJson("/api/v1/businesses/{$this->branchBusiness->id}/offerings");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.inherited_from_parent', true)
+            ->assertJsonCount(1, 'data.offerings')
+            ->assertJsonPath('data.offerings.0.id', $parentOffering->id);
+
+        // 4. Create local offering for branch
+        $branchOffering = BusinessOffering::create([
+            'business_id' => $this->branchBusiness->id,
+            'name' => 'Branch Special Burger',
+            'description' => 'Exclusive to local branch',
+            'price' => 400.00,
+            'offering_type' => 'product',
+            'is_available' => true,
+        ]);
+
+        // 5. Query branch offerings again. It should return ONLY branch local offerings,
+        // and setting inherited_from_parent => false
+        $response = $this->getJson("/api/v1/businesses/{$this->branchBusiness->id}/offerings");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.inherited_from_parent', false)
+            ->assertJsonCount(1, 'data.offerings')
+            ->assertJsonPath('data.offerings.0.id', $branchOffering->id);
+    }
 }
+
