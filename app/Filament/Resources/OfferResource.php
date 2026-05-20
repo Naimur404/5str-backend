@@ -29,10 +29,27 @@ class OfferResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('business_id')
                             ->label('Business')
-                            ->options(Business::all()->pluck('business_name', 'id'))
+                            ->options(function () {
+                                return Business::query()
+                                    ->with('parentBusiness:id,business_name')
+                                    ->withCount('branches')
+                                    ->get()
+                                    ->mapWithKeys(function ($b) {
+                                        if ($b->parent_id) {
+                                            $label = $b->business_name . ' · Branch of ' . ($b->parentBusiness->business_name ?? '—');
+                                        } elseif ($b->branches_count > 0) {
+                                            $label = $b->business_name . ' · Main Brand (' . $b->branches_count . ' branches)';
+                                        } else {
+                                            $label = $b->business_name;
+                                        }
+                                        return [$b->id => $label];
+                                    });
+                            })
                             ->required()
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->helperText('Pick a main brand to roll this offer out to all its branches. Pick a single branch for a branch-only offer.')
+                            ->disabledOn('edit'),
                         Forms\Components\TextInput::make('title')
                             ->required()
                             ->maxLength(255),

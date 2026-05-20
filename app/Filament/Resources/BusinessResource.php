@@ -297,6 +297,56 @@ class BusinessResource extends Resource
                     ->collapsed()
                     ->visibleOn(['create', 'edit']),
                     
+                Forms\Components\Section::make('Branches / Locations')
+                    ->description('Add other locations of this brand. Each branch becomes its own business and inherits offerings from this parent.')
+                    ->schema([
+                        Forms\Components\Repeater::make('branches')
+                            ->label('')
+                            ->dehydrated(false)
+                            ->defaultItems(0)
+                            ->addActionLabel('Add another branch')
+                            ->itemLabel(fn (array $state): ?string => $state['business_name'] ?? null)
+                            ->collapsible()
+                            ->schema([
+                                Forms\Components\TextInput::make('business_name')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->columnSpan(2),
+                                Forms\Components\TextInput::make('business_phone')
+                                    ->tel()
+                                    ->maxLength(255)
+                                    ->columnSpan(1),
+                                Forms\Components\Textarea::make('full_address')
+                                    ->required()
+                                    ->maxLength(500)
+                                    ->rows(2)
+                                    ->columnSpanFull(),
+                                Forms\Components\TextInput::make('city')
+                                    ->required()
+                                    ->maxLength(255),
+                                Forms\Components\TextInput::make('area')
+                                    ->required()
+                                    ->maxLength(255),
+                                Forms\Components\TextInput::make('landmark')
+                                    ->maxLength(255),
+                                Forms\Components\TextInput::make('latitude')
+                                    ->required()
+                                    ->numeric()
+                                    ->minValue(-90)
+                                    ->maxValue(90)
+                                    ->step(0.00000001),
+                                Forms\Components\TextInput::make('longitude')
+                                    ->required()
+                                    ->numeric()
+                                    ->minValue(-180)
+                                    ->maxValue(180)
+                                    ->step(0.00000001),
+                            ])
+                            ->columns(3),
+                    ])
+                    ->visibleOn('create')
+                    ->visible(fn (Forms\Get $get) => blank($get('parent_id'))),
+
                 Forms\Components\Section::make('Approval Status')
                     ->schema([
                         Forms\Components\Select::make('approval_status')

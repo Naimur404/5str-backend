@@ -1613,7 +1613,16 @@ class HomeController extends Controller
             $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
         }
 
-        return $query->get();
+        $businesses = $query->get();
+
+        // Collapse multi-branch brands to the single closest location per brand.
+        // Brand identity is the top-level business id (parent_id when set, else id).
+        // nearbyWithDistance() sorted ascending by distance, so the first row per
+        // brand is the closest one within radius — keep that, drop siblings + parent.
+        return $businesses
+            ->groupBy(fn ($b) => $b->parent_id ?: $b->id)
+            ->map(fn ($group) => $group->first())
+            ->values();
     }
 
     /**

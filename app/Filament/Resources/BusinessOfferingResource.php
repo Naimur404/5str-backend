@@ -47,14 +47,30 @@ class BusinessOfferingResource extends Resource
                         Forms\Components\Select::make('business_id')
                             ->label('Business')
                             ->options(function () {
+                                $query = Business::query()
+                                    ->with('parentBusiness:id,business_name')
+                                    ->withCount('branches');
+
                                 if (Auth::user() && Auth::user()->hasRole('business-owner')) {
-                                    return Business::where('owner_user_id', Auth::id())->pluck('business_name', 'id');
+                                    $query->where('owner_user_id', Auth::id());
                                 }
-                                return Business::all()->pluck('business_name', 'id');
+
+                                return $query->get()->mapWithKeys(function ($b) {
+                                    if ($b->parent_id) {
+                                        $label = $b->business_name . ' · Branch of ' . ($b->parentBusiness->business_name ?? '—');
+                                    } elseif ($b->branches_count > 0) {
+                                        $label = $b->business_name . ' · Main Brand (' . $b->branches_count . ' branches)';
+                                    } else {
+                                        $label = $b->business_name;
+                                    }
+                                    return [$b->id => $label];
+                                });
                             })
                             ->required()
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->helperText('Pick a main brand to add this offering to all its branches automatically. Pick a single branch to add it only there.')
+                            ->disabledOn('edit'),
                         Forms\Components\TextInput::make('name')
                             ->required()
                             ->maxLength(255),
