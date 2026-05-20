@@ -89,6 +89,16 @@ class BusinessResource extends Resource
                             ->options(User::all()->pluck('name', 'id'))
                             ->searchable()
                             ->preload(),
+                        Forms\Components\Select::make('parent_id')
+                            ->label('Parent Brand / Business')
+                            ->relationship('parentBusiness', 'business_name', fn (Builder $query) => 
+                                $query->whereNull('parent_id')
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('None (this is the main brand/business)')
+                            ->helperText('Select a parent business if this is a branch location of a larger chain')
+                            ->columnSpanFull(),
                     ])->columns(2),
                     
                 Forms\Components\Section::make('Contact Information')
@@ -335,6 +345,13 @@ class BusinessResource extends Resource
                     ->label('Business Name')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('parentBusiness.business_name')
+                    ->label('Parent Brand')
+                    ->searchable()
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('Main Brand')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Category')
                     ->searchable()
@@ -691,6 +708,7 @@ class BusinessResource extends Resource
     {
         return [
             RelationManagers\BusinessImagesRelationManager::class,
+            RelationManagers\BranchesRelationManager::class,
         ];
     }
 

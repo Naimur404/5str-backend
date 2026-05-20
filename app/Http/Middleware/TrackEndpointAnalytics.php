@@ -35,7 +35,7 @@ class TrackEndpointAnalytics
                     $additionalData = [
                         'status_code' => $response->getStatusCode(),
                         'method' => $request->method(),
-                        'response_time' => microtime(true) - LARAVEL_START,
+                        'response_time' => microtime(true) - (defined('LARAVEL_START') ? LARAVEL_START : microtime(true)),
                         'has_auth' => $request->user() !== null,
                         'route_name' => $route->getName(),
                     ];

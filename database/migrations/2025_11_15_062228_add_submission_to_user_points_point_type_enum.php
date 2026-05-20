@@ -13,7 +13,9 @@ return new class extends Migration
     public function up(): void
     {
         // Add 'submission' to the existing point_type enum
-        DB::statement("ALTER TABLE user_points MODIFY COLUMN point_type ENUM('review', 'helpful_vote', 'referral', 'submission')");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE user_points MODIFY COLUMN point_type ENUM('review', 'helpful_vote', 'referral', 'submission')");
+        }
     }
 
     /**
@@ -22,6 +24,8 @@ return new class extends Migration
     public function down(): void
     {
         // Remove 'submission' from the point_type enum
-        DB::statement("ALTER TABLE user_points MODIFY COLUMN point_type ENUM('review', 'helpful_vote', 'referral')");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE user_points MODIFY COLUMN point_type ENUM('review', 'helpful_vote', 'referral')");
+        }
     }
 };

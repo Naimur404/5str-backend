@@ -13,7 +13,9 @@ return new class extends Migration
     public function up(): void
     {
         // Add 'offering' to the item_type enum
-        DB::statement("ALTER TABLE trending_data MODIFY COLUMN item_type ENUM('business', 'category', 'search_term', 'offering')");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE trending_data MODIFY COLUMN item_type ENUM('business', 'category', 'search_term', 'offering')");
+        }
     }
 
     /**
@@ -22,6 +24,8 @@ return new class extends Migration
     public function down(): void
     {
         // Remove 'offering' from the item_type enum
-        DB::statement("ALTER TABLE trending_data MODIFY COLUMN item_type ENUM('business', 'category', 'search_term')");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE trending_data MODIFY COLUMN item_type ENUM('business', 'category', 'search_term')");
+        }
     }
 };

@@ -72,6 +72,11 @@ class CategoryResource extends Resource
                             ->searchable()
                             ->placeholder('Select parent (leave empty for main category)')
                             ->helperText('Leave empty to create a main category (Level 1). Select a parent to create a subcategory (Level 2).'),
+                        Forms\Components\TagsInput::make('rating_criteria')
+                            ->label('Review Rating Criteria')
+                            ->placeholder('Add criteria (e.g. Food, Service, Atmosphere)')
+                            ->helperText('Define the dynamic sub-rating fields available for reviews in this category.')
+                            ->columnSpanFull(),
                     ])->columns(2),
                     
                 Forms\Components\Section::make('Visual & Display')
@@ -117,6 +122,11 @@ class CategoryResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('rating_criteria')
+                    ->label('Review Criteria')
+                    ->badge()
+                    ->separator(',')
+                    ->placeholder('None (standard)'),
                 Tables\Columns\TextColumn::make('parent.name')
                     ->label('Parent Category')
                     ->badge()
@@ -181,6 +191,10 @@ class CategoryResource extends Resource
                             ->image()
                             ->r2Storage('categories'),
                         Forms\Components\ColorPicker::make('color_code'),
+                        Forms\Components\TagsInput::make('rating_criteria')
+                            ->label('Review Rating Criteria')
+                            ->placeholder('Add criteria (e.g. Food, Service, Atmosphere)')
+                            ->helperText('Define the dynamic sub-rating fields available for reviews in this subcategory.'),
                         Forms\Components\Toggle::make('is_active')
                             ->default(true),
                         Forms\Components\Toggle::make('is_featured')

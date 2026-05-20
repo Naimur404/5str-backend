@@ -8,6 +8,7 @@ use App\Models\Review;
 use App\Models\User;
 use App\Models\Business;
 use App\Models\BusinessOffering;
+use App\Models\Attraction;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -81,17 +82,20 @@ class ReviewResource extends Resource
                             ->options([
                                 'App\\Models\\Business' => 'Business',
                                 'App\\Models\\BusinessOffering' => 'Business Offering',
+                                'App\\Models\\Attraction' => 'Attraction',
                             ])
                             ->required()
                             ->live(),
                         Forms\Components\Select::make('reviewable_id')
-                            ->label('Business/Offering')
+                            ->label('Business/Offering/Attraction')
                             ->options(function (callable $get) {
                                 $type = $get('reviewable_type');
                                 if ($type === 'App\\Models\\Business') {
                                     return Business::all()->pluck('business_name', 'id');
                                 } elseif ($type === 'App\\Models\\BusinessOffering') {
                                     return BusinessOffering::all()->pluck('name', 'id');
+                                } elseif ($type === 'App\\Models\\Attraction') {
+                                    return Attraction::all()->pluck('name', 'id');
                                 }
                                 return [];
                             })
@@ -108,75 +112,26 @@ class ReviewResource extends Resource
                             ->maxValue(5)
                             ->required()
                             ->step(1),
-                        Forms\Components\TextInput::make('food_rating')
-                            ->label('Food Rating')
-                            ->numeric()
-                            ->minValue(1)
-                            ->maxValue(5)
-                            ->step(1),
-                        Forms\Components\TextInput::make('service_rating')
-                            ->label('Service Rating')
-                            ->numeric()
-                            ->minValue(1)
-                            ->maxValue(5)
-                            ->step(1),
-                        Forms\Components\TextInput::make('ambiance_rating')
-                            ->label('Ambiance Rating')
-                            ->numeric()
-                            ->minValue(1)
-                            ->maxValue(5)
-                            ->step(1),
-                        Forms\Components\TextInput::make('value_rating')
-                            ->label('Value Rating')
-                            ->numeric()
-                            ->minValue(1)
-                            ->maxValue(5)
-                            ->step(1),
-                        Forms\Components\TextInput::make('quality_rating')
-                            ->label('Quality Rating')
-                            ->numeric()
-                            ->minValue(1)
-                            ->maxValue(5)
-                            ->step(1),
+                        Forms\Components\KeyValue::make('ratings')
+                            ->label('Sub-Ratings')
+                            ->keyLabel('Criteria')
+                            ->valueLabel('Rating (1-5)')
+                            ->columnSpan(2),
                     ])->columns(3),
                     
                 Forms\Components\Section::make('Review Content')
                     ->schema([
                         Forms\Components\TextInput::make('title')
-                            ->maxLength(255),
-                        Forms\Components\Textarea::make('review_text')
-                            ->label('Review Text')
-                            ->required()
-                            ->maxLength(2000)
-                            ->rows(4),
-                        Forms\Components\TagsInput::make('pros')
-                            ->label('Pros')
-                            ->placeholder('Add positive points'),
-                        Forms\Components\TagsInput::make('cons')
-                            ->label('Cons')
-                            ->placeholder('Add negative points'),
-                    ])->columns(2),
+                            ->maxLength(255)
+                            ->required(),
+                    ])->columns(1),
                     
-                Forms\Components\Section::make('Visit Details')
+                Forms\Components\Section::make('Review Settings')
                     ->schema([
-                        Forms\Components\DatePicker::make('visit_date')
-                            ->label('Visit Date'),
-                        Forms\Components\TextInput::make('amount_spent')
-                            ->label('Amount Spent')
-                            ->numeric()
-                            ->step(0.01)
-                            ->prefix('৳'),
-                        Forms\Components\TextInput::make('party_size')
-                            ->label('Party Size')
-                            ->numeric()
-                            ->minValue(1),
                         Forms\Components\Toggle::make('is_recommended')
                             ->label('Recommend to others')
                             ->default(true),
-                        Forms\Components\Toggle::make('is_verified_visit')
-                            ->label('Verified Visit')
-                            ->default(false),
-                    ])->columns(3),
+                    ])->columns(1),
                     
                 Forms\Components\Section::make('Status')
                     ->schema([
@@ -211,7 +166,7 @@ class ReviewResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('reviewable.business_name')
-                    ->label('Business/Item')
+                    ->label('Business/Item/Attraction')
                     ->searchable()
                     ->getStateUsing(function ($record) {
                         if ($record->reviewable_type === 'App\\Models\\Business') {
@@ -226,12 +181,11 @@ class ReviewResource extends Resource
                     ->sortable()
                     ->badge()
                     ->color('warning'),
-                Tables\Columns\TextColumn::make('review_text')
-                    ->label('Review')
+                Tables\Columns\TextColumn::make('title')
+                    ->label('Title')
                     ->limit(50)
-                    ->tooltip(function ($record) {
-                        return $record->review_text;
-                    }),
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -240,9 +194,6 @@ class ReviewResource extends Resource
                         'rejected' => 'danger',
                         default => 'gray',
                     }),
-                Tables\Columns\IconColumn::make('is_verified_visit')
-                    ->label('Verified')
-                    ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
@@ -254,8 +205,6 @@ class ReviewResource extends Resource
                         'approved' => 'Approved',
                         'rejected' => 'Rejected',
                     ]),
-                Tables\Filters\TernaryFilter::make('is_verified_visit')
-                    ->label('Verified Visit'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

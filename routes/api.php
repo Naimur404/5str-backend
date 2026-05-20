@@ -219,9 +219,6 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::patch('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
         Route::delete('/{notification}', [NotificationController::class, 'clear']);
         Route::delete('/', [NotificationController::class, 'clearAll']);
-        
-        // Test notification (development only)
-        Route::post('/test', [NotificationController::class, 'createTest']);
     });
 
     // Push token management (require login)
@@ -231,9 +228,6 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::put('/{token}', [PushTokenController::class, 'update']);
         Route::delete('/{token}', [PushTokenController::class, 'destroy']);
         Route::put('/{token}/status', [PushTokenController::class, 'updateStatus']);
-        
-        // Test push notification (development only)
-        Route::post('/test', [PushTokenController::class, 'testNotification']);
     });
 
     // Review management (require login)

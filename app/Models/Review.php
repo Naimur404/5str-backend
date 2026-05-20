@@ -30,18 +30,9 @@ class Review extends Model
         'reviewable_id',
         'reviewable_type',
         'overall_rating',
-        'service_rating',
-        'quality_rating',
-        'value_rating',
+        'ratings',
         'title',
-        'review_text',
-        'pros',
-        'cons',
-        'visit_date',
-        'amount_spent',
-        'party_size',
         'is_recommended',
-        'is_verified_visit',
         'helpful_count',
         'not_helpful_count',
         'status',
@@ -55,16 +46,8 @@ class Review extends Model
 
     protected $casts = [
         'overall_rating' => 'integer',
-        'service_rating' => 'integer',
-        'quality_rating' => 'integer',
-        'value_rating' => 'integer',
-        'pros' => 'array',
-        'cons' => 'array',
-        'visit_date' => 'date',
-        'amount_spent' => 'decimal:2',
-        'party_size' => 'integer',
+        'ratings' => 'array',
         'is_recommended' => 'boolean',
-        'is_verified_visit' => 'boolean',
         'helpful_count' => 'integer',
         'not_helpful_count' => 'integer',
         'approved_at' => 'datetime',
@@ -138,28 +121,19 @@ class Review extends Model
     {
         $score = 0;
 
-        // Review length and detail (40%)
-        $textLength = strlen($this->review_text);
-        $lengthScore = min(100, ($textLength / 200) * 100); // 200 chars = full score
-        $score += $lengthScore * 0.40;
-
-        // Photos included (25%)
+        // Photos included (40%)
         $photoScore = $this->images()->count() > 0 ? 100 : 0;
-        $score += $photoScore * 0.25;
+        $score += $photoScore * 0.40;
 
-        // Helpful votes received (20%)
+        // Helpful votes received (30%)
         $helpfulRatio = $this->helpful_count + $this->not_helpful_count > 0 
             ? ($this->helpful_count / ($this->helpful_count + $this->not_helpful_count)) * 100 
             : 50;
-        $score += $helpfulRatio * 0.20;
+        $score += $helpfulRatio * 0.30;
 
-        // User trust level (10%)
+        // User trust level (30%)
         $userTrustScore = ($this->user->trust_level / 5) * 100;
-        $score += $userTrustScore * 0.10;
-
-        // Verified visit (5%)
-        $verifiedScore = $this->is_verified_visit ? 100 : 0;
-        $score += $verifiedScore * 0.05;
+        $score += $userTrustScore * 0.30;
 
         return round($score, 2);
     }
@@ -208,7 +182,49 @@ class Review extends Model
     }
 
     /**
-     * Update ratings for the reviewed item (business or offering)
+     * Resolve the rating criteria based on the reviewable type and ID.
+     * 
+     * @param string $type
+     * @param int|null $id
+     * @return array
+     */
+    public static function resolveCriteria(string $type, ?int $id = null): array
+    {
+        $normalizedType = strtolower(class_basename($type));
+
+        if ($normalizedType === 'business') {
+            if ($id) {
+                $business = Business::find($id);
+                if ($business) {
+                    if ($business->business_model === 'brand') {
+                        return ['Quality', 'Price', 'Availability', 'Customer Service'];
+                    }
+                    $criteria = $business->category?->getRatingCriteria();
+                    if (!empty($criteria)) {
+                        return $criteria;
+                    }
+                }
+            }
+            return ['Food', 'Service', 'Atmosphere', 'Value'];
+        }
+
+        if ($normalizedType === 'brand') {
+            return ['Quality', 'Price', 'Availability', 'Customer Service'];
+        }
+
+        if (in_array($normalizedType, ['businessoffering', 'offering'])) {
+            return ['Taste', 'Portion', 'Value', 'Presentation'];
+        }
+
+        if ($normalizedType === 'attraction') {
+            return ['Cleanliness', 'Safety', 'Crowd Management', 'Value'];
+        }
+
+        return [];
+    }
+
+    /**
+     * Update ratings for the reviewed item (business, offering, or attraction)
      */
     public function updateRelatedRatings()
     {
@@ -226,13 +242,55 @@ class Review extends Model
 
         // Update the reviewable item
         if ($this->reviewable_type === 'App\\Models\\Business') {
+            // Compute 1-5 star distribution
+            $ratingDistribution = [
+                '5' => 0,
+                '4' => 0,
+                '3' => 0,
+                '2' => 0,
+                '1' => 0
+            ];
+            foreach ($reviews as $rev) {
+                $ratingVal = (int)$rev->overall_rating;
+                if ($ratingVal >= 1 && $ratingVal <= 5) {
+                    $ratingDistribution[(string)$ratingVal]++;
+                }
+            }
+
+            // Compute dynamic sub-rating averages
+            $ratingAverages = [];
+            $criteria = self::resolveCriteria($this->reviewable_type, $this->reviewable_id);
+            if (count($criteria) > 0) {
+                foreach ($criteria as $criterion) {
+                    $total = 0;
+                    $count = 0;
+                    foreach ($reviews as $rev) {
+                        if ($rev->ratings && isset($rev->ratings[$criterion])) {
+                            $val = (int)$rev->ratings[$criterion];
+                            if ($val >= 1 && $val <= 5) {
+                                $total += $val;
+                                $count++;
+                            }
+                        }
+                    }
+                    $ratingAverages[$criterion] = $count > 0 ? round($total / $count, 1) : 0;
+                }
+            }
+
             $reviewable->update([
                 'overall_rating' => round($averageRating, 2),
-                'total_reviews' => $totalReviews
+                'total_reviews' => $totalReviews,
+                'rating_averages' => $ratingAverages,
+                'rating_distribution' => $ratingDistribution
             ]);
         } elseif ($this->reviewable_type === 'App\\Models\\BusinessOffering') {
             $reviewable->update([
                 'average_rating' => round($averageRating, 2),
+                'total_reviews' => $totalReviews
+            ]);
+        } elseif ($this->reviewable_type === 'App\\Models\\Attraction') {
+            $reviewable->update([
+                'overall_rating' => round($averageRating, 2),
                 'total_reviews' => $totalReviews
             ]);
         }
@@ -283,34 +341,13 @@ class Review extends Model
     {
         $points = 10; // Base points for any review
 
-        // Bonus points for detailed reviews
-        if (strlen($this->review_text) > 100) {
-            $points += 5;
-        }
-
         // Bonus points for ratings in multiple categories
-        $ratingCategories = collect([
-            $this->food_rating,
-            $this->service_rating,
-            $this->ambiance_rating,
-            $this->value_rating,
-            $this->quality_rating
-        ])->filter()->count();
+        $ratingCategories = 0;
+        if ($this->ratings && is_array($this->ratings)) {
+            $ratingCategories = collect($this->ratings)->filter()->count();
+        }
         
         $points += $ratingCategories * 2;
-
-        // Bonus points for adding pros/cons
-        if ($this->pros && count($this->pros) > 0) {
-            $points += 3;
-        }
-        if ($this->cons && count($this->cons) > 0) {
-            $points += 3;
-        }
-
-        // Bonus for verified visits
-        if ($this->is_verified_visit) {
-            $points += 5;
-        }
 
         return $points;
     }
@@ -327,6 +364,8 @@ class Review extends Model
             $itemName = $reviewable->business_name ?? 'business';
         } elseif ($this->reviewable_type === 'App\\Models\\BusinessOffering') {
             $itemName = $reviewable->name ?? 'offering';
+        } elseif ($this->reviewable_type === 'App\\Models\\Attraction') {
+            $itemName = $reviewable->name ?? 'attraction';
         }
 
         return "Review written for {$itemName}";

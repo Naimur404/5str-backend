@@ -17,6 +17,7 @@ class Category extends Model
         'icon_image',
         'banner_image',
         'description',
+        'rating_criteria',
         'color_code',
         'sort_order',
         'is_featured',
@@ -37,6 +38,7 @@ class Category extends Model
         'is_popular' => 'boolean',
         'is_active' => 'boolean',
         'total_businesses' => 'integer',
+        'rating_criteria' => 'array',
     ];
 
     /**
@@ -75,6 +77,22 @@ class Category extends Model
     public function trendingData()
     {
         return $this->hasMany(TrendingData::class, 'item_id')->where('item_type', 'category');
+    }
+
+    public function getRatingCriteria()
+    {
+        if ($this->rating_criteria && count($this->rating_criteria) > 0) {
+            return $this->rating_criteria;
+        }
+
+        if ($this->parent_id) {
+            $parent = $this->parent;
+            if ($parent) {
+                return $parent->getRatingCriteria();
+            }
+        }
+
+        return [];
     }
 
     /**

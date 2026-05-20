@@ -41,6 +41,8 @@ class Business extends Model
         'business_tags',
         'overall_rating',
         'total_reviews',
+        'rating_averages',
+        'rating_distribution',
         'discovery_score',
         'approval_status',
         'rejection_reason',
@@ -48,6 +50,7 @@ class Business extends Model
         'approved_at',
         'pending_changes',
         'has_pending_changes',
+        'parent_id',
     ];
 
     protected $hidden = [
@@ -78,10 +81,13 @@ class Business extends Model
         'business_tags' => 'array',
         'overall_rating' => 'decimal:2',
         'total_reviews' => 'integer',
+        'rating_averages' => 'array',
+        'rating_distribution' => 'array',
         'discovery_score' => 'decimal:2',
         'pending_changes' => 'array',
         'has_pending_changes' => 'boolean',
         'approved_at' => 'datetime',
+        'parent_id' => 'integer',
     ];
 
     // Accessors
@@ -273,6 +279,83 @@ class Business extends Model
     /**
      * Relationships
      */
+    public function parentBusiness()
+    {
+        return $this->belongsTo(Business::class, 'parent_id');
+    }
+
+    public function branches()
+    {
+        return $this->hasMany(Business::class, 'parent_id');
+    }
+
+    public function isBranch()
+    {
+        return $this->parent_id !== null;
+    }
+
+    public function isParent()
+    {
+        return $this->parent_id === null;
+    }
+
+    /**
+     * Get all offerings for this business, inheriting from the parent brand if none exist locally.
+     */
+    public function getInheritedOfferings()
+    {
+        if ($this->offerings()->exists()) {
+            return $this->offerings;
+        }
+
+        if ($this->parent_id) {
+            $parent = $this->parentBusiness;
+            if ($parent) {
+                return $parent->offerings;
+            }
+        }
+
+        return collect();
+    }
+
+    /**
+     * Get inherited products.
+     */
+    public function getInheritedProducts()
+    {
+        if ($this->products()->exists()) {
+            return $this->products;
+        }
+
+        if ($this->parent_id) {
+            $parent = $this->parentBusiness;
+            if ($parent) {
+                return $parent->products;
+            }
+        }
+
+        return collect();
+    }
+
+    /**
+     * Get inherited services.
+     */
+    public function getInheritedServices()
+    {
+        if ($this->services()->exists()) {
+            return $this->services;
+        }
+
+        if ($this->parent_id) {
+            $parent = $this->parentBusiness;
+            if ($parent) {
+                return $parent->services;
+            }
+        }
+
+        return collect();
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);

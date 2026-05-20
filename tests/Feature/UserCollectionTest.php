@@ -23,11 +23,25 @@ class UserCollectionTest extends TestCase
         // Create a test user
         $this->user = User::factory()->create();
         
-        // Create a test business
-        $this->business = Business::factory()->create([
-            'name' => 'Test Restaurant',
-            'phone' => '+8801234567890',
-            'address' => '123 Test Street, Dhaka',
+        $category = \App\Models\Category::create([
+            'name' => 'Restaurant',
+            'slug' => 'restaurant',
+            'level' => 1,
+            'is_active' => true
+        ]);
+
+        // Create a test business with correct columns
+        $this->business = Business::create([
+            'business_name' => 'Test Restaurant',
+            'slug' => 'test-restaurant',
+            'description' => 'Test restaurant description',
+            'category_id' => $category->id,
+            'business_phone' => '+8801234567890',
+            'full_address' => '123 Test Street, Dhaka',
+            'latitude' => 23.8103,
+            'longitude' => 90.4125,
+            'city' => 'Dhaka',
+            'area' => 'Gulshan',
             'is_active' => true
         ]);
     }
@@ -92,9 +106,9 @@ class UserCollectionTest extends TestCase
                         'sort_order',
                         'business' => [
                             'id',
-                            'name',
-                            'phone',
-                            'address'
+                            'business_name',
+                            'business_phone',
+                            'full_address'
                         ]
                     ]
                 ]

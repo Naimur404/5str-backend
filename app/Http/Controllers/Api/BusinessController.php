@@ -175,8 +175,21 @@ class BusinessController extends Controller
                       });
                 });
             } else {
-                // If no location provided, show only national businesses
-                $query->national();
+                // If no location provided, show only national businesses (unless filtering by parent_id)
+                if (!$request->has('parent_id')) {
+                    $query->national();
+                }
+            }
+
+            // Parent/Branch filter
+            if ($request->has('parent_id')) {
+                if ($request->parent_id === 'null' || is_null($request->parent_id)) {
+                    $query->whereNull('parent_id');
+                } else {
+                    $query->where('parent_id', $request->parent_id);
+                }
+            } elseif ($request->boolean('only_parents')) {
+                $query->whereNull('parent_id');
             }
 
             // Category filter
@@ -810,10 +823,50 @@ class BusinessController extends Controller
             // Convert business to array and add additional data
             $businessData = $business->toArray();
             $businessData['is_favorite'] = $isFavorite;
+            $businessData['rating_criteria'] = $business->category?->getRatingCriteria() ?? [];
             
             // Add Google Maps links
             $userLatitude = $request->input('latitude');
             $userLongitude = $request->input('longitude');
+
+            // If this is a parent brand/business, include its branches
+            if ($business->isParent()) {
+                $businessData['branches'] = $business->branches()
+                    ->active()
+                    ->get()
+                    ->map(function ($branch) use ($request, $userLatitude, $userLongitude) {
+                        $branchData = [
+                            'id' => $branch->id,
+                            'business_name' => $branch->business_name,
+                            'slug' => $branch->slug,
+                            'full_address' => $branch->full_address,
+                            'city' => $branch->city,
+                            'area' => $branch->area,
+                            'latitude' => $branch->latitude,
+                            'longitude' => $branch->longitude,
+                            'overall_rating' => (float) $branch->overall_rating,
+                            'total_reviews' => $branch->total_reviews,
+                            'image_url' => $branch->image_url,
+                        ];
+
+                        if ($userLatitude && $userLongitude && $branch->latitude && $branch->longitude) {
+                            $distance = $this->calculateDistance($userLatitude, $userLongitude, $branch->latitude, $branch->longitude);
+                            $branchData['distance'] = $this->formatDistance($distance * 1000);
+                        }
+
+                        return $branchData;
+                    });
+            } else {
+                // If it is a branch, provide parent business info
+                $parent = $business->parentBusiness;
+                if ($parent) {
+                    $businessData['parent_brand'] = [
+                        'id' => $parent->id,
+                        'business_name' => $parent->business_name,
+                        'slug' => $parent->slug,
+                    ];
+                }
+            }
             
             $businessData['google_maps'] = [
                 'view_url' => $business->google_maps_url,
@@ -948,16 +1001,9 @@ public function offerings(Request $request, $businessId)
                 return [
                     'id' => $review->id,
                     'overall_rating' => $review->overall_rating,
-                    'service_rating' => $review->service_rating,
-                    'quality_rating' => $review->quality_rating,
-                    'value_rating' => $review->value_rating,
+                    'ratings' => $review->ratings,
                     'title' => $review->title,
-                    'review_text' => $review->review_text,
-                    'pros' => $review->pros,
-                    'cons' => $review->cons,
-                    'visit_date' => $review->visit_date,
                     'is_recommended' => $review->is_recommended,
-                    'is_verified_visit' => $review->is_verified_visit,
                     'helpful_count' => $review->helpful_count,
                     'not_helpful_count' => $review->not_helpful_count,
                     'user_vote_status' => [

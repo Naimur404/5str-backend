@@ -357,7 +357,7 @@ class NeuralRecommendationEngine
     private function getBusinessTextContent(Business $business): string
     {
         $reviews = $business->reviews()->approved()->get();
-        $reviewTexts = $reviews->pluck('review_text')->implode(' ');
+        $reviewTexts = $reviews->pluck('title')->implode(' ');
         
         return trim($business->description . ' ' . $reviewTexts);
     }
