@@ -11,15 +11,20 @@ use App\Http\Controllers\Api\Admin\BusinessImageAdminController;
 use App\Http\Controllers\Api\Admin\BusinessOfferingAdminController;
 use App\Http\Controllers\Api\Admin\BusinessSubmissionAdminController;
 use App\Http\Controllers\Api\Admin\CategoryAdminController;
+use App\Http\Controllers\Api\Admin\DashboardAdminController;
+use App\Http\Controllers\Api\Admin\EndpointAnalyticsAdminController;
 use App\Http\Controllers\Api\Admin\OfferAdminController;
 use App\Http\Controllers\Api\Admin\OfferingSubmissionAdminController;
 use App\Http\Controllers\Api\Admin\OfferingVariantAdminController;
 use App\Http\Controllers\Api\Admin\PermissionAdminController;
 use App\Http\Controllers\Api\Admin\ReviewAdminController;
 use App\Http\Controllers\Api\Admin\RoleAdminController;
+use App\Http\Controllers\Api\Admin\SearchLogAdminController;
+use App\Http\Controllers\Api\Admin\TrendingDataAdminController;
 use App\Http\Controllers\Api\Admin\UploadAdminController;
 use App\Http\Controllers\Api\Admin\UserAdminController;
 use App\Http\Controllers\Api\Admin\UserAttractionInteractionAdminController;
+use App\Http\Controllers\Api\Admin\ViewAdminController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -127,4 +132,35 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::post('offerings/{offering_submission}/reject', [OfferingSubmissionAdminController::class, 'reject'])->name('admin.submissions.offerings.reject');
         Route::delete('offerings/{offering_submission}', [OfferingSubmissionAdminController::class, 'destroy'])->name('admin.submissions.offerings.destroy');
     });
+
+    // Dashboard aggregates
+    Route::prefix('dashboard')->group(function () {
+        Route::get('overview', [DashboardAdminController::class, 'overview'])->name('admin.dashboard.overview');
+        Route::get('pending-approvals', [DashboardAdminController::class, 'pendingApprovals'])->name('admin.dashboard.pending-approvals');
+        Route::get('business-growth', [DashboardAdminController::class, 'businessGrowth'])->name('admin.dashboard.business-growth');
+        Route::get('area-usage', [DashboardAdminController::class, 'areaUsage'])->name('admin.dashboard.area-usage');
+    });
+
+    // Trending (admins can curate)
+    Route::apiResource('trending-data', TrendingDataAdminController::class);
+    Route::post('trending-data/bulk-destroy', [TrendingDataAdminController::class, 'bulkDestroy'])->name('admin.trending-data.bulk-destroy');
+
+    // Analytics streams (read-only)
+    Route::get('endpoint-analytics/summary', [EndpointAnalyticsAdminController::class, 'summary'])->name('admin.endpoint-analytics.summary');
+    Route::get('endpoint-analytics', [EndpointAnalyticsAdminController::class, 'index'])->name('admin.endpoint-analytics.index');
+    Route::get('endpoint-analytics/{endpoint_analytic}', [EndpointAnalyticsAdminController::class, 'show'])->name('admin.endpoint-analytics.show');
+    Route::delete('endpoint-analytics/{endpoint_analytic}', [EndpointAnalyticsAdminController::class, 'destroy'])->name('admin.endpoint-analytics.destroy');
+    Route::post('endpoint-analytics/bulk-destroy', [EndpointAnalyticsAdminController::class, 'bulkDestroy'])->name('admin.endpoint-analytics.bulk-destroy');
+
+    Route::get('search-logs/summary', [SearchLogAdminController::class, 'summary'])->name('admin.search-logs.summary');
+    Route::get('search-logs', [SearchLogAdminController::class, 'index'])->name('admin.search-logs.index');
+    Route::get('search-logs/{search_log}', [SearchLogAdminController::class, 'show'])->name('admin.search-logs.show');
+    Route::delete('search-logs/{search_log}', [SearchLogAdminController::class, 'destroy'])->name('admin.search-logs.destroy');
+    Route::post('search-logs/bulk-destroy', [SearchLogAdminController::class, 'bulkDestroy'])->name('admin.search-logs.bulk-destroy');
+
+    Route::get('views/summary', [ViewAdminController::class, 'summary'])->name('admin.views.summary');
+    Route::get('views', [ViewAdminController::class, 'index'])->name('admin.views.index');
+    Route::get('views/{view}', [ViewAdminController::class, 'show'])->name('admin.views.show');
+    Route::delete('views/{view}', [ViewAdminController::class, 'destroy'])->name('admin.views.destroy');
+    Route::post('views/bulk-destroy', [ViewAdminController::class, 'bulkDestroy'])->name('admin.views.bulk-destroy');
 });
