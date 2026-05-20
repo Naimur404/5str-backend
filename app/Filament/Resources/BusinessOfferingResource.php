@@ -55,16 +55,25 @@ class BusinessOfferingResource extends Resource
                                     $query->where('owner_user_id', Auth::id());
                                 }
 
-                                return $query->get()->mapWithKeys(function ($b) {
+                                $businesses = $query->orderBy('business_name')->get();
+
+                                $mainBrands = [];
+                                $branches = [];
+
+                                foreach ($businesses as $b) {
                                     if ($b->parent_id) {
-                                        $label = $b->business_name . ' · Branch of ' . ($b->parentBusiness->business_name ?? '—');
+                                        $branches[$b->id] = $b->business_name . ' (' . ($b->parentBusiness->business_name ?? '—') . ')';
                                     } elseif ($b->branches_count > 0) {
-                                        $label = $b->business_name . ' · Main Brand (' . $b->branches_count . ' branches)';
+                                        $mainBrands[$b->id] = $b->business_name . ' (' . $b->branches_count . ' branches)';
                                     } else {
-                                        $label = $b->business_name;
+                                        $mainBrands[$b->id] = $b->business_name;
                                     }
-                                    return [$b->id => $label];
-                                });
+                                }
+
+                                return array_filter([
+                                    'Main Brands' => $mainBrands,
+                                    'Branches' => $branches,
+                                ]);
                             })
                             ->required()
                             ->searchable()

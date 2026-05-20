@@ -30,20 +30,29 @@ class OfferResource extends Resource
                         Forms\Components\Select::make('business_id')
                             ->label('Business')
                             ->options(function () {
-                                return Business::query()
+                                $businesses = Business::query()
                                     ->with('parentBusiness:id,business_name')
                                     ->withCount('branches')
-                                    ->get()
-                                    ->mapWithKeys(function ($b) {
-                                        if ($b->parent_id) {
-                                            $label = $b->business_name . ' · Branch of ' . ($b->parentBusiness->business_name ?? '—');
-                                        } elseif ($b->branches_count > 0) {
-                                            $label = $b->business_name . ' · Main Brand (' . $b->branches_count . ' branches)';
-                                        } else {
-                                            $label = $b->business_name;
-                                        }
-                                        return [$b->id => $label];
-                                    });
+                                    ->orderBy('business_name')
+                                    ->get();
+
+                                $mainBrands = [];
+                                $branches = [];
+
+                                foreach ($businesses as $b) {
+                                    if ($b->parent_id) {
+                                        $branches[$b->id] = $b->business_name . ' (' . ($b->parentBusiness->business_name ?? '—') . ')';
+                                    } elseif ($b->branches_count > 0) {
+                                        $mainBrands[$b->id] = $b->business_name . ' (' . $b->branches_count . ' branches)';
+                                    } else {
+                                        $mainBrands[$b->id] = $b->business_name;
+                                    }
+                                }
+
+                                return array_filter([
+                                    'Main Brands' => $mainBrands,
+                                    'Branches' => $branches,
+                                ]);
                             })
                             ->required()
                             ->searchable()
