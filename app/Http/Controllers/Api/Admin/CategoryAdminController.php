@@ -26,6 +26,20 @@ class CategoryAdminController extends AdminResourceController
     protected static array $with = ['parent:id,name'];
     protected static string $defaultSort = 'sort_order';
 
+    protected function applyFilters(Builder $query, Request $request): void
+    {
+        $parentId = $request->input('parent_id');
+        if ($parentId === 'null') {
+            $query->whereNull('parent_id');
+            $originalFilters = static::$filters;
+            unset(static::$filters['parent_id']);
+            parent::applyFilters($query, $request);
+            static::$filters = $originalFilters;
+        } else {
+            parent::applyFilters($query, $request);
+        }
+    }
+
     protected function validationRules(Request $request, ?Model $record = null): array
     {
         $id = $record?->getKey();
