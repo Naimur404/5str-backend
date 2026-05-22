@@ -23,18 +23,31 @@ class AttractionReviewAdminController extends AdminResourceController
         'is_featured' => 'is_featured',
         'is_anonymous' => 'is_anonymous',
     ];
-    protected static array $with = ['user:id,name'];
+    protected static array $with = ['user:id,name', 'attraction:id,name'];
 
     protected function validationRules(Request $request, ?Model $record = null): array
     {
+        $isCreate = $record === null;
+
         return [
+            'attraction_id' => [$isCreate ? 'required' : 'sometimes', 'integer', 'exists:attractions,id'],
+            'user_id' => [$isCreate ? 'required' : 'sometimes', 'integer', 'exists:users,id'],
             'title' => ['nullable', 'string', 'max:255'],
-            'comment' => ['nullable', 'string'],
-            'rating' => ['nullable', 'numeric', 'between:1,5'],
+            'comment' => [$isCreate ? 'required' : 'sometimes', 'string'],
+            'rating' => [$isCreate ? 'required' : 'nullable', 'numeric', 'between:1,5'],
+            'visit_date' => ['nullable', 'date'],
+            'experience_tags' => ['nullable', 'array'],
+            'experience_tags.*' => ['string', 'max:50'],
+            'visit_info' => ['nullable', 'array'],
             'is_verified' => ['nullable', 'boolean'],
             'is_featured' => ['nullable', 'boolean'],
             'is_anonymous' => ['nullable', 'boolean'],
-            'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected', 'flagged'])],
+            'helpful_votes' => ['nullable', 'integer', 'min:0'],
+            'total_votes' => ['nullable', 'integer', 'min:0'],
+            'status' => [
+                'nullable',
+                Rule::in(['active', 'pending', 'approved', 'rejected', 'flagged', 'hidden', 'deleted']),
+            ],
             'admin_notes' => ['nullable', 'string', 'max:1000'],
         ];
     }

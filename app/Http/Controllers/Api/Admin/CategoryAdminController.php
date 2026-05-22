@@ -55,6 +55,7 @@ class CategoryAdminController extends AdminResourceController
             'banner_image' => ['nullable', 'string', 'max:500'],
             'color_code' => ['nullable', 'string', 'max:20'],
             'rating_criteria' => ['nullable', 'array'],
+            'rating_criteria.*' => ['string', 'max:100'],
             'sort_order' => ['nullable', 'integer'],
             'is_featured' => ['nullable', 'boolean'],
             'is_popular' => ['nullable', 'boolean'],

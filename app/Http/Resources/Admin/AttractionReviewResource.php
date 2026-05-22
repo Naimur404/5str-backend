@@ -11,6 +11,10 @@ class AttractionReviewResource extends JsonResource
         return [
             'id' => $this->id,
             'attraction_id' => $this->attraction_id,
+            'attraction' => $this->whenLoaded('attraction', fn () => [
+                'id' => $this->attraction->id,
+                'name' => $this->attraction->name,
+            ]),
             'user_id' => $this->user_id,
             'user' => $this->whenLoaded('user', fn () => $this->is_anonymous ? null : [
                 'id' => $this->user->id,

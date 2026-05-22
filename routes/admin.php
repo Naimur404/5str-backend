@@ -107,6 +107,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('user-attraction-interactions/bulk-destroy', [UserAttractionInteractionAdminController::class, 'bulkDestroy'])->name('admin.user-attraction-interactions.bulk-destroy');
 
     // Reviews (polymorphic — business + attraction reviews via Review model)
+    Route::get('reviews/rating-criteria', [ReviewAdminController::class, 'ratingCriteria'])->name('admin.reviews.rating-criteria');
     Route::apiResource('reviews', ReviewAdminController::class);
     Route::post('reviews/bulk-destroy', [ReviewAdminController::class, 'bulkDestroy'])->name('admin.reviews.bulk-destroy');
     Route::post('reviews/{review}/approve', [ReviewAdminController::class, 'approve'])->name('admin.reviews.approve');

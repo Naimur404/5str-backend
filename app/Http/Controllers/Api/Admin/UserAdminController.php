@@ -30,6 +30,12 @@ class UserAdminController extends AdminResourceController
             'profile_image' => ['nullable', 'string', 'max:500'],
             'avatar' => ['nullable', 'string', 'max:500'],
             'city' => ['nullable', 'string', 'max:100'],
+            'current_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'current_longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'trust_level' => ['nullable', 'integer', 'between:1,5'],
+            'is_active' => ['nullable', 'boolean'],
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['string', 'exists:permissions,name'],
         ];
     }
 
@@ -37,12 +43,14 @@ class UserAdminController extends AdminResourceController
     {
         $this->hashPassword($record, $data);
         $this->maybeSyncRoles($record, $request);
+        $this->maybeSyncPermissions($record, $request);
     }
 
     protected function afterUpdate(Model $record, Request $request, array $data): void
     {
         $this->hashPassword($record, $data);
         $this->maybeSyncRoles($record, $request);
+        $this->maybeSyncPermissions($record, $request);
     }
 
     public function syncRoles(Request $request, User $user): JsonResponse
@@ -77,5 +85,13 @@ class UserAdminController extends AdminResourceController
             'roles.*' => ['string', 'exists:roles,name'],
         ]);
         $user->syncRoles((array) $request->input('roles'));
+    }
+
+    private function maybeSyncPermissions(User $user, Request $request): void
+    {
+        if (! $request->has('permissions')) {
+            return;
+        }
+        $user->syncPermissions((array) $request->input('permissions'));
     }
 }

@@ -18,6 +18,16 @@ class ReviewResource extends JsonResource
             ]),
             'reviewable_type' => $this->reviewable_type,
             'reviewable_id' => $this->reviewable_id,
+            'reviewable' => $this->whenLoaded('reviewable', function () {
+                $r = $this->reviewable;
+                if (! $r) {
+                    return null;
+                }
+                return [
+                    'id' => $r->id,
+                    'name' => $r->business_name ?? $r->name ?? null,
+                ];
+            }),
             'overall_rating' => $this->overall_rating,
             'ratings' => $this->ratings,
             'title' => $this->title,
