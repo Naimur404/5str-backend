@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\AttractionInteractionController;
 use App\Http\Controllers\Api\AttractionReviewController;
 use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\BusinessSubmissionController;
+use App\Http\Controllers\Api\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +42,9 @@ Route::prefix('auth/google')->group(function () {
     Route::post('/token', [GoogleAuthController::class, 'handleGoogleToken']);
 });
 Route::prefix('v1')->group(function () {
+    // Public settings (branding - no auth required)
+    Route::get('/settings/public', [SettingsController::class, 'publicSettings']);
+
     // Authentication routes
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);

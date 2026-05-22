@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AdminAuthController;
 use App\Http\Controllers\Api\Admin\AttractionAdminController;
+use App\Http\Controllers\Api\Admin\SettingsAdminController;
 use App\Http\Controllers\Api\Admin\AttractionGalleryAdminController;
 use App\Http\Controllers\Api\Admin\AttractionReviewAdminController;
 use App\Http\Controllers\Api\Admin\AttractionSubmissionAdminController;
@@ -174,4 +175,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('views/{view}', [ViewAdminController::class, 'show'])->name('admin.views.show');
     Route::delete('views/{view}', [ViewAdminController::class, 'destroy'])->name('admin.views.destroy');
     Route::post('views/bulk-destroy', [ViewAdminController::class, 'bulkDestroy'])->name('admin.views.bulk-destroy');
+
+    // Settings
+    Route::get('settings', [SettingsAdminController::class, 'index'])->name('admin.settings.index');
+    Route::put('settings', [SettingsAdminController::class, 'update'])->name('admin.settings.update');
+    Route::post('settings', [SettingsAdminController::class, 'update'])->name('admin.settings.update.post');
 });
