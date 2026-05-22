@@ -78,11 +78,20 @@ return [
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
-        // Sentry — captures any log line at the configured level. Used
-        // alongside the auto-capture wired in the exception handler.
+        // Sentry — captures any log line at the configured level (used
+        // for traditional error reporting via the exception handler).
         'sentry' => [
             'driver' => 'sentry',
             'level' => env('LOG_LEVEL_SENTRY', 'error'),
+            'bubble' => true,
+        ],
+
+        // Sentry Logs — sends every log record to Sentry's Logs UI as
+        // structured events. Enabled by SENTRY_ENABLE_LOGS=true. Channel
+        // name matches what Sentry's setup wizard expects.
+        'sentry_logs' => [
+            'driver' => 'sentry_logs',
+            'level' => env('LOG_LEVEL_SENTRY_LOGS', 'info'),
             'bubble' => true,
         ],
 
