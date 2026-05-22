@@ -1,14 +1,16 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Integration;
 
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\BusinessOffering;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('integration')]
 class BusinessBranchTest extends TestCase
 {
     use RefreshDatabase;

@@ -2,16 +2,23 @@
 
 namespace App\Services;
 
+use Illuminate\Cache\TaggedCache;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 /**
- * Centralized cache invalidation service.
- * 
- * All cache keys used across the API read endpoints are registered here 
- * so that model observers can surgically flush the right groups.
- * 
+ * Centralized cache key conventions and tag-based invalidation.
+ *
+ * Backed by Redis cache tags so flushing a domain ("businesses",
+ * "home", "trending"…) is O(1) instead of an O(N) Redis SCAN.
+ *
+ * Callers that previously did `Cache::remember($key, ttl, fn)` should
+ * switch to `CacheInvalidationService::tagged([$tag])->remember(...)`
+ * so the entry participates in the tag-flush. Plain `Cache::remember`
+ * still works — it just won't be invalidated automatically.
+ *
  * Cache key conventions:
  *   - Static lists:    categories:main, categories:featured, categories:popular
  *   - Parameterized:   home:index:{grid}:{radius}, trending:{area}:{period}:{type}
@@ -20,28 +27,37 @@ use Illuminate\Support\Facades\Redis;
 class CacheInvalidationService
 {
     // ─── TTL Constants (seconds) ────────────────────────────────────
-    const TTL_HOME_INDEX       = 180;   // 3 minutes
-    const TTL_CATEGORIES       = 1800;  // 30 minutes
-    const TTL_CATEGORIES_MAIN  = 3600;  // 60 minutes
-    const TTL_FEATURED_SECTIONS = 3600; // 60 minutes
-    const TTL_STATISTICS       = 900;   // 15 minutes
-    const TTL_TRENDING         = 300;   // 5 minutes
-    const TTL_BUSINESS_FEATURED = 900;  // 15 minutes
-    const TTL_NATIONAL_FILTERS = 1800;  // 30 minutes
-    const TTL_NATIONAL_LIST    = 900;   // 15 minutes
-    const TTL_SEARCH_POPULAR   = 600;   // 10 minutes
-    const TTL_ATTRACTIONS      = 900;   // 15 minutes
-    const TTL_OFFERS           = 300;   // 5 minutes
-    const TTL_VIEW_ALL         = 600;   // 10 minutes
+    public const TTL_HOME_INDEX        = 180;   // 3 minutes
+    public const TTL_CATEGORIES        = 1800;  // 30 minutes
+    public const TTL_CATEGORIES_MAIN   = 3600;  // 60 minutes
+    public const TTL_FEATURED_SECTIONS = 3600;  // 60 minutes
+    public const TTL_STATISTICS        = 900;   // 15 minutes
+    public const TTL_TRENDING          = 300;   // 5 minutes
+    public const TTL_BUSINESS_FEATURED = 900;   // 15 minutes
+    public const TTL_NATIONAL_FILTERS  = 1800;  // 30 minutes
+    public const TTL_NATIONAL_LIST     = 900;   // 15 minutes
+    public const TTL_SEARCH_POPULAR    = 600;   // 10 minutes
+    public const TTL_ATTRACTIONS       = 900;   // 15 minutes
+    public const TTL_OFFERS            = 300;   // 5 minutes
+    public const TTL_VIEW_ALL          = 600;   // 10 minutes
 
-    // ─── Key Prefix Groups ──────────────────────────────────────────
-    const PREFIX_HOME       = 'home:';
-    const PREFIX_CATEGORIES = 'categories:';
-    const PREFIX_BUSINESSES = 'businesses:';
-    const PREFIX_TRENDING   = 'trending:';
-    const PREFIX_ATTRACTIONS = 'attractions:';
-    const PREFIX_OFFERS     = 'offers:';
-    const PREFIX_SEARCH     = 'search:';
+    // ─── Tag Names ──────────────────────────────────────────────────
+    public const TAG_HOME        = 'home';
+    public const TAG_CATEGORIES  = 'categories';
+    public const TAG_BUSINESSES  = 'businesses';
+    public const TAG_TRENDING    = 'trending';
+    public const TAG_ATTRACTIONS = 'attractions';
+    public const TAG_OFFERS      = 'offers';
+    public const TAG_SEARCH      = 'search';
+
+    // ─── Legacy Key Prefix Groups (kept for back-compat with key()) ─
+    public const PREFIX_HOME        = 'home:';
+    public const PREFIX_CATEGORIES  = 'categories:';
+    public const PREFIX_BUSINESSES  = 'businesses:';
+    public const PREFIX_TRENDING    = 'trending:';
+    public const PREFIX_ATTRACTIONS = 'attractions:';
+    public const PREFIX_OFFERS      = 'offers:';
+    public const PREFIX_SEARCH      = 'search:';
 
     /**
      * Snap GPS coordinates to a grid cell for cache key stability.
@@ -53,179 +69,171 @@ class CacheInvalidationService
         if ($lat === null || $lng === null) {
             return 'no_loc';
         }
-        return round($lat, 2) . ':' . round($lng, 2);
+
+        return round($lat, 2).':'.round($lng, 2);
     }
 
     /**
      * Build a deterministic cache key from prefix + segments.
      */
-    public static function key(string $prefix, ...$segments): string
+    public static function key(string $prefix, mixed ...$segments): string
     {
-        $parts = array_map(function ($v) {
-            return $v === null ? '_' : (string) $v;
-        }, $segments);
-        return $prefix . implode(':', $parts);
+        $parts = array_map(
+            static fn ($v) => $v === null ? '_' : (string) $v,
+            $segments,
+        );
+
+        return $prefix.implode(':', $parts);
+    }
+
+    /**
+     * Get a tagged cache repository. Falls back to the untagged store on
+     * drivers that do not support tags (e.g. file/database) — callers get
+     * the same Repository contract either way.
+     *
+     * @param  array<int, string>  $tags
+     */
+    public static function tagged(array $tags): Repository|TaggedCache
+    {
+        $store = Cache::getStore();
+
+        return method_exists($store, 'tags')
+            ? Cache::tags($tags)
+            : Cache::store();
     }
 
     // ─── Flush by Domain ────────────────────────────────────────────
 
-    /**
-     * Flush all home-related cache keys (called on business/offer/category changes).
-     */
     public static function flushHome(): void
     {
-        self::flushByPrefix(self::PREFIX_HOME);
+        self::flushTag(self::TAG_HOME);
     }
 
-    /**
-     * Flush all category cache keys.
-     */
     public static function flushCategories(): void
     {
-        // Flush known static keys
-        Cache::forget('categories:index');
-        Cache::forget('categories:main');
-        Cache::forget('categories:featured');
-        Cache::forget('categories:popular');
-
-        // Flush any parameterized category keys
-        self::flushByPrefix(self::PREFIX_CATEGORIES);
+        self::flushTag(self::TAG_CATEGORIES);
     }
 
-    /**
-     * Flush all business-related cache keys.
-     */
     public static function flushBusinesses(): void
     {
-        self::flushByPrefix(self::PREFIX_BUSINESSES);
+        self::flushTag(self::TAG_BUSINESSES);
     }
 
-    /**
-     * Flush all trending cache keys.
-     */
     public static function flushTrending(): void
     {
-        self::flushByPrefix(self::PREFIX_TRENDING);
+        self::flushTag(self::TAG_TRENDING);
     }
 
-    /**
-     * Flush all attraction cache keys.
-     */
     public static function flushAttractions(): void
     {
-        self::flushByPrefix(self::PREFIX_ATTRACTIONS);
+        self::flushTag(self::TAG_ATTRACTIONS);
     }
 
-    /**
-     * Flush all offer cache keys.
-     */
     public static function flushOffers(): void
     {
-        self::flushByPrefix(self::PREFIX_OFFERS);
+        self::flushTag(self::TAG_OFFERS);
     }
 
-    /**
-     * Flush all search-related cache keys.
-     */
     public static function flushSearch(): void
     {
-        self::flushByPrefix(self::PREFIX_SEARCH);
+        self::flushTag(self::TAG_SEARCH);
     }
 
     // ─── Composite Flush Methods (for observers) ────────────────────
 
-    /**
-     * Called when a Business is created, updated, or deleted.
-     */
     public static function onBusinessChange(): void
     {
-        self::flushHome();
-        self::flushCategories();
-        self::flushBusinesses();
+        self::flushTags([self::TAG_HOME, self::TAG_CATEGORIES, self::TAG_BUSINESSES]);
     }
 
-    /**
-     * Called when a Review is created, updated, or deleted.
-     */
     public static function onReviewChange(): void
     {
-        self::flushHome();
-        self::flushBusinesses();
-        // Categories popular relies on business counts which may shift with reviews
-        Cache::forget('categories:popular');
+        self::flushTags([self::TAG_HOME, self::TAG_BUSINESSES, self::TAG_CATEGORIES]);
     }
 
-    /**
-     * Called when an Offer is created, updated, or deleted.
-     */
     public static function onOfferChange(): void
     {
-        self::flushHome();
-        self::flushOffers();
+        self::flushTags([self::TAG_HOME, self::TAG_OFFERS]);
     }
 
-    /**
-     * Called when a Category is updated.
-     */
     public static function onCategoryChange(): void
     {
-        self::flushCategories();
-        self::flushHome();
+        self::flushTags([self::TAG_CATEGORIES, self::TAG_HOME]);
     }
 
-    /**
-     * Called when trending data is refreshed by cron.
-     */
     public static function onTrendingRefresh(): void
     {
-        self::flushTrending();
-        self::flushHome();
+        self::flushTags([self::TAG_TRENDING, self::TAG_HOME]);
     }
 
-    /**
-     * Called when an Attraction is created, updated, or deleted.
-     */
     public static function onAttractionChange(): void
     {
-        self::flushAttractions();
-        self::flushHome();
+        self::flushTags([self::TAG_ATTRACTIONS, self::TAG_HOME]);
     }
 
     // ─── Internal Helpers ───────────────────────────────────────────
 
     /**
-     * Flush all cache keys matching a given prefix using Redis SCAN.
-     * Falls back to logging a warning if not using Redis driver.
+     * @param  array<int, string>  $tags
      */
-    private static function flushByPrefix(string $prefix): void
+    private static function flushTags(array $tags): void
     {
         try {
-            $cachePrefix = config('cache.prefix', '');
-            $fullPrefix = $cachePrefix . $prefix;
-
-            // Use Redis SCAN for efficient prefix-based deletion
-            if (config('cache.default') === 'redis') {
-                $connection = Redis::connection('cache');
-                $cursor = '0';
-                
-                do {
-                    [$cursor, $keys] = $connection->scan($cursor, [
-                        'match' => $fullPrefix . '*',
-                        'count' => 100,
-                    ]);
-
-                    if (!empty($keys)) {
-                        $connection->del(...$keys);
-                    }
-                } while ($cursor !== '0');
-            } else {
-                // For non-Redis drivers, we can only forget known keys
-                Log::warning("CacheInvalidation: prefix-based flush not supported on driver: " . config('cache.default'));
+            $store = Cache::getStore();
+            if (method_exists($store, 'tags')) {
+                Cache::tags($tags)->flush();
             }
-        } catch (\Exception $e) {
-            Log::error("CacheInvalidation: failed to flush prefix '{$prefix}'", [
-                'error' => $e->getMessage()
+        } catch (\Throwable $e) {
+            Log::error('CacheInvalidation: tagged flush failed', [
+                'tags' => $tags,
+                'error' => $e->getMessage(),
             ]);
         }
+
+        // Notify peer containers running the same Redis. Each instance has
+        // its own subscriber that re-runs `flushTags()` locally; this lets
+        // observer-driven invalidation reach every PHP-FPM/queue worker
+        // process, not only the one that handled the write.
+        self::publishInvalidation($tags);
+    }
+
+    /**
+     * Pub/Sub fan-out so multi-container deploys converge on the same
+     * cache state. No-op when the cache driver is not Redis (single-host
+     * deploys don't need it).
+     *
+     * @param  array<int, string>  $tags
+     */
+    private static function publishInvalidation(array $tags): void
+    {
+        if (config('cache.default') !== 'redis') {
+            return;
+        }
+
+        try {
+            Redis::connection('default')->publish(
+                self::pubsubChannel(),
+                (string) json_encode([
+                    'tags' => array_values($tags),
+                    'host' => gethostname() ?: 'unknown',
+                    'ts' => microtime(true),
+                ]),
+            );
+        } catch (\Throwable $e) {
+            // Pub/Sub is best-effort; never block the write request.
+            Log::warning('CacheInvalidation: publish failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public static function pubsubChannel(): string
+    {
+        return (string) config('cache.invalidation_channel', '5sr_cache_invalidate');
+    }
+
+    private static function flushTag(string $tag): void
+    {
+        self::flushTags([$tag]);
     }
 }

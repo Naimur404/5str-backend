@@ -1,14 +1,16 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Integration;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Business;
 use App\Models\UserCollection;
 
+#[Group('integration')]
 class UserCollectionTest extends TestCase
 {
     use RefreshDatabase;

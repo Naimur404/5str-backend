@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\AuditableByAdmin;
 use App\Support\R2Storage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 class AttractionSubmission extends Model
 {
     use HasFactory;
+    use AuditableByAdmin;
 
     protected $fillable = [
         'user_id',

@@ -40,7 +40,9 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::post('login', [AdminAuthController::class, 'login'])->name('admin.login');
+Route::post('login', [AdminAuthController::class, 'login'])
+    ->middleware('throttle:auth')
+    ->name('admin.login');
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('logout', [AdminAuthController::class, 'logout'])->name('admin.logout');

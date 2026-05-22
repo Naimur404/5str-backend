@@ -24,8 +24,21 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        RateLimiter::for('api', function (Request $request) {
+        // General API: 60 req/min per user (or per IP for guests).
+        RateLimiter::for('api', static function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Auth endpoints: tight per-IP throttle to stop credential stuffing
+        // and email-resend abuse. Email is added to the key when present so
+        // attackers cannot rotate IPs to bypass account-specific limits.
+        RateLimiter::for('auth', static function (Request $request) {
+            $email = (string) $request->input('email', '');
+
+            return [
+                Limit::perMinute(10)->by('ip:'.$request->ip()),
+                Limit::perMinute(5)->by('email:'.mb_strtolower($email).'|ip:'.$request->ip()),
+            ];
         });
 
         $this->routes(function () {

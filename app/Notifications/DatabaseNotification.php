@@ -16,6 +16,12 @@ class DatabaseNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * Persist on the dedicated `notifications` Horizon queue so a flood of
+     * admin notifications never blocks higher-priority jobs.
+     */
+    public string $queue = 'notifications';
+
     public function __construct(
         public readonly string $title,
         public readonly string $body,

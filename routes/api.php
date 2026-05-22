@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\BusinessController;
@@ -36,6 +37,10 @@ use App\Http\Controllers\Api\SettingsController;
 
 // Public routes (no authentication required)
 
+// Health probes for orchestration. Live before any rate limiting / auth.
+Route::get('/healthz', [HealthController::class, 'live'])->name('health.live');
+Route::get('/readyz', [HealthController::class, 'ready'])->name('health.ready');
+
 Route::prefix('auth/google')->group(function () {
     Route::get('/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('/callback', [GoogleAuthController::class, 'callback']);
@@ -45,15 +50,17 @@ Route::prefix('v1')->group(function () {
     // Public settings (branding - no auth required)
     Route::get('/settings/public', [SettingsController::class, 'publicSettings']);
 
-    // Authentication routes
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
-    
+    // Authentication routes — tight throttle to stop brute force / spam
+    Route::middleware('throttle:auth')->group(function () {
+        Route::post('/register', [AuthController::class, 'register']);
+        Route::post('/login', [AuthController::class, 'login']);
+    });
+
     // Google OAuth routes
  
     
-    // Email verification routes
-    Route::prefix('email')->group(function () {
+    // Email verification routes — also throttle (verification code spam)
+    Route::middleware('throttle:auth')->prefix('email')->group(function () {
         Route::post('/verify', [EmailVerificationController::class, 'verify']);
         Route::post('/resend', [EmailVerificationController::class, 'resend']);
         Route::get('/status', [EmailVerificationController::class, 'status']);
@@ -229,7 +236,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     // Push token management (require login)
     Route::prefix('push-tokens')->group(function () {
         Route::get('/', [PushTokenController::class, 'index']);
-        Route::post('/', [PushTokenController::class, 'store']);
+        Route::post('/', [PushTokenController::class, 'store'])->middleware('idempotent');
         Route::put('/{token}', [PushTokenController::class, 'update']);
         Route::delete('/{token}', [PushTokenController::class, 'destroy']);
         Route::put('/{token}/status', [PushTokenController::class, 'updateStatus']);
@@ -237,7 +244,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     // Review management (require login)
     Route::prefix('reviews')->group(function () {
-        Route::post('/', [ReviewController::class, 'store']);
+        Route::post('/', [ReviewController::class, 'store'])->middleware('idempotent');
         Route::get('/{review}', [ReviewController::class, 'show']);
         Route::get('/show/{review}', [ReviewController::class, 'showFull']);
         Route::put('/{review}', [ReviewController::class, 'update']);
@@ -255,7 +262,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     // Offer usage (require login)
     Route::prefix('offers')->group(function () {
-        Route::post('/{offer}/use', [OfferController::class, 'useOffer']);
+        Route::post('/{offer}/use', [OfferController::class, 'useOffer'])->middleware('idempotent');
     });
 
     // User Collections (require login)
@@ -298,7 +305,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     });
 
     // Business, Attraction & Offering Submissions (Community Contributions)
-    Route::prefix('submissions')->group(function () {
+    Route::prefix('submissions')->middleware('idempotent')->group(function () {
         // Submit new content
         Route::post('/business', [BusinessSubmissionController::class, 'submitBusiness']);
         Route::post('/attraction', [BusinessSubmissionController::class, 'submitAttraction']);

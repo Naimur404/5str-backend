@@ -34,6 +34,10 @@ class AutoTrackSearches
 
     public function handle(Request $request, Closure $next): Response
     {
+        if ($request->is('api/healthz', 'api/readyz', 'api/horizon/*')) {
+            return $next($request);
+        }
+
         $response = $next($request);
 
         if ($response->getStatusCode() === 200 && $this->isSearchRequest($request)) {

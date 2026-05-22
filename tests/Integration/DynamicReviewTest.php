@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Integration;
 
 use App\Models\Business;
 use App\Models\Category;
@@ -9,8 +9,10 @@ use App\Models\User;
 use App\Models\BusinessOffering;
 use App\Models\Attraction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('integration')]
 class DynamicReviewTest extends TestCase
 {
     use RefreshDatabase;

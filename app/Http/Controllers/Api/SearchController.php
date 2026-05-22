@@ -238,9 +238,12 @@ class SearchController extends Controller
 
             $cacheKey = CacheInvalidationService::key('search:popular', $categoryId, $limit);
 
-            $popularSearches = Cache::remember($cacheKey, CacheInvalidationService::TTL_SEARCH_POPULAR, function () use ($limit, $categoryId) {
-                return $this->analyticsService->getPopularSearchTerms($limit, $categoryId);
-            });
+            $popularSearches = CacheInvalidationService::tagged([CacheInvalidationService::TAG_SEARCH])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_SEARCH_POPULAR, CacheInvalidationService::TTL_SEARCH_POPULAR * 2],
+                    fn () => $this->analyticsService->getPopularSearchTerms($limit, $categoryId),
+                );
 
             return response()->json([
                 'success' => true,

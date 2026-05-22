@@ -57,6 +57,7 @@ class Kernel extends HttpKernel
         'admin' => \App\Http\Middleware\EnsureAdmin::class,
         'auth' => \App\Http\Middleware\Authenticate::class,
         'can' => \Illuminate\Auth\Middleware\Authorize::class,
+        'idempotent' => \App\Http\Middleware\Idempotent::class,
         'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
         'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,

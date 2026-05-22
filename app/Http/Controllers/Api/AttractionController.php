@@ -410,7 +410,11 @@ class AttractionController extends Controller
                 $limit
             );
 
-            $attractions = Cache::remember($cacheKey, CacheInvalidationService::TTL_ATTRACTIONS, function () use ($limit, $city, $area, $latitude, $longitude, $radius) {
+            $attractions = CacheInvalidationService::tagged([CacheInvalidationService::TAG_ATTRACTIONS])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_ATTRACTIONS, CacheInvalidationService::TTL_ATTRACTIONS * 2],
+                    function () use ($limit, $city, $area, $latitude, $longitude, $radius) {
                 $query = Attraction::active()
                     ->featured()
                     ->with(['gallery', 'coverImage']);
@@ -634,7 +638,11 @@ class AttractionController extends Controller
     public function categories(Request $request)
     {
         try {
-            $data = Cache::remember('attractions:categories', CacheInvalidationService::TTL_CATEGORIES, function () {
+            $data = CacheInvalidationService::tagged([CacheInvalidationService::TAG_ATTRACTIONS])
+                ->flexible(
+                    'attractions:categories',
+                    [CacheInvalidationService::TTL_CATEGORIES, CacheInvalidationService::TTL_CATEGORIES * 2],
+                    function () {
                 $categories = DB::table('attractions')
                     ->select('category', DB::raw('count(*) as count'))
                     ->where('is_active', true)
@@ -679,7 +687,11 @@ class AttractionController extends Controller
     public function destinations(Request $request)
     {
         try {
-            $data = Cache::remember('attractions:destinations', CacheInvalidationService::TTL_CATEGORIES, function () {
+            $data = CacheInvalidationService::tagged([CacheInvalidationService::TAG_ATTRACTIONS])
+                ->flexible(
+                    'attractions:destinations',
+                    [CacheInvalidationService::TTL_CATEGORIES, CacheInvalidationService::TTL_CATEGORIES * 2],
+                    function () {
                 $cities = DB::table('attractions')
                     ->select('city', DB::raw('count(*) as attractions_count'))
                     ->where('is_active', true)

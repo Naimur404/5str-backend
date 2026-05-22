@@ -25,7 +25,11 @@ class CategoryController extends Controller
 
             $cacheKey = CacheInvalidationService::key('categories:index', $level, $parentId, $includeChildren ? '1' : '0');
 
-            $categories = Cache::remember($cacheKey, CacheInvalidationService::TTL_CATEGORIES, function () use ($level, $parentId, $includeChildren) {
+            $categories = CacheInvalidationService::tagged([CacheInvalidationService::TAG_CATEGORIES])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_CATEGORIES, CacheInvalidationService::TTL_CATEGORIES * 2],
+                    function () use ($level, $parentId, $includeChildren) {
                 $query = Category::active();
 
                 // Filter by level if specified
@@ -86,13 +90,16 @@ class CategoryController extends Controller
     public function mainCategories(Request $request)
     {
         try {
-            $categories = Cache::remember('categories:main', CacheInvalidationService::TTL_CATEGORIES_MAIN, function () {
-                return Category::active()
-                    ->mainCategories()
-                    ->with('children')
-                    ->orderBy('sort_order')
-                    ->get();
-            });
+            $categories = CacheInvalidationService::tagged([CacheInvalidationService::TAG_CATEGORIES])
+                ->flexible(
+                    'categories:main',
+                    [CacheInvalidationService::TTL_CATEGORIES_MAIN, CacheInvalidationService::TTL_CATEGORIES_MAIN * 2],
+                    fn () => Category::active()
+                        ->mainCategories()
+                        ->with('children')
+                        ->orderBy('sort_order')
+                        ->get(),
+                );
 
             return response()->json([
                 'success' => true,
@@ -113,13 +120,16 @@ class CategoryController extends Controller
     public function featuredCategories(Request $request)
     {
         try {
-            $categories = Cache::remember('categories:featured', CacheInvalidationService::TTL_CATEGORIES_MAIN, function () {
-                return Category::active()
-                    ->featured()
-                    ->orderBy('sort_order')
-                    ->take(12)
-                    ->get();
-            });
+            $categories = CacheInvalidationService::tagged([CacheInvalidationService::TAG_CATEGORIES])
+                ->flexible(
+                    'categories:featured',
+                    [CacheInvalidationService::TTL_CATEGORIES_MAIN, CacheInvalidationService::TTL_CATEGORIES_MAIN * 2],
+                    fn () => Category::active()
+                        ->featured()
+                        ->orderBy('sort_order')
+                        ->take(12)
+                        ->get(),
+                );
 
             return response()->json([
                 'success' => true,
@@ -140,7 +150,11 @@ class CategoryController extends Controller
     public function popularCategories(Request $request)
     {
         try {
-            $categories = Cache::remember('categories:popular', CacheInvalidationService::TTL_CATEGORIES, function () {
+            $categories = CacheInvalidationService::tagged([CacheInvalidationService::TAG_CATEGORIES])
+                ->flexible(
+                    'categories:popular',
+                    [CacheInvalidationService::TTL_CATEGORIES, CacheInvalidationService::TTL_CATEGORIES * 2],
+                    function () {
                 $categories = Category::active()
                     ->popular()
                     ->withCount(['businesses' => function($q) {
@@ -180,11 +194,14 @@ class CategoryController extends Controller
         try {
             $cacheKey = CacheInvalidationService::key('categories:show', $categoryId);
 
-            $category = Cache::remember($cacheKey, CacheInvalidationService::TTL_CATEGORIES, function () use ($categoryId) {
-                return Category::active()
-                    ->with(['parent', 'children'])
-                    ->findOrFail($categoryId);
-            });
+            $category = CacheInvalidationService::tagged([CacheInvalidationService::TAG_CATEGORIES])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_CATEGORIES, CacheInvalidationService::TTL_CATEGORIES * 2],
+                    fn () => Category::active()
+                        ->with(['parent', 'children'])
+                        ->findOrFail($categoryId),
+                );
 
             return response()->json([
                 'success' => true,
@@ -207,7 +224,11 @@ class CategoryController extends Controller
         try {
             $cacheKey = CacheInvalidationService::key('categories:subs', $categoryId);
 
-            $data = Cache::remember($cacheKey, CacheInvalidationService::TTL_CATEGORIES, function () use ($categoryId) {
+            $data = CacheInvalidationService::tagged([CacheInvalidationService::TAG_CATEGORIES])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_CATEGORIES, CacheInvalidationService::TTL_CATEGORIES * 2],
+                    function () use ($categoryId) {
                 $category = Category::active()->findOrFail($categoryId);
 
                 $subcategories = Category::active()

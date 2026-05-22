@@ -475,14 +475,17 @@ class BusinessController extends Controller
             $limit = $request->input('limit', 10);
             $cacheKey = CacheInvalidationService::key('businesses:featured', $limit);
 
-            $businesses = Cache::remember($cacheKey, CacheInvalidationService::TTL_BUSINESS_FEATURED, function () use ($limit) {
-                return Business::active()
-                    ->featured()
-                    ->with(['category', 'logoImage'])
-                    ->orderBy('overall_rating', 'desc')
-                    ->take($limit)
-                    ->get();
-            });
+            $businesses = CacheInvalidationService::tagged([CacheInvalidationService::TAG_BUSINESSES])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_BUSINESS_FEATURED, CacheInvalidationService::TTL_BUSINESS_FEATURED * 2],
+                    fn () => Business::active()
+                        ->featured()
+                        ->with(['category', 'logoImage'])
+                        ->orderBy('overall_rating', 'desc')
+                        ->take($limit)
+                        ->get(),
+                );
 
             return response()->json([
                 'success' => true,
@@ -523,7 +526,11 @@ class BusinessController extends Controller
                 $businessTag, $itemType, $minRating, $sortBy, $page, $limit
             );
 
-            $result = Cache::remember($cacheKey, CacheInvalidationService::TTL_NATIONAL_LIST, function () use (
+            $result = CacheInvalidationService::tagged([CacheInvalidationService::TAG_BUSINESSES])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_NATIONAL_LIST, CacheInvalidationService::TTL_NATIONAL_LIST * 2],
+                    function () use (
                 $page, $limit, $categoryId, $categoryName, $businessModel,
                 $productTag, $productTags, $businessTag, $itemType, $minRating, $sortBy
             ) {
@@ -688,7 +695,11 @@ class BusinessController extends Controller
     public function nationalFilters(Request $request)
     {
         try {
-            $data = Cache::remember('businesses:national_filters', CacheInvalidationService::TTL_NATIONAL_FILTERS, function () {
+            $data = CacheInvalidationService::tagged([CacheInvalidationService::TAG_BUSINESSES])
+                ->flexible(
+                    'businesses:national_filters',
+                    [CacheInvalidationService::TTL_NATIONAL_FILTERS, CacheInvalidationService::TTL_NATIONAL_FILTERS * 2],
+                    function () {
                 // Get available product tags from existing national businesses
                 $productTags = Business::active()
                     ->national()

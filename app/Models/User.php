@@ -154,6 +154,27 @@ class User extends Authenticatable
     }
 
     /**
+     * Revoke every other Sanctum token whenever the password changes.
+     * Keeps the current device logged in (its token is preserved upstream
+     * by the controller calling the rotate-token helper).
+     */
+    protected static function booted(): void
+    {
+        static::updated(static function (self $user): void {
+            if (! $user->wasChanged('password')) {
+                return;
+            }
+
+            $current = $user->currentAccessToken();
+            $query = $user->tokens();
+            if ($current && method_exists($current, 'getKey')) {
+                $query->where('id', '!=', $current->getKey());
+            }
+            $query->delete();
+        });
+    }
+
+    /**
      * Check if user is a verified reviewer
      */
     public function isVerifiedReviewer(): bool
