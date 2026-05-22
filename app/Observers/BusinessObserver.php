@@ -6,39 +6,38 @@ use App\Models\Business;
 use App\Models\User;
 use App\Notifications\DatabaseNotification;
 use App\Services\CacheInvalidationService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
+/**
+ * Eager owner resolution: avoids two `User::find` round-trips per write at
+ * scale. Notifications are dispatched via `Notification::send` so the
+ * persistence happens in a single bulk insert; combined with the queued
+ * DatabaseNotification this no longer blocks the request thread.
+ */
 class BusinessObserver
 {
-    /**
-     * Handle the Business "created" event.
-     */
+    private const ADMIN_ROLES_CREATED = ['admin', 'super-admin'];
+
     public function created(Business $business): void
     {
-        // Only send welcome notification to business owner, not admins
-        if ($business->owner_user_id) {
-            $owner = User::find($business->owner_user_id);
-            if ($owner) {
-                $owner->notify(new DatabaseNotification(
-                    title: 'Business Created Successfully',
-                    body: "Your business '{$business->business_name}' has been created. Please complete your profile for better visibility.",
-                    icon: 'heroicon-o-building-office',
-                    color: 'info',
-                ));
-            }
-        }
+        $this->notifyOwner(
+            $business,
+            'Business Created Successfully',
+            "Your business '{$business->business_name}' has been created. Please complete your profile for better visibility.",
+            'heroicon-o-building-office',
+            'info',
+        );
 
-        // Notify admins only for important business registrations (configurable)
-        if (config('notifications.admin_notifications.business_created', false) &&
-            $business->business_name && $business->business_email && $business->full_address) {
-
-            $admins = User::whereHas('roles', function($query) {
-                $query->whereIn('name', ['admin', 'super-admin']);
-            })->get();
-
-            foreach ($admins as $admin) {
-                $admin->notify(new DatabaseNotification(
+        if (config('notifications.admin_notifications.business_created', false)
+            && $business->business_name
+            && $business->business_email
+            && $business->full_address) {
+            $admins = $this->fetchAdmins(self::ADMIN_ROLES_CREATED);
+            if ($admins->isNotEmpty()) {
+                Notification::send($admins, new DatabaseNotification(
                     title: 'New Business Registration',
                     body: "'{$business->business_name}' has registered and needs review.",
                     icon: 'heroicon-o-building-office-2',
@@ -47,181 +46,155 @@ class BusinessObserver
             }
         }
 
-        // Update category business count when a new business is created
         $this->updateCategoryBusinessCount($business->category_id);
-
-        // Invalidate caches affected by new business
         CacheInvalidationService::onBusinessChange();
     }
 
-    /**
-     * Handle the Business "updated" event.
-     */
     public function updated(Business $business): void
     {
-        $owner = $business->owner_user_id ? User::find($business->owner_user_id) : null;
-
-        // IMPORTANT: Notify admins only for verification status changes
         if ($business->isDirty('is_verified') && $business->is_verified) {
-            // Notify business owner
-            if ($owner) {
-                $owner->notify(new DatabaseNotification(
-                    title: 'Business Verified!',
-                    body: "Congratulations! Your business '{$business->business_name}' has been verified and approved.",
-                    icon: 'heroicon-o-check-badge',
-                    color: 'success',
-                ));
-            }
+            $this->notifyOwner(
+                $business,
+                'Business Verified!',
+                "Congratulations! Your business '{$business->business_name}' has been verified and approved.",
+                'heroicon-o-check-badge',
+                'success',
+            );
         }
 
-        // Notify business owner for activation (not admins)
-        if ($business->isDirty('is_active') && $business->is_active && $owner) {
-            $owner->notify(new DatabaseNotification(
-                title: 'Business Activated',
-                body: "Your business '{$business->business_name}' is now active and visible to customers.",
-                icon: 'heroicon-o-eye',
-                color: 'success',
-            ));
+        if ($business->isDirty('is_active') && $business->is_active) {
+            $this->notifyOwner(
+                $business,
+                'Business Activated',
+                "Your business '{$business->business_name}' is now active and visible to customers.",
+                'heroicon-o-eye',
+                'success',
+            );
         }
 
-        // Notify business owner for profile updates (not admins)
         $significantFields = [
             'business_name', 'description', 'business_email',
-            'business_phone', 'full_address', 'opening_hours'
+            'business_phone', 'full_address', 'opening_hours',
         ];
 
-        if ($business->isDirty($significantFields) && $owner) {
-            $owner->notify(new DatabaseNotification(
-                title: 'Business Profile Updated',
-                body: 'Your business profile has been updated successfully.',
-                icon: 'heroicon-o-pencil-square',
-                color: 'info',
-            ));
+        if ($business->isDirty($significantFields)) {
+            $this->notifyOwner(
+                $business,
+                'Business Profile Updated',
+                'Your business profile has been updated successfully.',
+                'heroicon-o-pencil-square',
+                'info',
+            );
         }
 
-        // Update category business count when business category or active status changes
         if ($business->isDirty('category_id')) {
             $oldCategoryId = $business->getOriginal('category_id');
             if ($oldCategoryId) {
                 $this->updateCategoryBusinessCount($oldCategoryId);
             }
             $this->updateCategoryBusinessCount($business->category_id);
-        }
-
-        if ($business->isDirty('is_active')) {
+        } elseif ($business->isDirty('is_active')) {
             $this->updateCategoryBusinessCount($business->category_id);
         }
 
-        // Invalidate caches affected by business update
         CacheInvalidationService::onBusinessChange();
     }
 
-    /**
-     * Handle the Business "deleted" event.
-     */
     public function deleted(Business $business): void
     {
-        // Update category business count when a business is deleted
         $this->updateCategoryBusinessCount($business->category_id);
-
-        // Invalidate caches affected by business deletion
         CacheInvalidationService::onBusinessChange();
     }
 
-    /**
-     * Handle the Business "restored" event.
-     */
     public function restored(Business $business): void
     {
-        // Update category business count when a business is restored
         $this->updateCategoryBusinessCount($business->category_id);
-
-        // Invalidate caches affected by business restoration
         CacheInvalidationService::onBusinessChange();
     }
 
-    /**
-     * Handle the Business "force deleted" event.
-     */
     public function forceDeleted(Business $business): void
     {
-        // Update category business count when a business is force deleted
         $this->updateCategoryBusinessCount($business->category_id);
-
-        // Invalidate caches affected by business force deletion
         CacheInvalidationService::onBusinessChange();
     }
 
+    private function notifyOwner(
+        Business $business,
+        string $title,
+        string $body,
+        string $icon,
+        string $color,
+    ): void {
+        if (! $business->owner_user_id) {
+            return;
+        }
+        $owner = User::find($business->owner_user_id);
+        if (! $owner) {
+            return;
+        }
+        $owner->notify(new DatabaseNotification(
+            title: $title,
+            body: $body,
+            icon: $icon,
+            color: $color,
+        ));
+    }
+
     /**
-     * Update the total_businesses count for a category
+     * @param  array<int, string>  $roles
+     * @return Collection<int, User>
      */
-    private function updateCategoryBusinessCount($categoryId)
+    private function fetchAdmins(array $roles): Collection
     {
-        if (!$categoryId) {
+        return User::query()
+            ->whereHas('roles', static fn ($q) => $q->whereIn('name', $roles))
+            ->get();
+    }
+
+    private function updateCategoryBusinessCount(?int $categoryId): void
+    {
+        if (! $categoryId) {
             return;
         }
 
         try {
-            // Use raw query for better performance
-            DB::statement("
-                UPDATE categories
-                SET total_businesses = (
-                    SELECT COUNT(*)
-                    FROM businesses
-                    WHERE businesses.category_id = ?
-                    AND businesses.is_active = 1
-                )
-                WHERE id = ?
-            ", [$categoryId, $categoryId]);
-
-            // Optional: Log successful updates for monitoring
-            Log::info('Category business count updated', [
-                'category_id' => $categoryId,
-                'timestamp' => now()
-            ]);
-
-        } catch (\Exception $e) {
-            // Log the error but don't fail the main operation
+            DB::statement(
+                'UPDATE categories SET total_businesses = ('
+                . 'SELECT COUNT(*) FROM businesses '
+                . 'WHERE businesses.category_id = ? AND businesses.is_active = 1'
+                . ') WHERE id = ?',
+                [$categoryId, $categoryId],
+            );
+        } catch (\Throwable $e) {
             Log::error('Failed to update category business count', [
                 'category_id' => $categoryId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
 
     /**
-     * Update business counts for multiple categories (bulk operation)
+     * @param  array<int, int>  $categoryIds
      */
-    public static function updateMultipleCategoryCounts(array $categoryIds)
+    public static function updateMultipleCategoryCounts(array $categoryIds): void
     {
         if (empty($categoryIds)) {
             return;
         }
 
         try {
-            $placeholders = str_repeat('?,', count($categoryIds) - 1) . '?';
-
-            DB::statement("
-                UPDATE categories
-                SET total_businesses = (
-                    SELECT COUNT(*)
-                    FROM businesses
-                    WHERE businesses.category_id = categories.id
-                    AND businesses.is_active = 1
-                )
-                WHERE id IN ($placeholders)
-            ", $categoryIds);
-
-            Log::info('Multiple category business counts updated', [
-                'category_ids' => $categoryIds,
-                'count' => count($categoryIds),
-                'timestamp' => now()
-            ]);
-
-        } catch (\Exception $e) {
+            $placeholders = implode(',', array_fill(0, count($categoryIds), '?'));
+            DB::statement(
+                'UPDATE categories SET total_businesses = ('
+                . 'SELECT COUNT(*) FROM businesses '
+                . 'WHERE businesses.category_id = categories.id AND businesses.is_active = 1'
+                . ") WHERE id IN ({$placeholders})",
+                $categoryIds,
+            );
+        } catch (\Throwable $e) {
             Log::error('Failed to update multiple category business counts', [
                 'category_ids' => $categoryIds,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

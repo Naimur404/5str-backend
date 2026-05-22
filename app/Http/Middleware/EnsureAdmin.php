@@ -6,7 +6,12 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsureAdmin
+/**
+ * Gatekeeper for the admin API surface. Allows requests from users who
+ * carry any of the admin-tier roles. Returns a JSON 403 (no redirects)
+ * so the SPA can react without a flash navigation.
+ */
+final class EnsureAdmin
 {
     public const ADMIN_ROLES = ['super-admin', 'admin', 'moderator'];
 
@@ -18,7 +23,7 @@ class EnsureAdmin
             return response()->json([
                 'success' => false,
                 'message' => 'Forbidden. Admin access required.',
-            ], 403);
+            ], Response::HTTP_FORBIDDEN);
         }
 
         return $next($request);

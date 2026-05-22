@@ -2,34 +2,27 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Business;
+use App\Services\AnalyticsService;
 use Closure;
 use Illuminate\Http\Request;
-use App\Services\AnalyticsService;
-use App\Models\Business;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Logs business views post-response. Uses the route-bound Business
+ * instance when present so we never re-query the DB just to track a view.
+ */
 class AutoTrackViews
 {
-    protected $analyticsService;
-
-    public function __construct(AnalyticsService $analyticsService)
+    public function __construct(private readonly AnalyticsService $analyticsService)
     {
-        $this->analyticsService = $analyticsService;
     }
 
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @return \Symfony\Component\HttpFoundation\Response
-     */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
 
-        // Track views only for successful responses
         if ($response->getStatusCode() === 200) {
             $this->trackViewIfApplicable($request);
         }
@@ -37,44 +30,35 @@ class AutoTrackViews
         return $response;
     }
 
-    private function trackViewIfApplicable(Request $request)
+    private function trackViewIfApplicable(Request $request): void
     {
         try {
-            $route = Route::current();
-            if (!$route) return;
-
-            // Track business views
-            if ($route->hasParameter('business')) {
-                $business = $route->parameter('business');
-                if ($business instanceof Business) {
-                    $this->analyticsService->logView($business, $request);
-                }
+            $route = $request->route();
+            if (! $route) {
+                return;
             }
 
-            // Track business views by ID
-            if ($route->hasParameter('id') && $request->is('*/businesses/*')) {
-                $businessId = $route->parameter('id');
-                $business = Business::find($businessId);
-                if ($business) {
-                    $this->analyticsService->logView($business, $request);
-                }
+            $bound = $route->parameter('business');
+            if ($bound instanceof Business) {
+                $this->analyticsService->logView($bound, $request);
+
+                return;
             }
 
-            // Track API business views
+            // Fallback: scalar id in path segments — track without an extra
+            // model fetch by deferring the lookup to AnalyticsService.
             if ($request->is('api/businesses/*')) {
                 $segments = $request->segments();
-                $businessIdIndex = array_search('businesses', $segments) + 1;
-                if (isset($segments[$businessIdIndex])) {
-                    $businessId = $segments[$businessIdIndex];
-                    $business = Business::find($businessId);
+                $idx = array_search('businesses', $segments, true);
+                if ($idx !== false && isset($segments[$idx + 1]) && ctype_digit($segments[$idx + 1])) {
+                    $business = Business::find((int) $segments[$idx + 1]);
                     if ($business) {
                         $this->analyticsService->logView($business, $request);
                     }
                 }
             }
-        } catch (\Exception $e) {
-            // Log error but don't break the request
-            Log::warning('Auto view tracking failed: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::warning('Auto view tracking failed: '.$e->getMessage());
         }
     }
 }

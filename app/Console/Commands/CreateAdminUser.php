@@ -2,52 +2,44 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\User;
-use App\Models\Role;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class CreateAdminUser extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'make:admin {email} {password} {name}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Create an admin user';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function handle(): int
     {
+        /** @var string $email */
         $email = $this->argument('email');
+        /** @var string $password */
         $password = $this->argument('password');
+        /** @var string $name */
         $name = $this->argument('name');
 
-        // Create or get admin role
-        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin', 'guard_name' => 'web'],
+        );
 
-        // Create user
-        $user = User::create([
-            'name' => $name,
-            'email' => $email,
-            'password' => Hash::make($password),
-            'email_verified_at' => now(),
-        ]);
+        $user = User::updateOrCreate(
+            ['email' => $email],
+            [
+                'name' => $name,
+                'password' => Hash::make($password),
+                'email_verified_at' => now(),
+            ],
+        );
 
-        // Assign admin role using our existing pivot table
-        $user->roles()->attach($adminRole->id);
+        $user->assignRole($adminRole);
 
-        $this->info("Admin user created successfully!");
+        $this->info('Admin user created successfully!');
         $this->info("Email: {$email}");
-        $this->info("Password: {$password}");
+
+        return self::SUCCESS;
     }
 }

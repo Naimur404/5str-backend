@@ -142,8 +142,6 @@ class CacheInvalidationService
         self::flushHome();
         self::flushCategories();
         self::flushBusinesses();
-        
-        Log::debug('Cache invalidated: business change');
     }
 
     /**
@@ -155,8 +153,6 @@ class CacheInvalidationService
         self::flushBusinesses();
         // Categories popular relies on business counts which may shift with reviews
         Cache::forget('categories:popular');
-        
-        Log::debug('Cache invalidated: review change');
     }
 
     /**
@@ -166,8 +162,6 @@ class CacheInvalidationService
     {
         self::flushHome();
         self::flushOffers();
-        
-        Log::debug('Cache invalidated: offer change');
     }
 
     /**
@@ -177,8 +171,6 @@ class CacheInvalidationService
     {
         self::flushCategories();
         self::flushHome();
-        
-        Log::debug('Cache invalidated: category change');
     }
 
     /**
@@ -188,8 +180,6 @@ class CacheInvalidationService
     {
         self::flushTrending();
         self::flushHome();
-        
-        Log::debug('Cache invalidated: trending refresh');
     }
 
     /**
@@ -199,8 +189,6 @@ class CacheInvalidationService
     {
         self::flushAttractions();
         self::flushHome();
-        
-        Log::debug('Cache invalidated: attraction change');
     }
 
     // ─── Internal Helpers ───────────────────────────────────────────
