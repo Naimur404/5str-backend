@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Laravel\Scout\Searchable;
 
 class UserCollection extends Model
 {
     use HasFactory;
+    use Searchable;
 
     protected $fillable = [
         'user_id',
@@ -119,5 +121,37 @@ class UserCollection extends Model
         return $query->withCount('followers')
                     ->orderBy('followers_count', 'desc')
                     ->limit($limit);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scout / Meilisearch
+    |--------------------------------------------------------------------------
+    */
+
+    public function searchableAs(): string
+    {
+        return 'user_collections';
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        // Only public collections are searchable from the discover endpoints.
+        return (bool) ($this->is_public ?? false);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => (int) $this->id,
+            'user_id' => $this->user_id,
+            'name' => (string) $this->name,
+            'description' => (string) ($this->description ?? ''),
+            'is_public' => (bool) ($this->is_public ?? false),
+            'created_at' => optional($this->created_at)->timestamp,
+        ];
     }
 }

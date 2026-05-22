@@ -42,6 +42,7 @@ class HealthCheckService
             'redis_cache' => $this->checkRedis('cache'),
             'cache' => $this->checkCache(),
             'queue' => $this->checkQueue(),
+            'search' => $this->checkSearch(),
         ];
 
         $overall = 'up';
@@ -106,6 +107,44 @@ class HealthCheckService
 
         return $this->probe(static function () {
             Redis::connection('default')->llen('queues:default');
+        });
+    }
+
+    /**
+     * Probe Meilisearch when Scout is configured to use it. No-op
+     * (returns 'up') when SCOUT_DRIVER=null so dev/test environments
+     * pass readiness without an external service.
+     */
+    private function checkSearch(): array
+    {
+        $driver = (string) config('scout.driver');
+        if ($driver === '' || $driver === 'null' || $driver === 'collection' || $driver === 'database') {
+            return ['status' => 'up', 'latency_ms' => 0.0, 'detail' => "driver={$driver}"];
+        }
+
+        return $this->probe(static function () {
+            $host = (string) config('scout.meilisearch.host');
+            $key = (string) config('scout.meilisearch.key');
+            if ($host === '') {
+                throw new \RuntimeException('meilisearch host not configured');
+            }
+
+            $ctx = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => $key !== '' ? "Authorization: Bearer {$key}\r\n" : '',
+                    'timeout' => 1.5,
+                    'ignore_errors' => true,
+                ],
+            ]);
+            $body = @file_get_contents(rtrim($host, '/').'/health', false, $ctx);
+            if ($body === false) {
+                throw new \RuntimeException('meilisearch unreachable');
+            }
+            $payload = json_decode($body, true);
+            if (! is_array($payload) || ($payload['status'] ?? null) !== 'available') {
+                throw new \RuntimeException('meilisearch reports degraded: '.$body);
+            }
         });
     }
 

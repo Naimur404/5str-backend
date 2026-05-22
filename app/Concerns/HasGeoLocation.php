@@ -3,72 +3,106 @@
 namespace App\Concerns;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
- * Geo-search trait for any Eloquent model that has decimal `latitude`
- * and `longitude` columns plus the matching generated `POINT` column
- * (added by 2026_05_22_140000_add_spatial_indexes).
+ * Geo-search helpers shared by every model with `latitude` / `longitude`
+ * decimal columns. On MySQL the helpers target the spatial-indexed
+ * generated `location` POINT column for O(log n) lookups; on SQLite (and
+ * any other driver without spatial support) they transparently fall
+ * back to in-SQL Haversine math so tests keep working.
  *
- * Provides:
- *   Model::query()->nearby($lat, $lng, $radiusKm)
- *       ->withDistance($lat, $lng)
- *       ->orderByNearest($lat, $lng)
+ * Public methods returning a `whereRaw` chain on the active query:
  *
- * `nearby()` uses MySQL `ST_Distance_Sphere` against the spatial index,
- * making it ~O(log n) instead of the full-table scan you get with
- * Haversine math in PHP.
+ *     applyNearbyFilter($q, $col, $lat, $lng, $radiusKm)
+ *     applyDistanceSelect($q, $table, $col, $lat, $lng, $alias='distance')
+ *     applyDistanceOrder($q, $col, $lat, $lng, 'asc'|'desc')
  *
- * The host class can override `geoColumns()` to point at non-default
- * column names (e.g. users uses `current_latitude`/`current_longitude`).
- *
- * @phpstan-require-extends \Illuminate\Database\Eloquent\Model
+ * The host scope wires the appropriate column name (`location`,
+ * `current_location`, `user_location`, …) and table name. The helpers
+ * are static so non-Eloquent code (raw query builders) can call them too.
  */
 trait HasGeoLocation
 {
-    /**
-     * @return array{lat: string, lng: string, point: string}
-     */
-    protected function geoColumns(): array
-    {
-        return [
-            'lat' => 'latitude',
-            'lng' => 'longitude',
-            'point' => 'location',
-        ];
-    }
-
-    public function scopeNearby(Builder $query, float $latitude, float $longitude, float $radiusKm = 5): Builder
-    {
-        $cols = $this->geoColumns();
-
-        // ST_Distance_Sphere returns metres. Use the generated POINT col so
-        // the spatial index can prune rows. SRID order in POINT is (lng, lat).
-        return $query
-            ->whereNotNull($cols['lat'])
-            ->whereNotNull($cols['lng'])
-            ->whereRaw(
-                "ST_Distance_Sphere(`{$cols['point']}`, ST_SRID(POINT(?, ?), 4326)) <= ?",
+    public static function applyNearbyFilter(
+        Builder $query,
+        string $pointColumn,
+        float $latitude,
+        float $longitude,
+        float $radiusKm,
+        ?string $latColumn = null,
+        ?string $lngColumn = null,
+    ): Builder {
+        if (self::supportsSpatial()) {
+            return $query->whereRaw(
+                "ST_Distance_Sphere(`{$pointColumn}`, ST_SRID(POINT(?, ?), 4326)) <= ?",
                 [$longitude, $latitude, $radiusKm * 1000],
             );
+        }
+
+        return $query->whereRaw(
+            self::haversineKmExpression($latColumn ?? 'latitude', $lngColumn ?? 'longitude').' <= ?',
+            [$latitude, $longitude, $latitude, $radiusKm],
+        );
     }
 
-    public function scopeWithDistance(Builder $query, float $latitude, float $longitude, string $alias = 'distance_meters'): Builder
-    {
-        $cols = $this->geoColumns();
+    public static function applyDistanceSelect(
+        Builder $query,
+        string $table,
+        string $pointColumn,
+        float $latitude,
+        float $longitude,
+        string $alias = 'distance',
+        ?string $latColumn = null,
+        ?string $lngColumn = null,
+    ): Builder {
+        if (self::supportsSpatial()) {
+            return $query->selectRaw(
+                "{$table}.*, ST_Distance_Sphere(`{$pointColumn}`, ST_SRID(POINT(?, ?), 4326)) / 1000 AS {$alias}",
+                [$longitude, $latitude],
+            );
+        }
 
         return $query->selectRaw(
-            "{$query->getModel()->getTable()}.*, ST_Distance_Sphere(`{$cols['point']}`, ST_SRID(POINT(?, ?), 4326)) AS {$alias}",
-            [$longitude, $latitude],
+            "{$table}.*, ".self::haversineKmExpression($latColumn ?? 'latitude', $lngColumn ?? 'longitude')." AS {$alias}",
+            [$latitude, $longitude, $latitude],
         );
     }
 
-    public function scopeOrderByNearest(Builder $query, float $latitude, float $longitude): Builder
-    {
-        $cols = $this->geoColumns();
+    public static function applyDistanceOrder(
+        Builder $query,
+        string $pointColumn,
+        float $latitude,
+        float $longitude,
+        string $direction = 'asc',
+        ?string $latColumn = null,
+        ?string $lngColumn = null,
+    ): Builder {
+        $direction = strtolower($direction) === 'desc' ? 'DESC' : 'ASC';
+
+        if (self::supportsSpatial()) {
+            return $query->orderByRaw(
+                "ST_Distance_Sphere(`{$pointColumn}`, ST_SRID(POINT(?, ?), 4326)) {$direction}",
+                [$longitude, $latitude],
+            );
+        }
 
         return $query->orderByRaw(
-            "ST_Distance_Sphere(`{$cols['point']}`, ST_SRID(POINT(?, ?), 4326)) ASC",
-            [$longitude, $latitude],
+            self::haversineKmExpression($latColumn ?? 'latitude', $lngColumn ?? 'longitude')." {$direction}",
+            [$latitude, $longitude, $latitude],
         );
+    }
+
+    private static function supportsSpatial(): bool
+    {
+        return DB::connection()->getDriverName() === 'mysql';
+    }
+
+    /**
+     * 6371 km Haversine. Bindings expected: [lat, lng, lat].
+     */
+    private static function haversineKmExpression(string $latColumn, string $lngColumn): string
+    {
+        return "(6371 * acos(cos(radians(?)) * cos(radians({$latColumn})) * cos(radians({$lngColumn}) - radians(?)) + sin(radians(?)) * sin(radians({$latColumn}))))";
     }
 }

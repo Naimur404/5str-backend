@@ -308,15 +308,29 @@ class BusinessController extends Controller
             $query = Business::active()
                 ->with(['category', 'logoImage']);
 
-            // Text search
+            // Text search — when Scout is configured we route the actual
+            // matching through Meilisearch (typo-tolerant, ranked) and
+            // constrain the SQL query to the resulting IDs. The rest of
+            // the chain still applies category/radius/sort filters as
+            // before so the response shape stays identical.
             if ($searchTerm) {
-                $query->where(function ($q) use ($searchTerm) {
-                    $q->where('business_name', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('description', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('full_address', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('area', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('city', 'LIKE', "%{$searchTerm}%");
-                });
+                $scoutIds = $this->scoutMatchIds(Business::class, $searchTerm, 500);
+                if ($scoutIds !== null) {
+                    if (empty($scoutIds)) {
+                        $query->whereRaw('1 = 0'); // no matches
+                    } else {
+                        $query->whereIn('id', $scoutIds)
+                            ->orderByRaw('FIELD(id, '.implode(',', $scoutIds).')');
+                    }
+                } else {
+                    $query->where(function ($q) use ($searchTerm) {
+                        $q->where('business_name', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('description', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('full_address', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('area', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('city', 'LIKE', "%{$searchTerm}%");
+                    });
+                }
             }
 
             // Category filter
@@ -1652,6 +1666,37 @@ public function offerings(Request $request, $businessId)
                 'unit' => 'km',
                 'formatted' => round($km, 1) . ' km'
             ];
+        }
+    }
+
+    /**
+     * Resolve the IDs of records that match a search term via Scout
+     * (Meilisearch). Returns `null` when Scout is disabled (driver=null)
+     * so the caller can fall back to its existing LIKE query.
+     *
+     * @return array<int, int>|null
+     */
+    private function scoutMatchIds(string $modelClass, string $term, int $limit = 500): ?array
+    {
+        $driver = config('scout.driver');
+        if ($driver === null || $driver === 'null') {
+            return null;
+        }
+
+        try {
+            return $modelClass::search($term)
+                ->take($limit)
+                ->keys()
+                ->map(static fn ($id) => (int) $id)
+                ->all();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Scout search fallback', [
+                'model' => $modelClass,
+                'term' => $term,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
         }
     }
 }

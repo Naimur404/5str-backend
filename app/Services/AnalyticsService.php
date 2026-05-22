@@ -267,12 +267,28 @@ class AnalyticsService
         }
 
         // Calculate and store trending data
+        // Pre-fetch every Business in one query so the loop is O(N), not
+        // O(N) DB round-trips. Keyed by id for O(1) lookups in the loop.
+        $businessIds = collect($businessData)
+            ->pluck('business_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $businesses = empty($businessIds)
+            ? collect()
+            : \App\Models\Business::whereIn('id', $businessIds)
+                ->select(['id', 'business_name', 'area', 'overall_rating'])
+                ->get()
+                ->keyBy('id');
+
         foreach ($businessData as $data) {
-            $business = \App\Models\Business::find($data['business_id']);
+            $business = $businesses->get($data['business_id']);
             if ($business) {
                 $trendScore = $this->calculateTrendScore($data['searches'], $data['views']);
                 $hybridScore = $this->calculateHybridScore($trendScore, $business->overall_rating ?? 0);
-                
+
                 TrendingData::updateOrCreate([
                     'item_type' => 'business',
                     'item_id' => $data['business_id'],
@@ -306,11 +322,21 @@ class AnalyticsService
             ->groupBy('category_id')
             ->get();
 
+        // Pre-fetch all categories referenced in the search counts so we
+        // don't hit the DB once per row.
+        $categoryIds = $categorySearches->pluck('category_id')->filter()->unique()->all();
+        $categories = empty($categoryIds)
+            ? collect()
+            : \App\Models\Category::whereIn('id', $categoryIds)
+                ->select(['id', 'name'])
+                ->get()
+                ->keyBy('id');
+
         foreach ($categorySearches as $search) {
-            $category = \App\Models\Category::find($search->category_id);
+            $category = $categories->get($search->category_id);
             if ($category) {
                 $trendScore = $this->calculateTrendScore($search->search_count, 0);
-                
+
                 TrendingData::updateOrCreate([
                     'item_type' => 'category',
                     'item_id' => $search->category_id,
@@ -341,12 +367,24 @@ class AnalyticsService
             ->groupBy('viewable_id')
             ->get();
 
+        // Pre-fetch every offering and its parent business in two queries
+        // (eager-loaded) instead of one query per row. Keyed by id for O(1)
+        // lookups inside the loop.
+        $offeringIds = $offeringViews->pluck('viewable_id')->filter()->unique()->all();
+        $offerings = empty($offeringIds)
+            ? collect()
+            : \App\Models\BusinessOffering::whereIn('id', $offeringIds)
+                ->with(['business:id,area'])
+                ->select(['id', 'business_id', 'name'])
+                ->get()
+                ->keyBy('id');
+
         // Calculate and store trending data for offerings
         foreach ($offeringViews as $view) {
-            $offering = \App\Models\BusinessOffering::find($view->viewable_id);
+            $offering = $offerings->get($view->viewable_id);
             if ($offering && $offering->business) {
                 $trendScore = $this->calculateTrendScore(0, $view->view_count); // Offerings don't have direct searches
-                
+
                 TrendingData::updateOrCreate([
                     'item_type' => 'offering',
                     'item_id' => $view->viewable_id,
