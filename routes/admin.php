@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Admin\BusinessSubmissionAdminController;
 use App\Http\Controllers\Api\Admin\CategoryAdminController;
 use App\Http\Controllers\Api\Admin\DashboardAdminController;
 use App\Http\Controllers\Api\Admin\EndpointAnalyticsAdminController;
+use App\Http\Controllers\Api\Admin\NotificationAdminController;
 use App\Http\Controllers\Api\Admin\OfferAdminController;
 use App\Http\Controllers\Api\Admin\OfferingSubmissionAdminController;
 use App\Http\Controllers\Api\Admin\OfferingVariantAdminController;
@@ -45,6 +46,12 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('me', [AdminAuthController::class, 'me'])->name('admin.me');
 
     Route::post('uploads', [UploadAdminController::class, 'store'])->name('admin.uploads.store');
+
+    // Database notifications (per-event, populated by model observers)
+    Route::get('notifications', [NotificationAdminController::class, 'index'])->name('admin.notifications.index');
+    Route::post('notifications/mark-all-read', [NotificationAdminController::class, 'markAllRead'])->name('admin.notifications.mark-all-read');
+    Route::post('notifications/{id}/read', [NotificationAdminController::class, 'markRead'])->name('admin.notifications.read');
+    Route::delete('notifications/{id}', [NotificationAdminController::class, 'destroy'])->name('admin.notifications.destroy');
 
     Route::get('categories/tree', [CategoryAdminController::class, 'tree'])->name('admin.categories.tree');
     Route::apiResource('categories', CategoryAdminController::class);
