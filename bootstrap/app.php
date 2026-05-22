@@ -5,6 +5,7 @@ use App\Http\Middleware\AutoTrackViews;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\Idempotent;
 use App\Http\Middleware\TrackEndpointAnalytics;
+use App\Support\ApiExceptionRenderer;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
@@ -13,7 +14,6 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Sentry\Laravel\Integration;
-use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -80,57 +80,16 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // Force a JSON envelope for any /api/* failure so SPAs and mobile
-        // clients never see an HTML stack trace.
-        $exceptions->renderable(function (\Throwable $e, Request $request) {
+        // clients never see an HTML stack trace. The actual rendering
+        // lives in App\Support\ApiExceptionRenderer so that re-including
+        // this bootstrap file (e.g. during chained artisan optimize calls)
+        // never trips PHP's "Cannot redeclare function" guard.
+        $exceptions->renderable(static function (\Throwable $e, Request $request) {
             if (! $request->is('api/*')) {
                 return null;
             }
 
-            return apiJsonError($e);
+            return ApiExceptionRenderer::render($e);
         });
     })
     ->create();
-
-/**
- * Shared API JSON error builder. Kept inline (not autoloaded) so the
- * exception render path doesn't depend on container resolution.
- */
-function apiJsonError(\Throwable $e): \Symfony\Component\HttpFoundation\Response
-{
-    $status = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
-
-    $payload = [
-        'success' => false,
-        'message' => $e->getMessage() ?: 'Server error',
-    ];
-
-    if ($e instanceof ValidationException) {
-        $status = $e->status;
-        $payload['message'] = 'Validation failed';
-        $payload['errors'] = $e->errors();
-    } elseif ($e instanceof AuthenticationException) {
-        $status = 401;
-        $payload['message'] = 'Unauthenticated';
-    } elseif ($e instanceof ModelNotFoundException || $e instanceof NotFoundHttpException) {
-        $status = 404;
-        $payload['message'] = 'Resource not found';
-    }
-
-    if (config('app.debug') && $status >= 500) {
-        $payload['debug'] = [
-            'exception' => get_class($e),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => collect($e->getTrace())
-                ->take(10)
-                ->map(static fn ($f) => [
-                    'file' => $f['file'] ?? null,
-                    'line' => $f['line'] ?? null,
-                    'function' => ($f['class'] ?? '').($f['type'] ?? '').($f['function'] ?? ''),
-                ])
-                ->all(),
-        ];
-    }
-
-    return response()->json($payload, $status);
-}
