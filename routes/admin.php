@@ -116,18 +116,21 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::prefix('submissions')->group(function () {
         Route::get('businesses', [BusinessSubmissionAdminController::class, 'index'])->name('admin.submissions.businesses.index');
         Route::get('businesses/{business_submission}', [BusinessSubmissionAdminController::class, 'show'])->name('admin.submissions.businesses.show');
+        Route::put('businesses/{business_submission}', [BusinessSubmissionAdminController::class, 'update'])->name('admin.submissions.businesses.update');
         Route::post('businesses/{business_submission}/approve', [BusinessSubmissionAdminController::class, 'approve'])->name('admin.submissions.businesses.approve');
         Route::post('businesses/{business_submission}/reject', [BusinessSubmissionAdminController::class, 'reject'])->name('admin.submissions.businesses.reject');
         Route::delete('businesses/{business_submission}', [BusinessSubmissionAdminController::class, 'destroy'])->name('admin.submissions.businesses.destroy');
 
         Route::get('attractions', [AttractionSubmissionAdminController::class, 'index'])->name('admin.submissions.attractions.index');
         Route::get('attractions/{attraction_submission}', [AttractionSubmissionAdminController::class, 'show'])->name('admin.submissions.attractions.show');
+        Route::put('attractions/{attraction_submission}', [AttractionSubmissionAdminController::class, 'update'])->name('admin.submissions.attractions.update');
         Route::post('attractions/{attraction_submission}/approve', [AttractionSubmissionAdminController::class, 'approve'])->name('admin.submissions.attractions.approve');
         Route::post('attractions/{attraction_submission}/reject', [AttractionSubmissionAdminController::class, 'reject'])->name('admin.submissions.attractions.reject');
         Route::delete('attractions/{attraction_submission}', [AttractionSubmissionAdminController::class, 'destroy'])->name('admin.submissions.attractions.destroy');
 
         Route::get('offerings', [OfferingSubmissionAdminController::class, 'index'])->name('admin.submissions.offerings.index');
         Route::get('offerings/{offering_submission}', [OfferingSubmissionAdminController::class, 'show'])->name('admin.submissions.offerings.show');
+        Route::put('offerings/{offering_submission}', [OfferingSubmissionAdminController::class, 'update'])->name('admin.submissions.offerings.update');
         Route::post('offerings/{offering_submission}/approve', [OfferingSubmissionAdminController::class, 'approve'])->name('admin.submissions.offerings.approve');
         Route::post('offerings/{offering_submission}/reject', [OfferingSubmissionAdminController::class, 'reject'])->name('admin.submissions.offerings.reject');
         Route::delete('offerings/{offering_submission}', [OfferingSubmissionAdminController::class, 'destroy'])->name('admin.submissions.offerings.destroy');

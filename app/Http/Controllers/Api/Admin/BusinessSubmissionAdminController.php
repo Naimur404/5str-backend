@@ -33,6 +33,20 @@ class BusinessSubmissionAdminController extends AdminResourceController
     protected function validationRules(Request $request, ?Model $record = null): array
     {
         return [
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'opening_hours' => ['nullable', 'array'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['string'],
+            'additional_info' => ['nullable', 'string'],
             'admin_notes' => ['nullable', 'string', 'max:1000'],
             'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected'])],
         ];

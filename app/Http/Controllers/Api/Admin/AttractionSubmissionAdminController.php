@@ -34,6 +34,20 @@ class AttractionSubmissionAdminController extends AdminResourceController
     protected function validationRules(Request $request, ?Model $record = null): array
     {
         return [
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'type' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'entry_fee' => ['nullable', 'numeric', 'min:0'],
+            'visiting_hours' => ['nullable', 'array'],
+            'best_time_to_visit' => ['nullable', 'string', 'max:255'],
+            'facilities' => ['nullable', 'array'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['string'],
+            'additional_info' => ['nullable', 'string'],
             'admin_notes' => ['nullable', 'string', 'max:1000'],
             'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected'])],
         ];

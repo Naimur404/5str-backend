@@ -34,6 +34,19 @@ class OfferingSubmissionAdminController extends AdminResourceController
     protected function validationRules(Request $request, ?Model $record = null): array
     {
         return [
+            'business_id' => ['nullable', 'integer', 'exists:businesses,id'],
+            'business_name' => ['nullable', 'string', 'max:255'],
+            'business_address' => ['nullable', 'string', 'max:500'],
+            'offering_name' => ['sometimes', 'required', 'string', 'max:255'],
+            'offering_description' => ['nullable', 'string'],
+            'offering_category' => ['nullable', 'string', 'max:255'],
+            'price' => ['nullable', 'numeric', 'min:0'],
+            'price_type' => ['nullable', 'string', 'max:50'],
+            'availability' => ['nullable', 'string', 'max:255'],
+            'contact_info' => ['nullable', 'string', 'max:255'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['string'],
+            'additional_info' => ['nullable', 'string'],
             'admin_notes' => ['nullable', 'string', 'max:1000'],
             'status' => ['nullable', Rule::in(['pending', 'approved', 'rejected'])],
         ];

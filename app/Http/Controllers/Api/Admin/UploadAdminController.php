@@ -12,7 +12,7 @@ class UploadAdminController extends Controller
     private const ALLOWED_DIRECTORIES = [
         'banners', 'businesses/logos', 'businesses/covers', 'businesses/gallery',
         'offerings/images', 'offers/banners', 'attractions/gallery',
-        'categories/icons', 'avatars',
+        'categories/icons', 'categories/banners', 'avatars',
     ];
 
     public function store(Request $request): JsonResponse
