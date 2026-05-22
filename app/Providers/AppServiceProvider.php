@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use App\Models\Attraction;
 use App\Models\Business;
 use App\Models\Offer;
 use App\Models\Review;
+use App\Observers\AttractionObserver;
 use App\Observers\BusinessObserver;
 use App\Observers\OfferObserver;
 use App\Observers\ReviewObserver;
@@ -40,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
         Business::observe(BusinessObserver::class);
         Offer::observe(OfferObserver::class);
         Review::observe(ReviewObserver::class);
+        Attraction::observe(AttractionObserver::class);
 
         FileUpload::macro('r2Storage', function (string $directory) {
             /** @var FileUpload $this */
