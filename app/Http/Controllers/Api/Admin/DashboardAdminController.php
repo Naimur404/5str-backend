@@ -165,10 +165,14 @@ class DashboardAdminController extends Controller
             ->limit(20)
             ->get();
 
-        $combined = collect();
+        // Aggregate searches & views into a plain associative array.
+        // PHP 8.4 forbids in-place mutation of array offsets accessed
+        // through ArrayAccess (Collection), so we use an array here and
+        // wrap it back into a Collection only when sorting.
+        $combined = [];
         foreach ($searches as $row) {
             $combined[$row->user_area] = [
-                'area' => $row->user_area,
+                'area' => (string) $row->user_area,
                 'searches' => (int) $row->search_count,
                 'views' => 0,
             ];
@@ -176,7 +180,7 @@ class DashboardAdminController extends Controller
         foreach ($views as $row) {
             if (! isset($combined[$row->user_area])) {
                 $combined[$row->user_area] = [
-                    'area' => $row->user_area,
+                    'area' => (string) $row->user_area,
                     'searches' => 0,
                     'views' => (int) $row->view_count,
                 ];
@@ -185,11 +189,15 @@ class DashboardAdminController extends Controller
             $combined[$row->user_area]['views'] = (int) $row->view_count;
         }
 
+        $sorted = collect($combined)
+            ->sortByDesc(static fn (array $r) => $r['searches'] + $r['views'])
+            ->values();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'window_days' => $days,
-                'areas' => $combined->values()->sortByDesc(fn ($r) => $r['searches'] + $r['views'])->values(),
+                'areas' => $sorted,
             ],
         ]);
     }
