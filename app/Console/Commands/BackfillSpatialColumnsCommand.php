@@ -7,14 +7,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Force-recompute the generated `location` POINT columns added by the
+ * Recompute the spatial `location` POINT columns added by the
  * `add_spatial_indexes` migration.
  *
- * Generated STORED columns are populated automatically on INSERT/UPDATE,
- * so freshly migrated rows are correct out of the box. This command is
- * the safety net for cases where the migration was run while rows
- * already existed and the platform's MySQL did not auto-populate them
- * (rare, but seen on some managed services).
+ * The migration installs BEFORE INSERT / BEFORE UPDATE triggers that
+ * keep the POINT in sync with the lat/lng decimals. Fresh rows are
+ * therefore correct out of the box. This command is the safety net for
+ * cases where the migration was run while rows already existed and the
+ * initial UPDATE backfill needs to be replayed (e.g. lat/lng was
+ * mutated by a raw query that bypassed the trigger).
  *
  *     php artisan spatial:backfill              # all geo tables
  *     php artisan spatial:backfill businesses   # one table
@@ -26,7 +27,7 @@ class BackfillSpatialColumnsCommand extends Command
                             {table? : Limit to a single table}
                             {--chunk=1000 : Rows updated per batch}';
 
-    protected $description = 'Force-recompute generated POINT columns for existing rows.';
+    protected $description = 'Recompute spatial POINT columns for existing rows.';
 
     /**
      * @var array<string, array{lat: string, lng: string, point: string}>
@@ -78,9 +79,10 @@ class BackfillSpatialColumnsCommand extends Command
             return;
         }
 
-        // Touch every row so the generated column is recomputed. The actual
-        // SET is a no-op (id = id) but MySQL still re-runs the stored
-        // expression. Bounded by chunk + primary key for safety.
+        // Touch every row so the BEFORE UPDATE trigger refreshes the
+        // POINT from the current lat/lng. The actual SET is a no-op
+        // (id = id) but MySQL/MariaDB still fires the trigger. Bounded
+        // by chunk + primary key for safety.
         $total = DB::table($table)->count();
         if ($total === 0) {
             $this->info("✓ {$table}: empty");
@@ -97,9 +99,18 @@ class BackfillSpatialColumnsCommand extends Command
 
         for ($from = $minId; $from <= $maxId; $from += $chunk) {
             $to = $from + $chunk - 1;
+            // Re-derive the POINT directly so we don't depend on the
+            // trigger firing for no-op updates (some engines elide
+            // SET id = id on the optimizer level).
             $touched = DB::table($table)
                 ->whereBetween('id', [$from, $to])
-                ->update(['id' => DB::raw('id')]);
+                ->update([
+                    $cols['point'] => DB::raw(sprintf(
+                        'POINT(IFNULL(`%s`, 0), IFNULL(`%s`, 0))',
+                        $cols['lng'],
+                        $cols['lat'],
+                    )),
+                ]);
             $bar->advance($touched);
         }
 
