@@ -6,7 +6,6 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Filament\Notifications\Notification as FilamentNotification;
 
 class TestNotification extends Notification
 {

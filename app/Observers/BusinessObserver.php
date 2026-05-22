@@ -4,11 +4,10 @@ namespace App\Observers;
 
 use App\Models\Business;
 use App\Models\User;
-use App\Models\Category;
+use App\Notifications\DatabaseNotification;
 use App\Services\CacheInvalidationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Filament\Notifications\Notification;
 
 class BusinessObserver
 {
@@ -21,30 +20,30 @@ class BusinessObserver
         if ($business->owner_user_id) {
             $owner = User::find($business->owner_user_id);
             if ($owner) {
-                Notification::make()
-                    ->title('Business Created Successfully')
-                    ->body("Your business '{$business->business_name}' has been created. Please complete your profile for better visibility.")
-                    ->icon('heroicon-o-building-office')
-                    ->color('info')
-                    ->sendToDatabase($owner);
+                $owner->notify(new DatabaseNotification(
+                    title: 'Business Created Successfully',
+                    body: "Your business '{$business->business_name}' has been created. Please complete your profile for better visibility.",
+                    icon: 'heroicon-o-building-office',
+                    color: 'info',
+                ));
             }
         }
 
         // Notify admins only for important business registrations (configurable)
-        if (config('notifications.admin_notifications.business_created', false) && 
+        if (config('notifications.admin_notifications.business_created', false) &&
             $business->business_name && $business->business_email && $business->full_address) {
-            
+
             $admins = User::whereHas('roles', function($query) {
                 $query->whereIn('name', ['admin', 'super-admin']);
             })->get();
 
             foreach ($admins as $admin) {
-                Notification::make()
-                    ->title('New Business Registration')
-                    ->body("'{$business->business_name}' has registered and needs review.")
-                    ->icon('heroicon-o-building-office-2')
-                    ->color('warning')
-                    ->sendToDatabase($admin);
+                $admin->notify(new DatabaseNotification(
+                    title: 'New Business Registration',
+                    body: "'{$business->business_name}' has registered and needs review.",
+                    icon: 'heroicon-o-building-office-2',
+                    color: 'warning',
+                ));
             }
         }
 
@@ -61,43 +60,43 @@ class BusinessObserver
     public function updated(Business $business): void
     {
         $owner = $business->owner_user_id ? User::find($business->owner_user_id) : null;
-        
+
         // IMPORTANT: Notify admins only for verification status changes
         if ($business->isDirty('is_verified') && $business->is_verified) {
             // Notify business owner
             if ($owner) {
-                Notification::make()
-                    ->title('Business Verified!')
-                    ->body("Congratulations! Your business '{$business->business_name}' has been verified and approved.")
-                    ->icon('heroicon-o-check-badge')
-                    ->color('success')
-                    ->sendToDatabase($owner);
+                $owner->notify(new DatabaseNotification(
+                    title: 'Business Verified!',
+                    body: "Congratulations! Your business '{$business->business_name}' has been verified and approved.",
+                    icon: 'heroicon-o-check-badge',
+                    color: 'success',
+                ));
             }
         }
 
         // Notify business owner for activation (not admins)
         if ($business->isDirty('is_active') && $business->is_active && $owner) {
-            Notification::make()
-                ->title('Business Activated')
-                ->body("Your business '{$business->business_name}' is now active and visible to customers.")
-                ->icon('heroicon-o-eye')
-                ->color('success')
-                ->sendToDatabase($owner);
+            $owner->notify(new DatabaseNotification(
+                title: 'Business Activated',
+                body: "Your business '{$business->business_name}' is now active and visible to customers.",
+                icon: 'heroicon-o-eye',
+                color: 'success',
+            ));
         }
 
         // Notify business owner for profile updates (not admins)
         $significantFields = [
-            'business_name', 'description', 'business_email', 
+            'business_name', 'description', 'business_email',
             'business_phone', 'full_address', 'opening_hours'
         ];
-        
+
         if ($business->isDirty($significantFields) && $owner) {
-            Notification::make()
-                ->title('Business Profile Updated')
-                ->body("Your business profile has been updated successfully.")
-                ->icon('heroicon-o-pencil-square')
-                ->color('info')
-                ->sendToDatabase($owner);
+            $owner->notify(new DatabaseNotification(
+                title: 'Business Profile Updated',
+                body: 'Your business profile has been updated successfully.',
+                icon: 'heroicon-o-pencil-square',
+                color: 'info',
+            ));
         }
 
         // Update category business count when business category or active status changes
@@ -165,25 +164,25 @@ class BusinessObserver
         try {
             // Use raw query for better performance
             DB::statement("
-                UPDATE categories 
+                UPDATE categories
                 SET total_businesses = (
-                    SELECT COUNT(*) 
-                    FROM businesses 
-                    WHERE businesses.category_id = ? 
+                    SELECT COUNT(*)
+                    FROM businesses
+                    WHERE businesses.category_id = ?
                     AND businesses.is_active = 1
-                ) 
+                )
                 WHERE id = ?
             ", [$categoryId, $categoryId]);
 
             // Optional: Log successful updates for monitoring
-            Log::info("Category business count updated", [
+            Log::info('Category business count updated', [
                 'category_id' => $categoryId,
                 'timestamp' => now()
             ]);
 
         } catch (\Exception $e) {
             // Log the error but don't fail the main operation
-            Log::error("Failed to update category business count", [
+            Log::error('Failed to update category business count', [
                 'category_id' => $categoryId,
                 'error' => $e->getMessage()
             ]);
@@ -201,26 +200,26 @@ class BusinessObserver
 
         try {
             $placeholders = str_repeat('?,', count($categoryIds) - 1) . '?';
-            
+
             DB::statement("
-                UPDATE categories 
+                UPDATE categories
                 SET total_businesses = (
-                    SELECT COUNT(*) 
-                    FROM businesses 
-                    WHERE businesses.category_id = categories.id 
+                    SELECT COUNT(*)
+                    FROM businesses
+                    WHERE businesses.category_id = categories.id
                     AND businesses.is_active = 1
-                ) 
+                )
                 WHERE id IN ($placeholders)
             ", $categoryIds);
 
-            Log::info("Multiple category business counts updated", [
+            Log::info('Multiple category business counts updated', [
                 'category_ids' => $categoryIds,
                 'count' => count($categoryIds),
                 'timestamp' => now()
             ]);
 
         } catch (\Exception $e) {
-            Log::error("Failed to update multiple category business counts", [
+            Log::error('Failed to update multiple category business counts', [
                 'category_ids' => $categoryIds,
                 'error' => $e->getMessage()
             ]);

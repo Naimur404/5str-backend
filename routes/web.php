@@ -15,7 +15,10 @@ use App\Http\Controllers\Api\GoogleAuthController;
 */
 
 Route::get('/', function () {
-    return redirect('/admin');
+    return response()->json([
+        'success' => true,
+        'message' => '5SRT API',
+    ]);
 });
 
 // Add a named login route to prevent authentication errors

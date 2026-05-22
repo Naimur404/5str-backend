@@ -4,8 +4,8 @@ namespace App\Observers;
 
 use App\Models\Attraction;
 use App\Models\User;
+use App\Notifications\DatabaseNotification;
 use App\Services\CacheInvalidationService;
-use Filament\Notifications\Notification;
 
 class AttractionObserver
 {
@@ -20,12 +20,12 @@ class AttractionObserver
             })->get();
 
             foreach ($admins as $admin) {
-                Notification::make()
-                    ->title('New Attraction Added')
-                    ->body("'{$attraction->name}' has been added and may need review.")
-                    ->icon('heroicon-o-map-pin')
-                    ->color('warning')
-                    ->sendToDatabase($admin);
+                $admin->notify(new DatabaseNotification(
+                    title: 'New Attraction Added',
+                    body: "'{$attraction->name}' has been added and may need review.",
+                    icon: 'heroicon-o-map-pin',
+                    color: 'warning',
+                ));
             }
         }
 
