@@ -9,15 +9,16 @@ class Authenticate extends Middleware
 {
     /**
      * Get the path the user should be redirected to when they are not authenticated.
+     *
+     * API requests (and anything that asks for JSON) get a JSON 401 from the
+     * framework; only legacy web requests hit the named login route.
      */
     protected function redirectTo(Request $request): ?string
     {
-        // For API routes, always return null to avoid redirects
-        if ($request->is('api/*')) {
+        if ($request->is('api/*') || $request->expectsJson()) {
             return null;
         }
-        
-        // For web routes, check if they expect JSON
-        return $request->expectsJson() ? null : route('login');
+
+        return route('login');
     }
 }

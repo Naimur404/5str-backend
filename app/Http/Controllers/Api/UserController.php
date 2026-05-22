@@ -107,9 +107,6 @@ class UserController extends Controller
                         'id' => $review->id,
                         'overall_rating' => $review->overall_rating,
                         'title' => $review->title,
-                        'review_text' => strlen($review->review_text) > 150 
-                            ? substr($review->review_text, 0, 150) . '...' 
-                            : $review->review_text,
                         'helpful_count' => $review->helpful_count,
                         'created_at' => $review->created_at->diffForHumans(),
                         'review_type' => $review->reviewable_type === 'App\\Models\\Business' ? 'business' : 'offering',
@@ -570,7 +567,6 @@ class UserController extends Controller
                     'id' => $review->id,
                     'overall_rating' => $review->overall_rating,
                     'title' => $review->title,
-                    'review_text' => $review->review_text,
                     'is_recommended' => $review->is_recommended,
                     'helpful_count' => $review->helpful_count,
                     'not_helpful_count' => $review->not_helpful_count,

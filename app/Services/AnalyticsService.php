@@ -13,10 +13,12 @@ use App\Services\LocationService;
 class AnalyticsService
 {
     protected $locationService;
+    protected TrendingCounterService $trendingCounter;
 
-    public function __construct(LocationService $locationService)
+    public function __construct(LocationService $locationService, ?TrendingCounterService $trendingCounter = null)
     {
         $this->locationService = $locationService;
+        $this->trendingCounter = $trendingCounter ?? app(TrendingCounterService::class);
     }
 
     /**
@@ -31,9 +33,9 @@ class AnalyticsService
         ?array $filtersApplied = null,
         int $resultsCount = 0,
         ?int $clickedBusinessId = null,
-        Request $request = null
+        ?Request $request = null
     ): SearchLog {
-        return SearchLog::create([
+        $log = SearchLog::create([
             'user_id' => Auth::id(),
             'search_term' => $searchTerm,
             'category_id' => $categoryId,
@@ -44,6 +46,31 @@ class AnalyticsService
             'results_count' => $resultsCount,
             'clicked_business_id' => $clickedBusinessId,
         ]);
+
+        // Real-time trending counters (Redis ZSET, never blocks).
+        if ($searchTerm !== null && $searchTerm !== '') {
+            $this->trendingCounter->bump(
+                TrendingCounterService::KIND_SEARCH_TERM,
+                mb_strtolower($searchTerm),
+                $userArea,
+            );
+        }
+        if ($categoryId !== null) {
+            $this->trendingCounter->bump(
+                TrendingCounterService::KIND_CATEGORY,
+                $categoryId,
+                $userArea,
+            );
+        }
+        if ($clickedBusinessId !== null) {
+            $this->trendingCounter->bump(
+                TrendingCounterService::KIND_BUSINESS,
+                $clickedBusinessId,
+                $userArea,
+            );
+        }
+
+        return $log;
     }
 
     /**
@@ -54,7 +81,7 @@ class AnalyticsService
         ?float $userLatitude = null,
         ?float $userLongitude = null,
         ?string $userArea = null,
-        Request $request = null
+        ?Request $request = null
     ): View {
         $business = \App\Models\Business::find($businessId);
         if (!$business) {
@@ -82,7 +109,14 @@ class AnalyticsService
 
         // Update business view count for real-time trending
         $this->updateBusinessTrendingRealtime($businessId, $userArea);
-        
+
+        // Real-time trending counter (Redis ZSET).
+        $this->trendingCounter->bump(
+            TrendingCounterService::KIND_BUSINESS,
+            $businessId,
+            $userArea,
+        );
+
         return $view;
     }
 
@@ -95,7 +129,7 @@ class AnalyticsService
         ?float $userLatitude = null,
         ?float $userLongitude = null,
         ?string $userArea = null,
-        Request $request = null
+        ?Request $request = null
     ): View {
         $offering = \App\Models\BusinessOffering::find($offeringId);
         if (!$offering) {
@@ -123,18 +157,25 @@ class AnalyticsService
 
         // Update offering trending for real-time analysis
         $this->updateOfferingTrendingRealtime($offeringId, $userArea);
-        
+
+        // Real-time trending counter (Redis ZSET).
+        $this->trendingCounter->bump(
+            TrendingCounterService::KIND_OFFERING,
+            $offeringId,
+            $userArea,
+        );
+
         return $view;
     }
 
     /**
      * Log a view for any model
      */
-    public function logView($viewable, Request $request = null): View
+    public function logView($viewable, ?Request $request = null): View
     {
         $request = $request ?: request();
-        
-        return View::create([
+
+        $view = View::create([
             'user_id' => Auth::id(),
             'viewable_type' => get_class($viewable),
             'viewable_id' => $viewable->id,
@@ -142,6 +183,24 @@ class AnalyticsService
             'user_agent' => $request->userAgent() ?? 'Console Command',
             'session_id' => $request->hasSession() ? $request->session()->getId() : 'console-session',
         ]);
+
+        // Real-time trending counter, classified by Eloquent class name.
+        $kind = match (class_basename($viewable)) {
+            'Business'         => TrendingCounterService::KIND_BUSINESS,
+            'BusinessOffering' => TrendingCounterService::KIND_OFFERING,
+            'Category'         => TrendingCounterService::KIND_CATEGORY,
+            'Attraction'       => TrendingCounterService::KIND_ATTRACTION,
+            default            => null,
+        };
+        if ($kind !== null) {
+            $this->trendingCounter->bump(
+                $kind,
+                $viewable->getKey(),
+                $viewable->user_area ?? null,
+            );
+        }
+
+        return $view;
     }
 
     /**
@@ -208,12 +267,28 @@ class AnalyticsService
         }
 
         // Calculate and store trending data
+        // Pre-fetch every Business in one query so the loop is O(N), not
+        // O(N) DB round-trips. Keyed by id for O(1) lookups in the loop.
+        $businessIds = collect($businessData)
+            ->pluck('business_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $businesses = empty($businessIds)
+            ? collect()
+            : \App\Models\Business::whereIn('id', $businessIds)
+                ->select(['id', 'business_name', 'area', 'overall_rating'])
+                ->get()
+                ->keyBy('id');
+
         foreach ($businessData as $data) {
-            $business = \App\Models\Business::find($data['business_id']);
+            $business = $businesses->get($data['business_id']);
             if ($business) {
                 $trendScore = $this->calculateTrendScore($data['searches'], $data['views']);
                 $hybridScore = $this->calculateHybridScore($trendScore, $business->overall_rating ?? 0);
-                
+
                 TrendingData::updateOrCreate([
                     'item_type' => 'business',
                     'item_id' => $data['business_id'],
@@ -247,11 +322,21 @@ class AnalyticsService
             ->groupBy('category_id')
             ->get();
 
+        // Pre-fetch all categories referenced in the search counts so we
+        // don't hit the DB once per row.
+        $categoryIds = $categorySearches->pluck('category_id')->filter()->unique()->all();
+        $categories = empty($categoryIds)
+            ? collect()
+            : \App\Models\Category::whereIn('id', $categoryIds)
+                ->select(['id', 'name'])
+                ->get()
+                ->keyBy('id');
+
         foreach ($categorySearches as $search) {
-            $category = \App\Models\Category::find($search->category_id);
+            $category = $categories->get($search->category_id);
             if ($category) {
                 $trendScore = $this->calculateTrendScore($search->search_count, 0);
-                
+
                 TrendingData::updateOrCreate([
                     'item_type' => 'category',
                     'item_id' => $search->category_id,
@@ -282,12 +367,24 @@ class AnalyticsService
             ->groupBy('viewable_id')
             ->get();
 
+        // Pre-fetch every offering and its parent business in two queries
+        // (eager-loaded) instead of one query per row. Keyed by id for O(1)
+        // lookups inside the loop.
+        $offeringIds = $offeringViews->pluck('viewable_id')->filter()->unique()->all();
+        $offerings = empty($offeringIds)
+            ? collect()
+            : \App\Models\BusinessOffering::whereIn('id', $offeringIds)
+                ->with(['business:id,area'])
+                ->select(['id', 'business_id', 'name'])
+                ->get()
+                ->keyBy('id');
+
         // Calculate and store trending data for offerings
         foreach ($offeringViews as $view) {
-            $offering = \App\Models\BusinessOffering::find($view->viewable_id);
+            $offering = $offerings->get($view->viewable_id);
             if ($offering && $offering->business) {
                 $trendScore = $this->calculateTrendScore(0, $view->view_count); // Offerings don't have direct searches
-                
+
                 TrendingData::updateOrCreate([
                     'item_type' => 'offering',
                     'item_id' => $view->viewable_id,
@@ -455,7 +552,7 @@ class AnalyticsService
      * Get trending businesses by location with hybrid scoring
      */
     public function getTrendingBusinesses(
-        string $userArea = null,
+        ?string $userArea = null,
         string $timePeriod = 'daily',
         int $limit = 20
     ): \Illuminate\Database\Eloquent\Collection {
@@ -480,7 +577,7 @@ class AnalyticsService
      * Get trending offerings by location with hybrid scoring
      */
     public function getTrendingOfferings(
-        string $userArea = null,
+        ?string $userArea = null,
         string $timePeriod = 'daily',
         int $limit = 20
     ): \Illuminate\Database\Eloquent\Collection {
@@ -558,7 +655,7 @@ class AnalyticsService
         ?float $userLongitude = null,
         ?string $userArea = null,
         ?array $additionalData = null,
-        Request $request = null
+        ?Request $request = null
     ): \App\Models\EndpointAnalytics {
         return \App\Models\EndpointAnalytics::create([
             'endpoint' => $endpoint,

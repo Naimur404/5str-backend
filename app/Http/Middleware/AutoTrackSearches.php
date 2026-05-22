@@ -2,32 +2,44 @@
 
 namespace App\Http\Middleware;
 
-use Closure;
-use Illuminate\Http\Request;
 use App\Services\AnalyticsService;
+use Closure;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Persists a SearchLog row whenever a request matches a search endpoint
+ * and returns a 2xx JSON payload. Tracking failures never bubble up to
+ * the request — they are logged as warnings.
+ */
 class AutoTrackSearches
 {
-    protected $analyticsService;
-
-    public function __construct(AnalyticsService $analyticsService)
-    {
-        $this->analyticsService = $analyticsService;
-    }
+    /**
+     * Query-string flags that classify a request as a search.
+     */
+    private const SEARCH_PARAMS = ['search', 'q', 'query', 'search_term'];
 
     /**
-     * Handle an incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @return \Symfony\Component\HttpFoundation\Response
+     * Filter parameters extracted into the SearchLog payload.
      */
-    public function handle(Request $request, Closure $next)
+    private const FILTER_FIELDS = [
+        'price_range', 'has_delivery', 'has_pickup', 'has_parking', 'is_verified',
+    ];
+
+    public function __construct(private readonly AnalyticsService $analyticsService)
     {
+    }
+
+    public function handle(Request $request, Closure $next): Response
+    {
+        if ($request->is('api/healthz', 'api/readyz', 'api/horizon/*')) {
+            return $next($request);
+        }
+
         $response = $next($request);
 
-        // Track searches only for successful responses and search-related endpoints
         if ($response->getStatusCode() === 200 && $this->isSearchRequest($request)) {
             $this->trackSearch($request, $response);
         }
@@ -37,67 +49,69 @@ class AutoTrackSearches
 
     private function isSearchRequest(Request $request): bool
     {
-        // Check if this is a search-related request
-        return $request->is('api/search*') || 
-               $request->is('api/businesses/search*') ||
-               $request->has(['search', 'q', 'query', 'search_term']) ||
-               $request->routeIs('*search*');
+        return $request->is('api/search*')
+            || $request->is('api/businesses/search*')
+            || $request->hasAny(self::SEARCH_PARAMS)
+            || $request->routeIs('*search*');
     }
 
-    private function trackSearch(Request $request, $response)
+    private function trackSearch(Request $request, Response $response): void
     {
         try {
-            // Extract search parameters
-            $searchTerm = $request->input('search') ?? 
-                         $request->input('q') ?? 
-                         $request->input('query') ?? 
-                         $request->input('search_term');
+            $searchTerm = $request->input('search')
+                ?? $request->input('q')
+                ?? $request->input('query')
+                ?? $request->input('search_term');
 
-            $categoryId = $request->input('category_id') ?? 
-                         $request->input('category');
+            $categoryId = $request->input('category_id') ?? $request->input('category');
+            $latitude = $request->input('latitude') ?? $request->input('lat');
+            $longitude = $request->input('longitude')
+                ?? $request->input('lng')
+                ?? $request->input('long');
 
-            $latitude = $request->input('latitude') ?? 
-                       $request->input('lat');
-
-            $longitude = $request->input('longitude') ?? 
-                        $request->input('lng') ?? 
-                        $request->input('long');
-
-            // Extract filters
             $filters = [];
-            $filterFields = ['price_range', 'has_delivery', 'has_pickup', 'has_parking', 'is_verified'];
-            foreach ($filterFields as $field) {
+            foreach (self::FILTER_FIELDS as $field) {
                 if ($request->has($field)) {
                     $filters[$field] = $request->input($field);
                 }
             }
 
-            // Get results count from response
-            $resultsCount = 0;
-            if ($response instanceof \Illuminate\Http\JsonResponse) {
-                $data = $response->getData(true);
-                if (isset($data['data']) && is_array($data['data'])) {
-                    $resultsCount = count($data['data']);
-                } elseif (isset($data['businesses']) && is_array($data['businesses'])) {
-                    $resultsCount = count($data['businesses']);
-                } elseif (is_array($data)) {
-                    $resultsCount = count($data);
-                }
-            }
-
-            // Log the search
             $this->analyticsService->logSearch(
                 searchTerm: $searchTerm,
-                categoryId: $categoryId ? (int) $categoryId : null,
-                userLatitude: $latitude ? (float) $latitude : null,
-                userLongitude: $longitude ? (float) $longitude : null,
-                filtersApplied: !empty($filters) ? $filters : null,
-                resultsCount: $resultsCount
+                categoryId: $categoryId !== null ? (int) $categoryId : null,
+                userLatitude: $latitude !== null ? (float) $latitude : null,
+                userLongitude: $longitude !== null ? (float) $longitude : null,
+                filtersApplied: $filters !== [] ? $filters : null,
+                resultsCount: $this->extractResultsCount($response),
             );
-
-        } catch (\Exception $e) {
-            // Log error but don't break the request
-            Log::warning('Auto search tracking failed: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::warning('Auto search tracking failed: '.$e->getMessage());
         }
+    }
+
+    /**
+     * Pull the canonical result count from the response. Prefers the
+     * paginator `total` (the dataset size) over `count(data)` which is
+     * the page size — that mismatch was producing wrong analytics.
+     */
+    private function extractResultsCount(Response $response): int
+    {
+        if (! $response instanceof JsonResponse) {
+            return 0;
+        }
+
+        $payload = $response->getData(true);
+        if (! is_array($payload)) {
+            return 0;
+        }
+
+        return (int) (
+            $payload['data']['pagination']['total']
+            ?? $payload['data']['meta']['total_count']
+            ?? $payload['meta']['total']
+            ?? $payload['meta']['total_count']
+            ?? $payload['total']
+            ?? (is_array($payload['data'] ?? null) ? count($payload['data']) : 0)
+        );
     }
 }

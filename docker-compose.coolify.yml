@@ -1,0 +1,199 @@
+# 5SRT Backend — reference docker-compose for Coolify VPS deployment.
+#
+# Coolify renders this file and treats `app` as the public-facing service.
+# Redis / MySQL / Meilisearch are sidecars on a private network so they
+# don't expose ports to the internet. Only `app` listens on 80.
+#
+# Volumes are managed by Coolify and persist across redeploys.
+#
+# Usage in Coolify:
+#   1. New Resource → Docker Compose
+#   2. Paste this file (or point at the repo)
+#   3. Set the env vars listed below in the Coolify env panel
+#   4. Add a custom domain that points to the `app` service on port 80
+#
+# Required env vars (configure in Coolify, NOT in the compose file):
+#   APP_KEY                    base64:... (generate once: php artisan key:generate)
+#   APP_URL                    https://your-domain.tld
+#   DB_PASSWORD                strong password
+#   REDIS_PASSWORD             strong password
+#   MEILISEARCH_KEY            strong master key
+#   SENTRY_LARAVEL_DSN         optional, paste your Sentry project DSN
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+#   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_ENDPOINT, R2_URL
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URL
+#   FIREBASE_CREDENTIALS       JSON contents of the Firebase service account file
+#
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: 5str-backend:latest
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    environment:
+      APP_NAME: 5SRT
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY}
+      APP_URL: ${APP_URL}
+
+      LOG_CHANNEL: stack
+      LOG_STACK: json,sentry
+      LOG_LEVEL: info
+      LOG_LEVEL_SENTRY: error
+
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-5str}
+      DB_USERNAME: ${DB_USERNAME:-laravel}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_CLUSTER: ""
+      REDIS_PERSISTENT: "true"
+      REDIS_READ_TIMEOUT: 60
+
+      SCOUT_DRIVER: meilisearch
+      SCOUT_PREFIX: ${SCOUT_PREFIX:-prod_}
+      SCOUT_QUEUE_CONNECTION: redis
+      SCOUT_QUEUE_NAME: low
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY}
+
+      SANCTUM_EXPIRATION: 43200
+
+      FILESYSTEM_DISK: ${FILESYSTEM_DISK:-r2}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+      AWS_BUCKET: ${AWS_BUCKET:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_DEFAULT_REGION: ${R2_DEFAULT_REGION:-auto}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+      R2_URL: ${R2_URL:-}
+      R2_USE_PATH_STYLE_ENDPOINT: "false"
+
+      MAIL_MAILER: ${MAIL_MAILER:-log}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_ENCRYPTION: ${MAIL_ENCRYPTION:-tls}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-no-reply@5str.xyz}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-5SRT}
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL:-}
+
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_CREDENTIALS: ${FIREBASE_CREDENTIALS:-}
+
+      SENTRY_LARAVEL_DSN: ${SENTRY_LARAVEL_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      SENTRY_PROFILES_SAMPLE_RATE: ${SENTRY_PROFILES_SAMPLE_RATE:-0.1}
+      SENTRY_SEND_DEFAULT_PII: "false"
+    ports:
+      - "80"
+    volumes:
+      - app-storage:/var/www/html/storage
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/api/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - internal
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    command: >
+      --default-authentication-plugin=caching_sha2_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-connections=300
+      --innodb-buffer-pool-size=512M
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-5str}
+      MYSQL_USER: ${DB_USERNAME:-laravel}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-${DB_PASSWORD}}
+      MYSQL_INITDB_SKIP_TZINFO: "1"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --tcp-keepalive 60
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    networks:
+      - internal
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY}
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_LOG_LEVEL: WARN
+    volumes:
+      - meili-data:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:7700/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - internal
+
+volumes:
+  app-storage:
+  mysql-data:
+  redis-data:
+  meili-data:
+
+networks:
+  internal:
+    driver: bridge

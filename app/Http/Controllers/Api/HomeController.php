@@ -107,7 +107,11 @@ class HomeController extends Controller
             );
             $cacheKey = CacheInvalidationService::key('home:index', $grid, $radiusKm);
 
-            $data = Cache::remember($cacheKey, CacheInvalidationService::TTL_HOME_INDEX, function () use ($latitude, $longitude, $radiusKm, $userArea) {
+            $data = CacheInvalidationService::tagged([CacheInvalidationService::TAG_HOME])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_HOME_INDEX, CacheInvalidationService::TTL_HOME_INDEX * 2],
+                    function () use ($latitude, $longitude, $radiusKm, $userArea) {
                 // Initialize arrays to track used businesses
                 $usedBusinessIds = [];
                 $sectionData = [];
@@ -230,11 +234,14 @@ class HomeController extends Controller
     public function featuredSections()
     {
         try {
-            $sections = Cache::remember('home:featured_sections', CacheInvalidationService::TTL_FEATURED_SECTIONS, function () {
-                return FeaturedSection::active()
-                    ->orderBy('sort_order')
-                    ->get();
-            });
+            $sections = CacheInvalidationService::tagged([CacheInvalidationService::TAG_HOME])
+                ->flexible(
+                    'home:featured_sections',
+                    [CacheInvalidationService::TTL_FEATURED_SECTIONS, CacheInvalidationService::TTL_FEATURED_SECTIONS * 2],
+                    fn () => FeaturedSection::active()
+                        ->orderBy('sort_order')
+                        ->get(),
+                );
 
             return response()->json([
                 'success' => true,
@@ -355,7 +362,11 @@ class HomeController extends Controller
     public function statistics()
     {
         try {
-            $data = Cache::remember('home:statistics', CacheInvalidationService::TTL_STATISTICS, function () {
+            $data = CacheInvalidationService::tagged([CacheInvalidationService::TAG_HOME])
+                ->flexible(
+                    'home:statistics',
+                    [CacheInvalidationService::TTL_STATISTICS, CacheInvalidationService::TTL_STATISTICS * 2],
+                    function () {
                 $totalBusinesses = Business::active()->count();
                 $totalCategories = Category::active()->count();
                 $totalActiveOffers = Offer::where('is_active', true)
@@ -1613,7 +1624,16 @@ class HomeController extends Controller
             $query->nearbyWithDistance($latitude, $longitude, $radiusKm);
         }
 
-        return $query->get();
+        $businesses = $query->get();
+
+        // Collapse multi-branch brands to the single closest location per brand.
+        // Brand identity is the top-level business id (parent_id when set, else id).
+        // nearbyWithDistance() sorted ascending by distance, so the first row per
+        // brand is the closest one within radius — keep that, drop siblings + parent.
+        return $businesses
+            ->groupBy(fn ($b) => $b->parent_id ?: $b->id)
+            ->map(fn ($group) => $group->first())
+            ->values();
     }
 
     /**

@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use App\Concerns\HasGeoLocation;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Laravel\Scout\Searchable;
 
 class Attraction extends Model
 {
     use HasFactory;
+    use HasGeoLocation;
+    use Searchable;
 
     protected $fillable = [
         'name',
@@ -190,6 +194,50 @@ class Attraction extends Model
         return $query->where('is_active', true)->where('status', 'active');
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Scout / Meilisearch
+    |--------------------------------------------------------------------------
+    */
+
+    public function searchableAs(): string
+    {
+        return 'attractions';
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return (bool) ($this->is_active ?? true) && ($this->status ?? 'active') === 'active';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => (int) $this->id,
+            'name' => (string) $this->name,
+            'description' => (string) ($this->description ?? ''),
+            'category' => (string) ($this->category ?? ''),
+            'subcategory' => (string) ($this->subcategory ?? ''),
+            'type' => (string) ($this->type ?? ''),
+            'city' => (string) ($this->city ?? ''),
+            'area' => (string) ($this->area ?? ''),
+            'address' => (string) ($this->address ?? ''),
+            'is_active' => (bool) ($this->is_active ?? false),
+            'is_verified' => (bool) ($this->is_verified ?? false),
+            'is_featured' => (bool) ($this->is_featured ?? false),
+            'is_free' => (bool) ($this->is_free ?? false),
+            'overall_rating' => (float) ($this->overall_rating ?? 0),
+            'total_reviews' => (int) ($this->total_reviews ?? 0),
+            'created_at' => optional($this->created_at)->timestamp,
+            '_geo' => $this->latitude !== null && $this->longitude !== null
+                ? ['lat' => (float) $this->latitude, 'lng' => (float) $this->longitude]
+                : null,
+        ];
+    }
+
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', true);
@@ -232,27 +280,25 @@ class Attraction extends Model
 
     public function scopeNearby($query, $latitude, $longitude, $radiusKm = 10)
     {
-        return $query->whereRaw(
-            "( 6371 * acos( cos( radians(?) ) * 
-              cos( radians( latitude ) ) * 
-              cos( radians( longitude ) - radians(?) ) + 
-              sin( radians(?) ) * 
-              sin( radians( latitude ) ) ) ) < ?", 
-            [$latitude, $longitude, $latitude, $radiusKm]
-        );
+        $latitude = (float) $latitude;
+        $longitude = (float) $longitude;
+
+        $query->whereNotNull('latitude')->whereNotNull('longitude');
+        self::applyNearbyFilter($query, 'location', $latitude, $longitude, (float) $radiusKm);
+
+        return $query;
     }
 
     public function scopeNearbyWithDistance($query, $latitude, $longitude, $radiusKm = 10)
     {
-        return $query->selectRaw("attractions.*, 
-            ( 6371 * acos( cos( radians(?) ) * 
-              cos( radians( latitude ) ) * 
-              cos( radians( longitude ) - radians(?) ) + 
-              sin( radians(?) ) * 
-              sin( radians( latitude ) ) ) ) AS distance", 
-            [$latitude, $longitude, $latitude])
-            ->having('distance', '<', $radiusKm)
-            ->orderBy('distance');
+        $latitude = (float) $latitude;
+        $longitude = (float) $longitude;
+
+        $query->whereNotNull('latitude')->whereNotNull('longitude');
+        self::applyDistanceSelect($query, 'attractions', 'location', $latitude, $longitude, 'distance');
+        self::applyNearbyFilter($query, 'location', $latitude, $longitude, (float) $radiusKm);
+
+        return $query->orderBy('distance');
     }
 
     public function scopeWithRating($query, $minRating = 0)

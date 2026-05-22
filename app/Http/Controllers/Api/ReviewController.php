@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Review;
 use App\Models\Business;
 use App\Models\BusinessOffering;
+use App\Models\Attraction;
 use App\Models\ReviewImage;
 use App\Models\Favorite;
 use App\Models\ReviewHelpfulVote;
@@ -131,35 +132,79 @@ class ReviewController extends Controller
     {
         try {
             $request->validate([
-                'reviewable_type' => 'required|in:business,offering',
+                'reviewable_type' => 'required|in:business,offering,attraction,brand',
                 'reviewable_id' => 'required|integer|min:1',
                 'overall_rating' => 'required|integer|min:1|max:5',
-                'service_rating' => 'nullable|integer|min:1|max:5',
-                'quality_rating' => 'nullable|integer|min:1|max:5',
-                'value_rating' => 'nullable|integer|min:1|max:5',
                 'title' => 'nullable|string|max:255',
-                'review_text' => 'required|string|min:10|max:2000',
-                'pros' => 'nullable|array|max:5',
-                'pros.*' => 'string|max:100',
-                'cons' => 'nullable|array|max:5',
-                'cons.*' => 'string|max:100',
-                'visit_date' => 'nullable|date|before_or_equal:today',
-                'amount_spent' => 'nullable|numeric|min:0|max:999999.99',
-                'party_size' => 'nullable|integer|min:1|max:20',
                 'is_recommended' => 'nullable|boolean',
-                'is_verified_visit' => 'nullable|boolean',
                 'images' => 'nullable|array|max:5',
                 'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120', // 5MB max per image
             ]);
 
             $user = Auth::user();
-            $reviewableType = $request->reviewable_type === 'business' ? 'App\\Models\\Business' : 'App\\Models\\BusinessOffering';
             
-            // Check if reviewable item exists
-            if ($reviewableType === 'App\\Models\\Business') {
+            $reviewableType = null;
+            $reviewableItem = null;
+            if ($request->reviewable_type === 'brand') {
+                $reviewableItem = Business::where('business_model', 'brand')->findOrFail($request->reviewable_id);
+                $reviewableType = 'App\\Models\\Business';
+            } elseif ($request->reviewable_type === 'business') {
                 $reviewableItem = Business::findOrFail($request->reviewable_id);
-            } else {
+                $reviewableType = 'App\\Models\\Business';
+            } elseif ($request->reviewable_type === 'offering') {
                 $reviewableItem = BusinessOffering::findOrFail($request->reviewable_id);
+                $reviewableType = 'App\\Models\\BusinessOffering';
+            } elseif ($request->reviewable_type === 'attraction') {
+                $reviewableItem = Attraction::findOrFail($request->reviewable_id);
+                $reviewableType = 'App\\Models\\Attraction';
+            }
+
+            // Extract dynamic rating criteria
+            $criteria = Review::resolveCriteria($request->reviewable_type, $request->reviewable_id);
+
+            // Decode ratings input if sent as a JSON string
+            $ratingsInput = $request->input('ratings');
+            if (is_string($ratingsInput)) {
+                $decoded = json_decode($ratingsInput, true);
+                if (is_array($decoded)) {
+                    $ratingsInput = $decoded;
+                }
+            }
+
+            $validRatings = null;
+            if (count($criteria) > 0) {
+                if (empty($ratingsInput) || !is_array($ratingsInput)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => [
+                            'ratings' => ['The ratings field is required and must contain ratings for: ' . implode(', ', $criteria)]
+                        ]
+                    ], 422);
+                }
+
+                $validationErrors = [];
+                $validRatings = [];
+                foreach ($criteria as $criterion) {
+                    if (!isset($ratingsInput[$criterion])) {
+                        $validationErrors["ratings.{$criterion}"] = ["The {$criterion} rating is required."];
+                    } else {
+                        $val = $ratingsInput[$criterion];
+                        if (!is_numeric($val) || $val < 1 || $val > 5) {
+                            $validationErrors["ratings.{$criterion}"] = ["The {$criterion} rating must be an integer between 1 and 5."];
+                        } else {
+                            $validRatings[$criterion] = (int)$val;
+                        }
+                    }
+                }
+
+                if (count($validationErrors) > 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => $validationErrors
+                    ], 422);
+                }
             }
 
             // Check if user has already reviewed this item
@@ -183,18 +228,9 @@ class ReviewController extends Controller
                 'reviewable_type' => $reviewableType,
                 'reviewable_id' => $request->reviewable_id,
                 'overall_rating' => $request->overall_rating,
-                'service_rating' => $request->service_rating,
-                'quality_rating' => $request->quality_rating,
-                'value_rating' => $request->value_rating,
+                'ratings' => $validRatings,
                 'title' => $request->title,
-                'review_text' => $request->review_text,
-                'pros' => $request->pros,
-                'cons' => $request->cons,
-                'visit_date' => $request->visit_date,
-                'amount_spent' => $request->amount_spent,
-                'party_size' => $request->party_size,
                 'is_recommended' => $request->is_recommended ?? true,
-                'is_verified_visit' => $request->is_verified_visit ?? false,
                 'status' => 'approved', // Reviews need approval by default
             ]);
 
@@ -225,8 +261,7 @@ class ReviewController extends Controller
             DB::commit();
 
             // Check if the reviewed item is in user's favorites
-            $favoriteType = $request->reviewable_type === 'business' ? 'App\\Models\\Business' : 'App\\Models\\BusinessOffering';
-            $isFavorite = $this->checkIsFavorite($user->id, $favoriteType, $request->reviewable_id);
+            $isFavorite = $this->checkIsFavorite($user->id, $reviewableType, $request->reviewable_id);
 
             // Load the created review with relationships
             $review->load(['reviewable', 'images']);
@@ -238,18 +273,9 @@ class ReviewController extends Controller
                     'review' => [
                         'id' => $review->id,
                         'overall_rating' => $review->overall_rating,
-                        'service_rating' => $review->service_rating,
-                        'quality_rating' => $review->quality_rating,
-                        'value_rating' => $review->value_rating,
+                        'ratings' => $review->ratings,
                         'title' => $review->title,
-                        'review_text' => $review->review_text,
-                        'pros' => $review->pros,
-                        'cons' => $review->cons,
-                        'visit_date' => $review->visit_date?->format('Y-m-d'),
-                        'amount_spent' => $review->amount_spent,
-                        'party_size' => $review->party_size,
                         'is_recommended' => $review->is_recommended,
-                        'is_verified_visit' => $review->is_verified_visit,
                         'status' => $review->status,
                         'is_favorite' => $isFavorite,
                         'images' => $uploadedImages,
@@ -283,20 +309,8 @@ class ReviewController extends Controller
         try {
             $request->validate([
                 'overall_rating' => 'required|integer|min:1|max:5',
-                'service_rating' => 'nullable|integer|min:1|max:5',
-                'quality_rating' => 'nullable|integer|min:1|max:5',
-                'value_rating' => 'nullable|integer|min:1|max:5',
                 'title' => 'nullable|string|max:255',
-                'review_text' => 'required|string|min:10|max:2000',
-                'pros' => 'nullable|array|max:5',
-                'pros.*' => 'string|max:100',
-                'cons' => 'nullable|array|max:5',
-                'cons.*' => 'string|max:100',
-                'visit_date' => 'nullable|date|before_or_equal:today',
-                'amount_spent' => 'nullable|numeric|min:0|max:999999.99',
-                'party_size' => 'nullable|integer|min:1|max:20',
                 'is_recommended' => 'nullable|boolean',
-                'is_verified_visit' => 'nullable|boolean',
             ]);
 
             $user = Auth::user();
@@ -320,21 +334,60 @@ class ReviewController extends Controller
                 ], 403);
             }
 
+            // Extract dynamic rating criteria
+            $criteria = Review::resolveCriteria($review->reviewable_type, $review->reviewable_id);
+
+            // Decode ratings input if sent as a JSON string
+            $ratingsInput = $request->input('ratings');
+            if (is_string($ratingsInput)) {
+                $decoded = json_decode($ratingsInput, true);
+                if (is_array($decoded)) {
+                    $ratingsInput = $decoded;
+                }
+            }
+
+            $validRatings = null;
+            if (count($criteria) > 0) {
+                if (empty($ratingsInput) || !is_array($ratingsInput)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => [
+                            'ratings' => ['The ratings field is required and must contain ratings for: ' . implode(', ', $criteria)]
+                        ]
+                    ], 422);
+                }
+
+                $validationErrors = [];
+                $validRatings = [];
+                foreach ($criteria as $criterion) {
+                    if (!isset($ratingsInput[$criterion])) {
+                        $validationErrors["ratings.{$criterion}"] = ["The {$criterion} rating is required."];
+                    } else {
+                        $val = $ratingsInput[$criterion];
+                        if (!is_numeric($val) || $val < 1 || $val > 5) {
+                            $validationErrors["ratings.{$criterion}"] = ["The {$criterion} rating must be an integer between 1 and 5."];
+                        } else {
+                            $validRatings[$criterion] = (int)$val;
+                        }
+                    }
+                }
+
+                if (count($validationErrors) > 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => $validationErrors
+                    ], 422);
+                }
+            }
+
             // Update the review
             $review->update([
                 'overall_rating' => $request->overall_rating,
-                'service_rating' => $request->service_rating,
-                'quality_rating' => $request->quality_rating,
-                'value_rating' => $request->value_rating,
+                'ratings' => $validRatings,
                 'title' => $request->title,
-                'review_text' => $request->review_text,
-                'pros' => $request->pros,
-                'cons' => $request->cons,
-                'visit_date' => $request->visit_date,
-                'amount_spent' => $request->amount_spent,
-                'party_size' => $request->party_size,
                 'is_recommended' => $request->is_recommended ?? true,
-                'is_verified_visit' => $request->is_verified_visit ?? false,
                 'status' => 'pending', // Reset to pending after edit
             ]);
 
@@ -348,18 +401,9 @@ class ReviewController extends Controller
                     'review' => [
                         'id' => $review->id,
                         'overall_rating' => $review->overall_rating,
-                        'service_rating' => $review->service_rating,
-                        'quality_rating' => $review->quality_rating,
-                        'value_rating' => $review->value_rating,
+                        'ratings' => $review->ratings,
                         'title' => $review->title,
-                        'review_text' => $review->review_text,
-                        'pros' => $review->pros,
-                        'cons' => $review->cons,
-                        'visit_date' => $review->visit_date?->format('Y-m-d'),
-                        'amount_spent' => $review->amount_spent,
-                        'party_size' => $review->party_size,
                         'is_recommended' => $review->is_recommended,
-                        'is_verified_visit' => $review->is_verified_visit,
                         'status' => $review->status,
                         'is_favorite' => $isFavorite,
                         'updated_at' => $review->updated_at->format('Y-m-d H:i:s'),
@@ -432,20 +476,8 @@ class ReviewController extends Controller
         try {
             $request->validate([
                 'overall_rating' => 'required|integer|min:1|max:5',
-                'service_rating' => 'nullable|integer|min:1|max:5',
-                'quality_rating' => 'nullable|integer|min:1|max:5',
-                'value_rating' => 'nullable|integer|min:1|max:5',
                 'title' => 'nullable|string|max:255',
-                'review_text' => 'required|string|min:10|max:2000',
-                'pros' => 'nullable|array|max:5',
-                'pros.*' => 'string|max:100',
-                'cons' => 'nullable|array|max:5',
-                'cons.*' => 'string|max:100',
-                'visit_date' => 'nullable|date|before_or_equal:today',
-                'amount_spent' => 'nullable|numeric|min:0|max:999999.99',
-                'party_size' => 'nullable|integer|min:1|max:20',
                 'is_recommended' => 'nullable|boolean',
-                'is_verified_visit' => 'nullable|boolean',
                 'images' => 'nullable|array|max:5',
                 'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120', // 5MB max per image
             ]);
@@ -478,20 +510,8 @@ class ReviewController extends Controller
         try {
             $request->validate([
                 'overall_rating' => 'required|integer|min:1|max:5',
-                'service_rating' => 'nullable|integer|min:1|max:5',
-                'quality_rating' => 'nullable|integer|min:1|max:5',
-                'value_rating' => 'nullable|integer|min:1|max:5',
                 'title' => 'nullable|string|max:255',
-                'review_text' => 'required|string|min:10|max:2000',
-                'pros' => 'nullable|array|max:5',
-                'pros.*' => 'string|max:100',
-                'cons' => 'nullable|array|max:5',
-                'cons.*' => 'string|max:100',
-                'visit_date' => 'nullable|date|before_or_equal:today',
-                'amount_spent' => 'nullable|numeric|min:0|max:999999.99',
-                'party_size' => 'nullable|integer|min:1|max:20',
                 'is_recommended' => 'nullable|boolean',
-                'is_verified_visit' => 'nullable|boolean',
                 'images' => 'nullable|array|max:5',
                 'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120', // 5MB max per image
             ]);
@@ -543,10 +563,10 @@ class ReviewController extends Controller
             if ($review->reviewable_type === 'App\\Models\\Business') {
                 $item = $review->reviewable;
                 $reviewableData = [
-                    'type' => 'business',
-                    'id' => $item->id,
-                    'business_name' => $item->business_name,
-                    'slug' => $item->slug,
+                    'type' => ($item && $item->business_model === 'brand') ? 'brand' : 'business',
+                    'id' => $item->id ?? null,
+                    'business_name' => $item->business_name ?? null,
+                    'slug' => $item->slug ?? null,
                     'category_name' => $item->category->name ?? null,
                     'logo_image' => $item->logoImage->image_url ?? null,
                 ];
@@ -554,11 +574,20 @@ class ReviewController extends Controller
                 $item = $review->reviewable;
                 $reviewableData = [
                     'type' => 'offering',
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'offering_type' => $item->offering_type,
+                    'id' => $item->id ?? null,
+                    'name' => $item->name ?? null,
+                    'offering_type' => $item->offering_type ?? null,
                     'business_name' => $item->business->business_name ?? null,
-                    'image_url' => $item->image_url,
+                    'image_url' => $item->image_url ?? null,
+                ];
+            } elseif ($review->reviewable_type === 'App\\Models\\Attraction') {
+                $item = $review->reviewable;
+                $reviewableData = [
+                    'type' => 'attraction',
+                    'id' => $item->id ?? null,
+                    'name' => $item->name ?? null,
+                    'slug' => $item->slug ?? null,
+                    'image_url' => $item->cover_image_url ?? null,
                 ];
             }
 
@@ -579,18 +608,9 @@ class ReviewController extends Controller
                     'review' => [
                         'id' => $review->id,
                         'overall_rating' => $review->overall_rating,
-                        'service_rating' => $review->service_rating,
-                        'quality_rating' => $review->quality_rating,
-                        'value_rating' => $review->value_rating,
+                        'ratings' => $review->ratings,
                         'title' => $review->title,
-                        'review_text' => $review->review_text,
-                        'pros' => $review->pros,
-                        'cons' => $review->cons,
-                        'visit_date' => $review->visit_date?->format('Y-m-d'),
-                        'amount_spent' => $review->amount_spent,
-                        'party_size' => $review->party_size,
                         'is_recommended' => $review->is_recommended,
-                        'is_verified_visit' => $review->is_verified_visit,
                         'helpful_count' => $review->helpful_count,
                         'not_helpful_count' => $review->not_helpful_count,
                         'status' => $review->status,
@@ -631,10 +651,10 @@ class ReviewController extends Controller
             if ($review->reviewable_type === 'App\\Models\\Business') {
                 $item = $review->reviewable;
                 $reviewableData = [
-                    'type' => 'business',
-                    'id' => $item->id,
-                    'business_name' => $item->business_name,
-                    'slug' => $item->slug,
+                    'type' => ($item && $item->business_model === 'brand') ? 'brand' : 'business',
+                    'id' => $item->id ?? null,
+                    'business_name' => $item->business_name ?? null,
+                    'slug' => $item->slug ?? null,
                     'category_name' => $item->category->name ?? null,
                     'logo_image' => $item->logoImage->image_url ?? null,
                 ];
@@ -642,11 +662,20 @@ class ReviewController extends Controller
                 $item = $review->reviewable;
                 $reviewableData = [
                     'type' => 'offering',
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'offering_type' => $item->offering_type,
+                    'id' => $item->id ?? null,
+                    'name' => $item->name ?? null,
+                    'offering_type' => $item->offering_type ?? null,
                     'business_name' => $item->business->business_name ?? null,
-                    'image_url' => $item->image_url,
+                    'image_url' => $item->image_url ?? null,
+                ];
+            } elseif ($review->reviewable_type === 'App\\Models\\Attraction') {
+                $item = $review->reviewable;
+                $reviewableData = [
+                    'type' => 'attraction',
+                    'id' => $item->id ?? null,
+                    'name' => $item->name ?? null,
+                    'slug' => $item->slug ?? null,
+                    'image_url' => $item->cover_image_url ?? null,
                 ];
             }
 
@@ -666,18 +695,9 @@ class ReviewController extends Controller
                     'review' => [
                         'id' => $review->id,
                         'overall_rating' => $review->overall_rating,
-                        'service_rating' => $review->service_rating,
-                        'quality_rating' => $review->quality_rating,
-                        'value_rating' => $review->value_rating,
+                        'ratings' => $review->ratings,
                         'title' => $review->title,
-                        'review_text' => $review->review_text,
-                        'pros' => $review->pros,
-                        'cons' => $review->cons,
-                        'visit_date' => $review->visit_date?->format('Y-m-d'),
-                        'amount_spent' => $review->amount_spent,
-                        'party_size' => $review->party_size,
                         'is_recommended' => $review->is_recommended,
-                        'is_verified_visit' => $review->is_verified_visit,
                         'helpful_count' => $review->helpful_count,
                         'not_helpful_count' => $review->not_helpful_count,
                         'status' => $review->status,

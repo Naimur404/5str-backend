@@ -7,11 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
@@ -156,11 +154,24 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
-     * Check if user can access Filament admin panel
+     * Revoke every other Sanctum token whenever the password changes.
+     * Keeps the current device logged in (its token is preserved upstream
+     * by the controller calling the rotate-token helper).
      */
-    public function canAccessPanel(Panel $panel): bool
+    protected static function booted(): void
     {
-        return $this->hasAnyRole(['admin', 'super-admin', 'moderator', 'business-owner']);
+        static::updated(static function (self $user): void {
+            if (! $user->wasChanged('password')) {
+                return;
+            }
+
+            $current = $user->currentAccessToken();
+            $query = $user->tokens();
+            if ($current && method_exists($current, 'getKey')) {
+                $query->where('id', '!=', $current->getKey());
+            }
+            $query->delete();
+        });
     }
 
     /**

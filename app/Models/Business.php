@@ -2,12 +2,18 @@
 
 namespace App\Models;
 
+use App\Concerns\AuditableByAdmin;
+use App\Concerns\HasGeoLocation;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Scout\Searchable;
 
 class Business extends Model
 {
     use HasFactory;
+    use AuditableByAdmin;
+    use HasGeoLocation;
+    use Searchable;
 
     protected $fillable = [
         'business_name',
@@ -41,6 +47,8 @@ class Business extends Model
         'business_tags',
         'overall_rating',
         'total_reviews',
+        'rating_averages',
+        'rating_distribution',
         'discovery_score',
         'approval_status',
         'rejection_reason',
@@ -48,6 +56,7 @@ class Business extends Model
         'approved_at',
         'pending_changes',
         'has_pending_changes',
+        'parent_id',
     ];
 
     protected $hidden = [
@@ -78,10 +87,13 @@ class Business extends Model
         'business_tags' => 'array',
         'overall_rating' => 'decimal:2',
         'total_reviews' => 'integer',
+        'rating_averages' => 'array',
+        'rating_distribution' => 'array',
         'discovery_score' => 'decimal:2',
         'pending_changes' => 'array',
         'has_pending_changes' => 'boolean',
         'approved_at' => 'datetime',
+        'parent_id' => 'integer',
     ];
 
     // Accessors
@@ -273,6 +285,83 @@ class Business extends Model
     /**
      * Relationships
      */
+    public function parentBusiness()
+    {
+        return $this->belongsTo(Business::class, 'parent_id');
+    }
+
+    public function branches()
+    {
+        return $this->hasMany(Business::class, 'parent_id');
+    }
+
+    public function isBranch()
+    {
+        return $this->parent_id !== null;
+    }
+
+    public function isParent()
+    {
+        return $this->parent_id === null;
+    }
+
+    /**
+     * Get all offerings for this business, inheriting from the parent brand if none exist locally.
+     */
+    public function getInheritedOfferings()
+    {
+        if ($this->offerings()->exists()) {
+            return $this->offerings;
+        }
+
+        if ($this->parent_id) {
+            $parent = $this->parentBusiness;
+            if ($parent) {
+                return $parent->offerings;
+            }
+        }
+
+        return collect();
+    }
+
+    /**
+     * Get inherited products.
+     */
+    public function getInheritedProducts()
+    {
+        if ($this->products()->exists()) {
+            return $this->products;
+        }
+
+        if ($this->parent_id) {
+            $parent = $this->parentBusiness;
+            if ($parent) {
+                return $parent->products;
+            }
+        }
+
+        return collect();
+    }
+
+    /**
+     * Get inherited services.
+     */
+    public function getInheritedServices()
+    {
+        if ($this->services()->exists()) {
+            return $this->services;
+        }
+
+        if ($this->parent_id) {
+            $parent = $this->parentBusiness;
+            if ($parent) {
+                return $parent->services;
+            }
+        }
+
+        return collect();
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);
@@ -381,6 +470,59 @@ class Business extends Model
         return $query->where('is_active', true);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Scout / Meilisearch
+    |--------------------------------------------------------------------------
+    | The index name is plural snake_case so it lines up with the
+    | `index-settings` block in `config/scout.php`. Geo data is exposed
+    | in Meilisearch's native `_geo` shape so the mobile app can use
+    | `_geoRadius(lat, lng, meters)` filters.
+    */
+
+    public function searchableAs(): string
+    {
+        return 'businesses';
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return (bool) ($this->is_active ?? true);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => (int) $this->id,
+            'business_name' => (string) $this->business_name,
+            'description' => (string) ($this->description ?? ''),
+            'tags' => is_array($this->tags ?? null) ? array_values($this->tags) : [],
+            'category_id' => $this->category_id,
+            'subcategory_id' => $this->subcategory_id,
+            'business_model' => $this->business_model,
+            'city' => (string) ($this->city ?? ''),
+            'area' => (string) ($this->area ?? ''),
+            'full_address' => (string) ($this->full_address ?? ''),
+            'price_range' => $this->price_range,
+            'has_delivery' => (bool) ($this->has_delivery ?? false),
+            'has_pickup' => (bool) ($this->has_pickup ?? false),
+            'has_parking' => (bool) ($this->has_parking ?? false),
+            'is_active' => (bool) ($this->is_active ?? false),
+            'is_verified' => (bool) ($this->is_verified ?? false),
+            'is_featured' => (bool) ($this->is_featured ?? false),
+            'is_national' => (bool) ($this->is_national ?? false),
+            'overall_rating' => (float) ($this->overall_rating ?? 0),
+            'total_reviews' => (int) ($this->total_reviews ?? 0),
+            'created_at' => optional($this->created_at)->timestamp,
+            '_geo' => $this->latitude !== null && $this->longitude !== null
+                ? ['lat' => (float) $this->latitude, 'lng' => (float) $this->longitude]
+                : null,
+        ];
+    }
+
     public function scopeVerified($query)
     {
         return $query->where('is_verified', true);
@@ -426,36 +568,37 @@ class Business extends Model
         return $query->where('category_id', $categoryId);
     }
 
+    /**
+     * Filter to businesses within `$radiusKm` of the given coords and
+     * order them by distance ascending. Uses the spatial index on the
+     * generated `location` column when running against MySQL; falls back
+     * to in-SQL Haversine on SQLite (test runner).
+     */
     public function scopeNearby($query, $latitude, $longitude, $radiusKm = 10)
     {
-        return $query->whereRaw(
-            "( 6371 * acos( cos( radians(?) ) * 
-              cos( radians( latitude ) ) * 
-              cos( radians( longitude ) - radians(?) ) + 
-              sin( radians(?) ) * 
-              sin( radians( latitude ) ) ) ) < ?", 
-            [$latitude, $longitude, $latitude, $radiusKm]
-        )->orderByRaw(
-            "( 6371 * acos( cos( radians(?) ) * 
-              cos( radians( latitude ) ) * 
-              cos( radians( longitude ) - radians(?) ) + 
-              sin( radians(?) ) * 
-              sin( radians( latitude ) ) ) )", 
-            [$latitude, $longitude, $latitude]
-        );
+        $latitude = (float) $latitude;
+        $longitude = (float) $longitude;
+
+        $query->whereNotNull('latitude')->whereNotNull('longitude');
+        self::applyNearbyFilter($query, 'location', $latitude, $longitude, (float) $radiusKm);
+        self::applyDistanceOrder($query, 'location', $latitude, $longitude);
+
+        return $query;
     }
 
+    /**
+     * Same as `scopeNearby` but also adds a `distance` column (kilometres).
+     */
     public function scopeNearbyWithDistance($query, $latitude, $longitude, $radiusKm = 10)
     {
-        return $query->selectRaw("businesses.*, 
-            ( 6371 * acos( cos( radians(?) ) * 
-              cos( radians( latitude ) ) * 
-              cos( radians( longitude ) - radians(?) ) + 
-              sin( radians(?) ) * 
-              sin( radians( latitude ) ) ) ) AS distance", 
-            [$latitude, $longitude, $latitude])
-            ->having('distance', '<', $radiusKm)
-            ->orderBy('distance');
+        $latitude = (float) $latitude;
+        $longitude = (float) $longitude;
+
+        $query->whereNotNull('latitude')->whereNotNull('longitude');
+        self::applyDistanceSelect($query, 'businesses', 'location', $latitude, $longitude, 'distance');
+        self::applyNearbyFilter($query, 'location', $latitude, $longitude, (float) $radiusKm);
+
+        return $query->orderBy('distance');
     }
 
     public function scopeWithRating($query, $minRating = 0)

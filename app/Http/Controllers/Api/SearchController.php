@@ -238,9 +238,12 @@ class SearchController extends Controller
 
             $cacheKey = CacheInvalidationService::key('search:popular', $categoryId, $limit);
 
-            $popularSearches = Cache::remember($cacheKey, CacheInvalidationService::TTL_SEARCH_POPULAR, function () use ($limit, $categoryId) {
-                return $this->analyticsService->getPopularSearchTerms($limit, $categoryId);
-            });
+            $popularSearches = CacheInvalidationService::tagged([CacheInvalidationService::TAG_SEARCH])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_SEARCH_POPULAR, CacheInvalidationService::TTL_SEARCH_POPULAR * 2],
+                    fn () => $this->analyticsService->getPopularSearchTerms($limit, $categoryId),
+                );
 
             return response()->json([
                 'success' => true,
@@ -266,17 +269,27 @@ class SearchController extends Controller
 
         // Text search - include category name in search
         if ($searchTerm) {
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('business_name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('description', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('full_address', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('area', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('city', 'LIKE', "%{$searchTerm}%")
-                  // Search by category name
-                  ->orWhereHas('category', function ($categoryQuery) use ($searchTerm) {
-                      $categoryQuery->where('name', 'LIKE', "%{$searchTerm}%");
-                  });
-            });
+            $scoutIds = $this->scoutMatchIds(Business::class, $searchTerm, 500);
+            if ($scoutIds !== null) {
+                if (empty($scoutIds)) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query->whereIn('id', $scoutIds)
+                        ->orderByRaw('FIELD(id, '.implode(',', $scoutIds).')');
+                }
+            } else {
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('business_name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('description', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('full_address', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('area', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('city', 'LIKE', "%{$searchTerm}%")
+                      // Search by category name
+                      ->orWhereHas('category', function ($categoryQuery) use ($searchTerm) {
+                          $categoryQuery->where('name', 'LIKE', "%{$searchTerm}%");
+                      });
+                });
+            }
         }
 
         // Category filter
@@ -448,18 +461,28 @@ class SearchController extends Controller
 
         // Text search - include category name in search
         if ($searchTerm) {
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('description', 'LIKE', "%{$searchTerm}%")
-                  // Search by offering category name
-                  ->orWhereHas('category', function ($categoryQuery) use ($searchTerm) {
-                      $categoryQuery->where('name', 'LIKE', "%{$searchTerm}%");
-                  })
-                  // Search by business category name (in case offering category is different)
-                  ->orWhereHas('business.category', function ($businessCategoryQuery) use ($searchTerm) {
-                      $businessCategoryQuery->where('name', 'LIKE', "%{$searchTerm}%");
-                  });
-            });
+            $scoutIds = $this->scoutMatchIds(BusinessOffering::class, $searchTerm, 500);
+            if ($scoutIds !== null) {
+                if (empty($scoutIds)) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query->whereIn('id', $scoutIds)
+                        ->orderByRaw('FIELD(id, '.implode(',', $scoutIds).')');
+                }
+            } else {
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('description', 'LIKE', "%{$searchTerm}%")
+                      // Search by offering category name
+                      ->orWhereHas('category', function ($categoryQuery) use ($searchTerm) {
+                          $categoryQuery->where('name', 'LIKE', "%{$searchTerm}%");
+                      })
+                      // Search by business category name (in case offering category is different)
+                      ->orWhereHas('business.category', function ($businessCategoryQuery) use ($searchTerm) {
+                          $businessCategoryQuery->where('name', 'LIKE', "%{$searchTerm}%");
+                      });
+                });
+            }
         }
 
         // Category filter
@@ -1233,6 +1256,37 @@ class SearchController extends Controller
                 'unit' => 'kilometers', 
                 'formatted' => round($distanceInKm, 1) . 'km'
             ];
+        }
+    }
+
+    /**
+     * Resolve the IDs of records that match a search term via Scout
+     * (Meilisearch). Returns `null` when Scout is disabled so callers
+     * fall back to their existing LIKE queries unchanged.
+     *
+     * @return array<int, int>|null
+     */
+    private function scoutMatchIds(string $modelClass, string $term, int $limit = 500): ?array
+    {
+        $driver = config('scout.driver');
+        if ($driver === null || $driver === 'null') {
+            return null;
+        }
+
+        try {
+            return $modelClass::search($term)
+                ->take($limit)
+                ->keys()
+                ->map(static fn ($id) => (int) $id)
+                ->all();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Scout search fallback', [
+                'model' => $modelClass,
+                'term' => $term,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
         }
     }
 

@@ -115,7 +115,7 @@ class RecommendationController extends Controller
                         return [
                             'id' => $review->id,
                             'rating' => $review->overall_rating,
-                            'comment' => $review->review_text,
+                            'comment' => $review->title,
                             'created_at' => $review->created_at,
                         ];
                     }),
@@ -603,7 +603,7 @@ class RecommendationController extends Controller
                         return [
                             'id' => $review->id,
                             'rating' => $review->overall_rating,
-                            'comment' => $review->review_text,
+                            'comment' => $review->title,
                             'created_at' => $review->created_at,
                         ];
                     }),

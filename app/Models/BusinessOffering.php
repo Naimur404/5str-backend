@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Scout\Searchable;
 
 class BusinessOffering extends Model
 {
     use HasFactory;
+    use Searchable;
 
     protected $fillable = [
         'business_id',
@@ -118,5 +120,40 @@ class BusinessOffering extends Model
         }
         
         return $this->price ? $this->currency . ' ' . number_format($this->price, 2) : null;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scout / Meilisearch
+    |--------------------------------------------------------------------------
+    */
+
+    public function searchableAs(): string
+    {
+        return 'business_offerings';
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return (bool) ($this->is_active ?? true);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => (int) $this->id,
+            'name' => (string) $this->name,
+            'description' => (string) ($this->description ?? ''),
+            'business_id' => $this->business_id,
+            'category_id' => $this->category_id,
+            'price' => $this->price !== null ? (float) $this->price : null,
+            'is_active' => (bool) ($this->is_active ?? false),
+            'average_rating' => (float) ($this->average_rating ?? 0),
+            'total_reviews' => (int) ($this->total_reviews ?? 0),
+            'created_at' => optional($this->created_at)->timestamp,
+        ];
     }
 }

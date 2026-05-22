@@ -85,13 +85,24 @@ class AttractionController extends Controller
                 $query->verified();
             }
             
-            // Search by name or description
+            // Search by name or description (Scout when configured,
+            // SQL LIKE fallback otherwise — same response shape).
             if ($request->has('search')) {
-                $searchTerm = $request->search;
-                $query->where(function($q) use ($searchTerm) {
-                    $q->where('name', 'LIKE', '%' . $searchTerm . '%')
-                      ->orWhere('description', 'LIKE', '%' . $searchTerm . '%');
-                });
+                $searchTerm = (string) $request->search;
+                $scoutIds = $this->scoutMatchIds(\App\Models\Attraction::class, $searchTerm, 500);
+                if ($scoutIds !== null) {
+                    if (empty($scoutIds)) {
+                        $query->whereRaw('1 = 0');
+                    } else {
+                        $query->whereIn('id', $scoutIds)
+                            ->orderByRaw('FIELD(id, '.implode(',', $scoutIds).')');
+                    }
+                } else {
+                    $query->where(function ($q) use ($searchTerm) {
+                        $q->where('name', 'LIKE', '%'.$searchTerm.'%')
+                          ->orWhere('description', 'LIKE', '%'.$searchTerm.'%');
+                    });
+                }
             }
             
             // Sorting
@@ -410,7 +421,11 @@ class AttractionController extends Controller
                 $limit
             );
 
-            $attractions = Cache::remember($cacheKey, CacheInvalidationService::TTL_ATTRACTIONS, function () use ($limit, $city, $area, $latitude, $longitude, $radius) {
+            $attractions = CacheInvalidationService::tagged([CacheInvalidationService::TAG_ATTRACTIONS])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_ATTRACTIONS, CacheInvalidationService::TTL_ATTRACTIONS * 2],
+                    function () use ($limit, $city, $area, $latitude, $longitude, $radius) {
                 $query = Attraction::active()
                     ->featured()
                     ->with(['gallery', 'coverImage']);
@@ -634,7 +649,11 @@ class AttractionController extends Controller
     public function categories(Request $request)
     {
         try {
-            $data = Cache::remember('attractions:categories', CacheInvalidationService::TTL_CATEGORIES, function () {
+            $data = CacheInvalidationService::tagged([CacheInvalidationService::TAG_ATTRACTIONS])
+                ->flexible(
+                    'attractions:categories',
+                    [CacheInvalidationService::TTL_CATEGORIES, CacheInvalidationService::TTL_CATEGORIES * 2],
+                    function () {
                 $categories = DB::table('attractions')
                     ->select('category', DB::raw('count(*) as count'))
                     ->where('is_active', true)
@@ -679,7 +698,11 @@ class AttractionController extends Controller
     public function destinations(Request $request)
     {
         try {
-            $data = Cache::remember('attractions:destinations', CacheInvalidationService::TTL_CATEGORIES, function () {
+            $data = CacheInvalidationService::tagged([CacheInvalidationService::TAG_ATTRACTIONS])
+                ->flexible(
+                    'attractions:destinations',
+                    [CacheInvalidationService::TTL_CATEGORIES, CacheInvalidationService::TTL_CATEGORIES * 2],
+                    function () {
                 $cities = DB::table('attractions')
                     ->select('city', DB::raw('count(*) as attractions_count'))
                     ->where('is_active', true)
@@ -785,5 +808,36 @@ class AttractionController extends Controller
         }
         
         return $field;
+    }
+
+    /**
+     * Resolve the IDs of records that match a search term via Scout
+     * (Meilisearch). Returns `null` when Scout is disabled so callers
+     * fall back to their existing LIKE query unchanged.
+     *
+     * @return array<int, int>|null
+     */
+    private function scoutMatchIds(string $modelClass, string $term, int $limit = 500): ?array
+    {
+        $driver = config('scout.driver');
+        if ($driver === null || $driver === 'null') {
+            return null;
+        }
+
+        try {
+            return $modelClass::search($term)
+                ->take($limit)
+                ->keys()
+                ->map(static fn ($id) => (int) $id)
+                ->all();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Scout search fallback', [
+                'model' => $modelClass,
+                'term' => $term,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 }

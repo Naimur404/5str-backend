@@ -17,8 +17,11 @@ return [
         'business_created' => true,          // When new business registers
         'business_verification' => false,    // When business is verified (handled manually)
         'business_updated' => false,         // When business profile is updated
-        
-        // Offer Events  
+
+        // Attraction Events
+        'attraction_created' => true,        // When new attraction is added
+
+        // Offer Events
         'offer_created' => false,            // When new offer is created
         'offer_updated' => false,            // When offer is updated
         

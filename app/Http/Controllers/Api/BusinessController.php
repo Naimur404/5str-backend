@@ -175,8 +175,21 @@ class BusinessController extends Controller
                       });
                 });
             } else {
-                // If no location provided, show only national businesses
-                $query->national();
+                // If no location provided, show only national businesses (unless filtering by parent_id)
+                if (!$request->has('parent_id')) {
+                    $query->national();
+                }
+            }
+
+            // Parent/Branch filter
+            if ($request->has('parent_id')) {
+                if ($request->parent_id === 'null' || is_null($request->parent_id)) {
+                    $query->whereNull('parent_id');
+                } else {
+                    $query->where('parent_id', $request->parent_id);
+                }
+            } elseif ($request->boolean('only_parents')) {
+                $query->whereNull('parent_id');
             }
 
             // Category filter
@@ -295,15 +308,29 @@ class BusinessController extends Controller
             $query = Business::active()
                 ->with(['category', 'logoImage']);
 
-            // Text search
+            // Text search — when Scout is configured we route the actual
+            // matching through Meilisearch (typo-tolerant, ranked) and
+            // constrain the SQL query to the resulting IDs. The rest of
+            // the chain still applies category/radius/sort filters as
+            // before so the response shape stays identical.
             if ($searchTerm) {
-                $query->where(function ($q) use ($searchTerm) {
-                    $q->where('business_name', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('description', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('full_address', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('area', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('city', 'LIKE', "%{$searchTerm}%");
-                });
+                $scoutIds = $this->scoutMatchIds(Business::class, $searchTerm, 500);
+                if ($scoutIds !== null) {
+                    if (empty($scoutIds)) {
+                        $query->whereRaw('1 = 0'); // no matches
+                    } else {
+                        $query->whereIn('id', $scoutIds)
+                            ->orderByRaw('FIELD(id, '.implode(',', $scoutIds).')');
+                    }
+                } else {
+                    $query->where(function ($q) use ($searchTerm) {
+                        $q->where('business_name', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('description', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('full_address', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('area', 'LIKE', "%{$searchTerm}%")
+                          ->orWhere('city', 'LIKE', "%{$searchTerm}%");
+                    });
+                }
             }
 
             // Category filter
@@ -462,14 +489,17 @@ class BusinessController extends Controller
             $limit = $request->input('limit', 10);
             $cacheKey = CacheInvalidationService::key('businesses:featured', $limit);
 
-            $businesses = Cache::remember($cacheKey, CacheInvalidationService::TTL_BUSINESS_FEATURED, function () use ($limit) {
-                return Business::active()
-                    ->featured()
-                    ->with(['category', 'logoImage'])
-                    ->orderBy('overall_rating', 'desc')
-                    ->take($limit)
-                    ->get();
-            });
+            $businesses = CacheInvalidationService::tagged([CacheInvalidationService::TAG_BUSINESSES])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_BUSINESS_FEATURED, CacheInvalidationService::TTL_BUSINESS_FEATURED * 2],
+                    fn () => Business::active()
+                        ->featured()
+                        ->with(['category', 'logoImage'])
+                        ->orderBy('overall_rating', 'desc')
+                        ->take($limit)
+                        ->get(),
+                );
 
             return response()->json([
                 'success' => true,
@@ -510,7 +540,11 @@ class BusinessController extends Controller
                 $businessTag, $itemType, $minRating, $sortBy, $page, $limit
             );
 
-            $result = Cache::remember($cacheKey, CacheInvalidationService::TTL_NATIONAL_LIST, function () use (
+            $result = CacheInvalidationService::tagged([CacheInvalidationService::TAG_BUSINESSES])
+                ->flexible(
+                    $cacheKey,
+                    [CacheInvalidationService::TTL_NATIONAL_LIST, CacheInvalidationService::TTL_NATIONAL_LIST * 2],
+                    function () use (
                 $page, $limit, $categoryId, $categoryName, $businessModel,
                 $productTag, $productTags, $businessTag, $itemType, $minRating, $sortBy
             ) {
@@ -675,7 +709,11 @@ class BusinessController extends Controller
     public function nationalFilters(Request $request)
     {
         try {
-            $data = Cache::remember('businesses:national_filters', CacheInvalidationService::TTL_NATIONAL_FILTERS, function () {
+            $data = CacheInvalidationService::tagged([CacheInvalidationService::TAG_BUSINESSES])
+                ->flexible(
+                    'businesses:national_filters',
+                    [CacheInvalidationService::TTL_NATIONAL_FILTERS, CacheInvalidationService::TTL_NATIONAL_FILTERS * 2],
+                    function () {
                 // Get available product tags from existing national businesses
                 $productTags = Business::active()
                     ->national()
@@ -810,10 +848,101 @@ class BusinessController extends Controller
             // Convert business to array and add additional data
             $businessData = $business->toArray();
             $businessData['is_favorite'] = $isFavorite;
+            $businessData['rating_criteria'] = $business->category?->getRatingCriteria() ?? [];
             
             // Add Google Maps links
             $userLatitude = $request->input('latitude');
             $userLongitude = $request->input('longitude');
+
+            // If this is a parent brand/business, include its branches sorted by distance and inject closest branch
+            if ($business->isParent()) {
+                $branches = $business->branches()
+                    ->active()
+                    ->get()
+                    ->map(function ($branch) use ($request, $userLatitude, $userLongitude) {
+                        $branchData = [
+                            'id' => $branch->id,
+                            'business_name' => $branch->business_name,
+                            'slug' => $branch->slug,
+                            'full_address' => $branch->full_address,
+                            'city' => $branch->city,
+                            'area' => $branch->area,
+                            'latitude' => $branch->latitude,
+                            'longitude' => $branch->longitude,
+                            'overall_rating' => (float) $branch->overall_rating,
+                            'total_reviews' => $branch->total_reviews,
+                            'image_url' => $branch->image_url,
+                        ];
+
+                        if ($userLatitude && $userLongitude && $branch->latitude && $branch->longitude) {
+                            $distance = $this->calculateDistance($userLatitude, $userLongitude, $branch->latitude, $branch->longitude);
+                            $branchData['distance'] = $this->formatDistance($distance * 1000);
+                            $branchData['distance_km'] = (float) $distance;
+                        } else {
+                            $branchData['distance'] = null;
+                            $branchData['distance_km'] = null;
+                        }
+
+                        return $branchData;
+                    });
+
+                if ($userLatitude && $userLongitude) {
+                    $branches = $branches->sortBy('distance_km')->values();
+                    $closestBranch = $branches->first();
+                    if ($closestBranch) {
+                        $businessData['closest_branch'] = $closestBranch;
+                    }
+                }
+
+                $businessData['branches'] = $branches;
+            } else {
+                // If it is a branch, provide parent business info and alternative nearby branches
+                $parent = $business->parentBusiness;
+                if ($parent) {
+                    $businessData['parent_brand'] = [
+                        'id' => $parent->id,
+                        'business_name' => $parent->business_name,
+                        'slug' => $parent->slug,
+                    ];
+
+                    $otherBranches = $parent->branches()
+                        ->active()
+                        ->where('id', '!=', $business->id)
+                        ->get()
+                        ->map(function ($branch) use ($request, $userLatitude, $userLongitude) {
+                            $branchData = [
+                                'id' => $branch->id,
+                                'business_name' => $branch->business_name,
+                                'slug' => $branch->slug,
+                                'full_address' => $branch->full_address,
+                                'city' => $branch->city,
+                                'area' => $branch->area,
+                                'latitude' => $branch->latitude,
+                                'longitude' => $branch->longitude,
+                                'overall_rating' => (float) $branch->overall_rating,
+                                'total_reviews' => $branch->total_reviews,
+                                'image_url' => $branch->image_url,
+                            ];
+
+                            if ($userLatitude && $userLongitude && $branch->latitude && $branch->longitude) {
+                                $distance = $this->calculateDistance($userLatitude, $userLongitude, $branch->latitude, $branch->longitude);
+                                $branchData['distance'] = $this->formatDistance($distance * 1000);
+                                $branchData['distance_km'] = (float) $distance;
+                            } else {
+                                $branchData['distance'] = null;
+                                $branchData['distance_km'] = null;
+                            }
+
+                            return $branchData;
+                        });
+
+                    if ($userLatitude && $userLongitude) {
+                        $otherBranches = $otherBranches->sortBy('distance_km')->values();
+                    }
+
+                    $businessData['other_branches'] = $otherBranches;
+                }
+            }
             
             $businessData['google_maps'] = [
                 'view_url' => $business->google_maps_url,
@@ -858,7 +987,13 @@ public function offerings(Request $request, $businessId)
     try {
         $business = Business::active()->findOrFail($businessId);
         
-        $query = BusinessOffering::where('business_id', $businessId)
+        // Resolve target business for offerings (dynamic parent inheritance fallback)
+        $targetBusinessId = $businessId;
+        if ($business->parent_id && !$business->offerings()->exists()) {
+            $targetBusinessId = $business->parent_id;
+        }
+
+        $query = BusinessOffering::where('business_id', $targetBusinessId)
             ->available();
 
         // Filter by type
@@ -890,6 +1025,7 @@ public function offerings(Request $request, $businessId)
             'data' => [
                 'business_id' => (string)$business->id,
                 'business' => $business->only(['id', 'business_name']),
+                'inherited_from_parent' => $targetBusinessId !== $business->id,
                 'offerings' => $offeringsWithFavorites,
                 'total_count' => $offerings->count()
             ]
@@ -948,16 +1084,9 @@ public function offerings(Request $request, $businessId)
                 return [
                     'id' => $review->id,
                     'overall_rating' => $review->overall_rating,
-                    'service_rating' => $review->service_rating,
-                    'quality_rating' => $review->quality_rating,
-                    'value_rating' => $review->value_rating,
+                    'ratings' => $review->ratings,
                     'title' => $review->title,
-                    'review_text' => $review->review_text,
-                    'pros' => $review->pros,
-                    'cons' => $review->cons,
-                    'visit_date' => $review->visit_date,
                     'is_recommended' => $review->is_recommended,
-                    'is_verified_visit' => $review->is_verified_visit,
                     'helpful_count' => $review->helpful_count,
                     'not_helpful_count' => $review->not_helpful_count,
                     'user_vote_status' => [
@@ -1537,6 +1666,37 @@ public function offerings(Request $request, $businessId)
                 'unit' => 'km',
                 'formatted' => round($km, 1) . ' km'
             ];
+        }
+    }
+
+    /**
+     * Resolve the IDs of records that match a search term via Scout
+     * (Meilisearch). Returns `null` when Scout is disabled (driver=null)
+     * so the caller can fall back to its existing LIKE query.
+     *
+     * @return array<int, int>|null
+     */
+    private function scoutMatchIds(string $modelClass, string $term, int $limit = 500): ?array
+    {
+        $driver = config('scout.driver');
+        if ($driver === null || $driver === 'null') {
+            return null;
+        }
+
+        try {
+            return $modelClass::search($term)
+                ->take($limit)
+                ->keys()
+                ->map(static fn ($id) => (int) $id)
+                ->all();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Scout search fallback', [
+                'model' => $modelClass,
+                'term' => $term,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
         }
     }
 }

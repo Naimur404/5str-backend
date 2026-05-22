@@ -1,26 +1,46 @@
 .git
 .github
+.gitlab-ci.yml
 .gitignore
+.gitattributes
 .editorconfig
 .env
+.env.local
 .env.backup
 .env.production
 .env.example
 .claude
 .fleet
 .idea
+.kiro
 .vscode
 .phpunit.cache
 .phpunit.result.cache
 
+# Heavy directories — rebuilt inside the image
 node_modules
 vendor
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/framework/testing/*
+bootstrap/cache/*
 
+# Tests and tooling artefacts
 tests
 phpunit.xml
 
+# Local-only docs and scratch
 postman
+docs
+README.md
 
+# Compose / build files (not copied into the image)
 docker-compose*.yml
 Dockerfile
-README.md
+
+# OS / editor noise
+.DS_Store
+*.log
+*.swp

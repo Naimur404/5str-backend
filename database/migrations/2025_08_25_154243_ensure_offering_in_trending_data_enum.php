@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Check current enum values
         $result = DB::select("SHOW COLUMNS FROM trending_data LIKE 'item_type'");
         $enumValues = $result[0]->Type ?? '';
@@ -30,6 +34,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Remove 'offering' from the enum
         DB::statement("ALTER TABLE trending_data MODIFY COLUMN item_type ENUM('business', 'category', 'search_term')");
     }

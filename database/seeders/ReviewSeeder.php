@@ -89,8 +89,7 @@ class ReviewSeeder extends Seeder
                     'reviewable_type' => Business::class,
                     'reviewable_id' => $business->id,
                     'overall_rating' => $rating,
-                    'review_text' => $reviewText,
-                    'is_verified_visit' => rand(0, 10) > 2, // 80% verified
+                    'title' => $reviewText,
                     'helpful_count' => rand(0, 25),
                     'status' => 'approved', // All sample reviews are approved
                     'created_at' => now()->subDays(rand(1, 180)),
@@ -193,8 +192,7 @@ class ReviewSeeder extends Seeder
                     'reviewable_type' => BusinessOffering::class,
                     'reviewable_id' => $offering->id,
                     'overall_rating' => $rating,
-                    'review_text' => $reviewText,
-                    'is_verified_visit' => rand(0, 10) > 3, // 70% verified for offerings
+                    'title' => $reviewText,
                     'helpful_count' => rand(0, 15),
                     'status' => 'approved',
                     'created_at' => now()->subDays(rand(1, 120)),
