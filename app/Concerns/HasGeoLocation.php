@@ -35,7 +35,7 @@ trait HasGeoLocation
     ): Builder {
         if (self::supportsSpatial()) {
             return $query->whereRaw(
-                "ST_Distance_Sphere(`{$pointColumn}`, ST_SRID(POINT(?, ?), 4326)) <= ?",
+                "ST_Distance_Sphere(`{$pointColumn}`, POINT(?, ?)) <= ?",
                 [$longitude, $latitude, $radiusKm * 1000],
             );
         }
@@ -58,7 +58,7 @@ trait HasGeoLocation
     ): Builder {
         if (self::supportsSpatial()) {
             return $query->selectRaw(
-                "{$table}.*, ST_Distance_Sphere(`{$pointColumn}`, ST_SRID(POINT(?, ?), 4326)) / 1000 AS {$alias}",
+                "{$table}.*, ST_Distance_Sphere(`{$pointColumn}`, POINT(?, ?)) / 1000 AS {$alias}",
                 [$longitude, $latitude],
             );
         }
@@ -82,7 +82,7 @@ trait HasGeoLocation
 
         if (self::supportsSpatial()) {
             return $query->orderByRaw(
-                "ST_Distance_Sphere(`{$pointColumn}`, ST_SRID(POINT(?, ?), 4326)) {$direction}",
+                "ST_Distance_Sphere(`{$pointColumn}`, POINT(?, ?)) {$direction}",
                 [$longitude, $latitude],
             );
         }
