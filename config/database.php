@@ -150,6 +150,24 @@ return [
             'read_timeout' => env('REDIS_READ_TIMEOUT', 60),
         ],
 
+        // Dedicated long-lived connection for blocking pub/sub
+        // (cache-invalidation listener). Subscribers must NOT have a
+        // read timeout — Redis will close the socket after the
+        // configured `read_timeout` seconds of idle silence, and
+        // phpredis surfaces that as "read error on connection". Using
+        // 0 disables the timeout entirely. Persistent connections are
+        // also off here because subscribers own their socket and
+        // re-using one across processes can leave ghost subscriptions.
+        'pubsub' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_DB', '0'),
+            'persistent' => false,
+            'read_timeout' => 0,
+        ],
     ],
 
 ];
