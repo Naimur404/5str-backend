@@ -913,7 +913,7 @@ class SearchController extends Controller
             }
 
             // Search offerings
-            $offeringQuery = BusinessOffering::active();
+            $offeringQuery = BusinessOffering::available();
 
             if ($searchTerm) {
                 $offeringQuery->where(function ($q) use ($searchTerm) {

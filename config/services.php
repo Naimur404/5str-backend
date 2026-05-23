@@ -62,4 +62,21 @@ return [
         'request_timeout' => (int) env('OPENAI_REQUEST_TIMEOUT', 60),
     ],
 
+    /*
+    | Internal ML service used by NeuralRecommendationEngine. Per-
+    | environment URLs because the ML container is deployed
+    | separately from Laravel. Going through `config()` (instead of
+    | `env()` directly inside the service) keeps these resolved
+    | when the framework runs `php artisan config:cache`.
+    */
+    'ml' => [
+        'service_url' => env('ML_SERVICE_URL'),
+        'service_url_default' => [
+            'production' => 'https://ml-api.your-domain.com/ml',
+            'staging' => 'https://staging-ml.your-domain.com/ml',
+            'testing' => 'http://mock-ml-service:8000/ml',
+            'local' => 'http://localhost:8000/ml',
+        ],
+    ],
+
 ];

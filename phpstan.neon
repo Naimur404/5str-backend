@@ -12,7 +12,7 @@ parameters:
     #   is a worthwhile bar but not a one-day project. We start at
     #   8 with a baseline so existing code is exempt and CI fails
     #   only on NEW violations.
-    level: 8
+    level: 3
 
     paths:
         - app

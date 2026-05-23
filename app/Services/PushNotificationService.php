@@ -135,7 +135,7 @@ class PushNotificationService
     /**
      * Create notification for review approval
      */
-    public function createReviewApprovalNotification(string $reviewTitle, int $businessId = null): array
+    public function createReviewApprovalNotification(string $reviewTitle, ?int $businessId = null): array
     {
         return [
             'title' => '✅ Review Approved!',
@@ -154,7 +154,7 @@ class PushNotificationService
     /**
      * Create notification for new offer
      */
-    public function createNewOfferNotification(string $businessName, string $offerTitle, int $businessId = null, int $offerId = null): array
+    public function createNewOfferNotification(string $businessName, string $offerTitle, ?int $businessId = null, ?int $offerId = null): array
     {
         return [
             'title' => '🎉 New Offer Available!',

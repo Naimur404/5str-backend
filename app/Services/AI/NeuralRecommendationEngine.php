@@ -29,12 +29,16 @@ class NeuralRecommendationEngine
 
     private function getMLServiceUrl(): string
     {
-        return match(app()->environment()) {
-            'production' => env('ML_SERVICE_URL', 'https://ml-api.your-domain.com/ml'),
-            'staging' => env('ML_SERVICE_URL', 'https://staging-ml.your-domain.com/ml'),
-            'testing' => env('ML_SERVICE_URL', 'http://mock-ml-service:8000/ml'),
-            default => env('ML_SERVICE_URL', 'http://localhost:8000/ml') // Development
-        };
+        // Resolve from config (which itself reads env once); using
+        // config() makes this safe under `artisan config:cache`.
+        $explicit = config('services.ml.service_url');
+        if (is_string($explicit) && $explicit !== '') {
+            return $explicit;
+        }
+
+        $env = app()->environment();
+        $defaults = (array) config('services.ml.service_url_default', []);
+        return (string) ($defaults[$env] ?? $defaults['local'] ?? 'http://localhost:8000/ml');
     }
 
     /**

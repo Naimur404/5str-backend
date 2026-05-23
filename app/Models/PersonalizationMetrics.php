@@ -41,7 +41,7 @@ class PersonalizationMetrics extends Model
         float $responseTimeMs,
         int $recommendationCount,
         array $additionalMetrics = [],
-        string $sessionId = null
+        ?string $sessionId = null
     ): self {
         return self::create([
             'user_id' => $userId,

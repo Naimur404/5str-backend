@@ -90,7 +90,7 @@ class UserCollection extends Model
         return $this->items()->where('business_id', $business->id)->exists();
     }
 
-    public function addBusiness(Business $business, string $notes = null, int $sortOrder = 0): CollectionItem
+    public function addBusiness(Business $business, ?string $notes = null, int $sortOrder = 0): CollectionItem
     {
         return $this->items()->create([
             'business_id' => $business->id,
