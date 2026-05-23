@@ -44,10 +44,14 @@ class CategoryAdminController extends AdminResourceController
     protected function validationRules(Request $request, ?Model $record = null): array
     {
         $id = $record?->getKey();
+        $isCreate = $record === null;
 
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'max:255', Rule::unique('categories', 'slug')->ignore($id)],
+            // PATCH-friendly: list-page toggles only send the changed
+            // field (e.g. `{is_active: false}`) and would otherwise
+            // fail with "name required / slug required".
+            'name' => [$isCreate ? 'required' : 'sometimes', 'string', 'max:255'],
+            'slug' => [$isCreate ? 'required' : 'sometimes', 'string', 'max:255', Rule::unique('categories', 'slug')->ignore($id)],
             'parent_id' => ['nullable', 'integer', 'exists:categories,id'],
             'level' => ['nullable', 'integer', 'min:1', 'max:5'],
             'description' => ['nullable', 'string', 'max:1000'],
