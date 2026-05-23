@@ -42,6 +42,14 @@ Schedule::command('business:calculate-similarities')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Roll fresh user_events into per-identity affinity signals so the
+// recommender always reads from a compact, indexed table instead of
+// scanning weeks of raw events on every request.
+Schedule::command('signals:rebuild --since="1 hour"')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Category business-count sync (backup to observer).
 Schedule::command('categories:sync-business-counts')
     ->dailyAt('04:00')
