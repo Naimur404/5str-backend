@@ -19,9 +19,19 @@ class DatabaseNotification extends Notification implements ShouldQueue
     /**
      * Persist on the dedicated `notifications` Horizon queue so a flood of
      * admin notifications never blocks higher-priority jobs.
+     *
+     * IMPORTANT (PHP 8.4): the `$queue` property is declared by
+     * `Illuminate\Bus\Queueable` (untyped, no default). Under PHP 8.4
+     * trait property declarations must match the host class **exactly**
+     * — types and default values both. Redeclaring `public $queue
+     * = 'notifications'` here therefore raises a fatal "Property
+     * declaration is incompatible" error at class composition time
+     * (the entire request errors with HTTP 500 the first time any
+     * notifiable model is observed).
+     *
+     * The fix is to set the queue name in the constructor via
+     * `onQueue()` instead of redeclaring the property.
      */
-    public string $queue = 'notifications';
-
     public function __construct(
         public readonly string $title,
         public readonly string $body,
@@ -30,6 +40,7 @@ class DatabaseNotification extends Notification implements ShouldQueue
         public readonly ?array $actions = null,
         public readonly ?string $url = null,
     ) {
+        $this->onQueue('notifications');
     }
 
     /**
