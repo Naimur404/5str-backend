@@ -8,6 +8,7 @@ use App\Services\ContentBasedFilter;
 use App\Services\CollaborativeFilter;
 use App\Services\LocationBasedFilter;
 use App\Services\AI\NeuralRecommendationEngine;
+use App\Services\RecommendationPostProcessor;
 
 class RecommendationServiceProvider extends ServiceProvider
 {
@@ -21,6 +22,7 @@ class RecommendationServiceProvider extends ServiceProvider
         $this->app->singleton(CollaborativeFilter::class);
         $this->app->singleton(LocationBasedFilter::class);
         $this->app->singleton(NeuralRecommendationEngine::class);
+        $this->app->singleton(RecommendationPostProcessor::class);
 
         // Register the main recommendation service
         $this->app->singleton(RecommendationService::class, function ($app) {
@@ -28,7 +30,8 @@ class RecommendationServiceProvider extends ServiceProvider
                 $app->make(ContentBasedFilter::class),
                 $app->make(CollaborativeFilter::class),
                 $app->make(LocationBasedFilter::class),
-                $app->make(NeuralRecommendationEngine::class)
+                $app->make(NeuralRecommendationEngine::class),
+                $app->make(RecommendationPostProcessor::class),
             );
         });
     }
