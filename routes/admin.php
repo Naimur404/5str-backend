@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AdminAuthController;
 use App\Http\Controllers\Api\Admin\AttractionAdminController;
+use App\Http\Controllers\Api\Admin\AuditLogAdminController;
 use App\Http\Controllers\Api\Admin\SettingsAdminController;
 use App\Http\Controllers\Api\Admin\AttractionGalleryAdminController;
 use App\Http\Controllers\Api\Admin\AttractionReviewAdminController;
@@ -179,6 +180,12 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('views/{view}', [ViewAdminController::class, 'show'])->name('admin.views.show');
     Route::delete('views/{view}', [ViewAdminController::class, 'destroy'])->name('admin.views.destroy');
     Route::post('views/bulk-destroy', [ViewAdminController::class, 'bulkDestroy'])->name('admin.views.bulk-destroy');
+
+    // Audit log (read-only — populated by the AuditableByAdmin trait,
+    // pruned to 90 days by the daily activitylog:clean schedule)
+    Route::get('audit-logs/summary', [AuditLogAdminController::class, 'summary'])->name('admin.audit-logs.summary');
+    Route::get('audit-logs', [AuditLogAdminController::class, 'index'])->name('admin.audit-logs.index');
+    Route::get('audit-logs/{id}', [AuditLogAdminController::class, 'show'])->name('admin.audit-logs.show');
 
     // Settings
     Route::get('settings', [SettingsAdminController::class, 'index'])->name('admin.settings.index');

@@ -75,6 +75,16 @@ Schedule::command('activitylog:clean')
     ->dailyAt('05:30')
     ->runInBackground();
 
+// ── Analytics retention ──────────────────────────────────────────────
+// Operational analytics tables are time-series data with no long-term
+// value beyond the rolling 90-day window. We prune nightly so the hot
+// indexes on `views`, `endpoint_analytics`, `search_logs`, and
+// `user_events` stay cache-resident on MariaDB.
+Schedule::command('analytics:prune --days=90')
+    ->dailyAt('05:45')
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // ── Horizon ──────────────────────────────────────────────────────────
 Schedule::command('horizon:snapshot')->everyFiveMinutes();
 Schedule::command('horizon:trim')->daily();
