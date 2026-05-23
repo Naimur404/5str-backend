@@ -64,6 +64,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Session Context Blending
+    |--------------------------------------------------------------------------
+    | When the user has session activity in the last 30 minutes,
+    | businesses matching their session top-categories / top-brands
+    | get a small additive boost. Tuned to be enough to break ties
+    | between equally-relevant items but never enough to drag a low-
+    | quality match above a high-quality one.
+    */
+    'session_boost' => [
+        'category_match' => env('REC_SESSION_CATEGORY_BOOST', 0.20),
+        'brand_match' => env('REC_SESSION_BRAND_BOOST', 0.30),
+        'max_boost' => env('REC_SESSION_MAX_BOOST', 0.40),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Cold-Start Ladder
     |--------------------------------------------------------------------------
     | When a user has fewer than `min_signal_events` events in the

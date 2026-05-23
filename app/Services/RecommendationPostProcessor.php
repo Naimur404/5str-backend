@@ -34,6 +34,58 @@ use Illuminate\Support\Collection;
 class RecommendationPostProcessor
 {
     /**
+     * Apply a session-context boost to candidates whose category or
+     * brand matches the user's last 30 minutes of activity. This is
+     * the layer that turns "I just searched pizza" into "pizza
+     * places now appear higher in my home feed".
+     *
+     * Boost amounts are intentionally additive on top of the base
+     * score so they affect ranking without overwhelming long-term
+     * personalisation when the session signal is weak.
+     *
+     * @param  Collection<int, Business>  $candidates
+     * @param  array<string, mixed>       $sessionContext  result of SessionContextService::readContext
+     * @return Collection<int, Business>
+     */
+    public function applySessionBoost(Collection $candidates, array $sessionContext): Collection
+    {
+        if (empty($sessionContext['has_signal'] ?? false)) {
+            return $candidates;
+        }
+
+        $cfg = (array) config('recommendations.session_boost', []);
+        $categoryWeight = (float) ($cfg['category_match'] ?? 0.20);
+        $brandWeight = (float) ($cfg['brand_match'] ?? 0.30);
+        $maxBoost = (float) ($cfg['max_boost'] ?? 0.40);
+
+        $topCategories = $sessionContext['top_categories'] ?? [];
+        $topBrands = $sessionContext['top_brands'] ?? [];
+
+        return $candidates
+            ->map(function (Business $b) use ($categoryWeight, $brandWeight, $maxBoost, $topCategories, $topBrands) {
+                $boost = 0.0;
+
+                if ($b->category_id && isset($topCategories[$b->category_id])) {
+                    $boost += $categoryWeight * (float) $topCategories[$b->category_id];
+                }
+
+                $brandKey = $b->parent_id ?? $b->id;
+                if ($brandKey && isset($topBrands[$brandKey])) {
+                    $boost += $brandWeight * (float) $topBrands[$brandKey];
+                }
+
+                $boost = min($boost, $maxBoost);
+
+                $b->session_boost = round($boost, 4);
+                $b->final_score = round((float) ($b->final_score ?? 0.0) + $boost, 4);
+
+                return $b;
+            })
+            ->sortByDesc('final_score')
+            ->values();
+    }
+
+    /**
      * Apply freshness scoring to every candidate. Returns the same
      * collection re-sorted by the new score.
      *

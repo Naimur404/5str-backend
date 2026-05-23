@@ -153,6 +153,26 @@ class EventIngestionService
             return 0;
         }
 
+        // Mirror each event into the per-user session context cache
+        // so the recommender's hot path can read "what did this user
+        // do in the last 30 minutes" in O(1) instead of querying
+        // user_events every time. Best-effort; failures are
+        // swallowed inside the service.
+        try {
+            $sessionCtx = app(\App\Services\SessionContextService::class);
+            foreach ($rows as $row) {
+                $sessionCtx->recordEvent(
+                    anonId: (string) $row['anon_id'],
+                    event: (string) $row['event'],
+                    targetType: $row['target_type'] ?? null,
+                    targetId: $row['target_id'] ?? null,
+                    categoryId: $row['category_id'] ?? null,
+                );
+            }
+        } catch (\Throwable) {
+            // Service is optional / circular-safe; never block ingest.
+        }
+
         return count($rows);
     }
 

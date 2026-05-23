@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ColdStartLadder;
 use App\Services\RecommendationLoggingService;
 use App\Services\RecommendationService;
+use App\Services\SessionContextService;
 use App\Models\Business;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class RecommendationController extends Controller
         private RecommendationService $recommendationService,
         private RecommendationLoggingService $logger,
         private ColdStartLadder $coldStart,
+        private SessionContextService $sessionContext,
     ) {}
 
     /**
@@ -64,20 +66,35 @@ class RecommendationController extends Controller
 
                 // Even cold-start users get the freshness +
                 // diversification pass so they don't see five
-                // KFC branches in a row.
+                // KFC branches in a row. Plus session-context
+                // boost if the user has been actively browsing
+                // categories/brands in the last 30 minutes.
                 $postProcessor = app(\App\Services\RecommendationPostProcessor::class);
+                $sessionCtx = $this->sessionContext->readContext($request->header('X-Anon-Id'));
+                $candidates = $postProcessor->applySessionBoost($candidates, $sessionCtx);
                 $candidates = $postProcessor->applyFreshness($candidates);
                 $recommendations = $postProcessor->diversify($candidates, $count);
 
                 $algorithm = $rung;
             } else {
-                $recommendations = $this->recommendationService->getRecommendations(
+                // Personalised path: fetch a wider pool, blend
+                // session signal in, then re-run freshness + MMR
+                // (the inner call already applied them but they
+                // are idempotent so re-running picks up the
+                // session boost too).
+                $candidates = $this->recommendationService->getRecommendations(
                     $user,
                     $latitude,
                     $longitude,
                     $categories,
-                    $count
+                    $count * 3
                 );
+                $postProcessor = app(\App\Services\RecommendationPostProcessor::class);
+                $sessionCtx = $this->sessionContext->readContext($request->header('X-Anon-Id'));
+                $candidates = $postProcessor->applySessionBoost($candidates, $sessionCtx);
+                $candidates = $postProcessor->applyFreshness($candidates);
+                $recommendations = $postProcessor->diversify($candidates, $count);
+
                 $algorithm = 'fast_personalized';
             }
 
