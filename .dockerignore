@@ -30,6 +30,8 @@ bootstrap/cache/*
 # Tests and tooling artefacts
 tests
 phpunit.xml
+phpstan.neon
+phpstan-baseline.neon
 
 # Local-only docs and scratch
 postman
