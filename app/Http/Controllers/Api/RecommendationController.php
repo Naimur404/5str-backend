@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ColdStartLadder;
 use App\Services\RecommendationLoggingService;
 use App\Services\RecommendationService;
 use App\Models\Business;
@@ -17,6 +18,7 @@ class RecommendationController extends Controller
     public function __construct(
         private RecommendationService $recommendationService,
         private RecommendationLoggingService $logger,
+        private ColdStartLadder $coldStart,
     ) {}
 
     /**
@@ -43,21 +45,48 @@ class RecommendationController extends Controller
         try {
             // Get personalization level from config (no more A/B testing!)
             $personalizationLevel = config('recommendations.personalization_level', 'light');
-            
-            $recommendations = $this->recommendationService->getRecommendations(
-                $user,
-                $latitude,
-                $longitude,
-                $categories,
-                $count
+
+            // Cold-start gate: if we don't have enough signal yet,
+            // route to a documented fallback rung instead of trying
+            // to personalise from noise.
+            $rung = $this->coldStart->pickRung(
+                anonId: $request->header('X-Anon-Id'),
+                userId: $user?->id,
+                area: $request->input('area'),
             );
+
+            if ($rung !== ColdStartLadder::RUNG_PERSONALIZED) {
+                $candidates = $this->coldStart->fallbackCandidates(
+                    rung: $rung,
+                    area: $request->input('area'),
+                    count: $count * 3,
+                );
+
+                // Even cold-start users get the freshness +
+                // diversification pass so they don't see five
+                // KFC branches in a row.
+                $postProcessor = app(\App\Services\RecommendationPostProcessor::class);
+                $candidates = $postProcessor->applyFreshness($candidates);
+                $recommendations = $postProcessor->diversify($candidates, $count);
+
+                $algorithm = $rung;
+            } else {
+                $recommendations = $this->recommendationService->getRecommendations(
+                    $user,
+                    $latitude,
+                    $longitude,
+                    $categories,
+                    $count
+                );
+                $algorithm = 'fast_personalized';
+            }
 
             // Tag this rendering with a stable id so impression and
             // click logs can join back to the same call. Mobile sends
             // this id back via /recommendations/click — that's how we
             // measure CTR per slot, per model, per request.
             $recRequestId = (string) \Illuminate\Support\Str::uuid();
-            $modelVersion = 'rec_' . $personalizationLevel . '_v1';
+            $modelVersion = 'rec_' . $algorithm . '_v1';
 
             // Best-effort impression log. A failure here can never
             // break the user-facing response.
@@ -160,7 +189,7 @@ class RecommendationController extends Controller
                     'total_count' => $recommendations->count(),
                     'location_used' => $latitude && $longitude,
                     'categories_filtered' => !empty($categories),
-                    'algorithm' => 'fast_personalized',
+                    'algorithm' => $algorithm,
                     'personalization_level' => $personalizationLevel,
                     'personalized_results' => $personalizedCount,
                     'response_time_ms' => $responseTime,
