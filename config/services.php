@@ -58,6 +58,7 @@ return [
         'api_key' => env('OPENAI_API_KEY'),
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
         'vision_model' => env('OPENAI_VISION_MODEL', 'gpt-4o'),
+        'embedding_model' => env('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small'),
         'request_timeout' => (int) env('OPENAI_REQUEST_TIMEOUT', 60),
     ],
 

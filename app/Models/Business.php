@@ -58,11 +58,16 @@ class Business extends Model
         'pending_changes',
         'has_pending_changes',
         'parent_id',
+        'embedding',
+        'embedding_hash',
+        'embedding_updated_at',
     ];
 
     protected $hidden = [
         'created_at',
-        'updated_at'
+        'updated_at',
+        'embedding',
+        'embedding_hash',
     ];
 
     protected $appends = [
@@ -95,6 +100,8 @@ class Business extends Model
         'has_pending_changes' => 'boolean',
         'approved_at' => 'datetime',
         'parent_id' => 'integer',
+        'embedding' => 'array',
+        'embedding_updated_at' => 'datetime',
     ];
 
     // Accessors

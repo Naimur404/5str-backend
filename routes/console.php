@@ -96,6 +96,16 @@ Schedule::command('recommendations:rollup-metrics')
     ->withoutOverlapping()
     ->runInBackground();
 
+// ── Business semantic embeddings ─────────────────────────────────────
+// Continuous trickle through the catalog. Limit=200 per run so a
+// large catalog is fully covered within ~24h while keeping the
+// OpenAI bill predictable. Rows whose source text is unchanged
+// (same embedding_hash) are skipped automatically.
+Schedule::command('businesses:embed --limit=200')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // ── Horizon ──────────────────────────────────────────────────────────
 Schedule::command('horizon:snapshot')->everyFiveMinutes();
 Schedule::command('horizon:trim')->daily();
