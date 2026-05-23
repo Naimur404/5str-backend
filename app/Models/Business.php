@@ -468,7 +468,7 @@ class Business extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('businesses.is_active', true);
     }
 
     /**
@@ -481,11 +481,16 @@ class Business extends Model
      *
      * Single-location businesses (no branches, no parent) and the
      * branches themselves both stay visible.
+     *
+     * Columns are fully qualified (`businesses.parent_id`,
+     * `businesses.id`) so the scope can be combined with JOINs (e.g.
+     * `trending_data` join used by SearchController) without throwing
+     * "Column 'id' in WHERE is ambiguous".
      */
     public function scopeReachable($query)
     {
         return $query->where(function ($q) {
-            $q->whereNotNull('parent_id') // branches always reachable
+            $q->whereNotNull('businesses.parent_id') // branches always reachable
                 ->orWhereNotExists(function ($sub) {
                     /** @var \Illuminate\Database\Query\Builder $sub */
                     $sub->select(DB::raw(1))

@@ -275,8 +275,10 @@ class SearchController extends Controller
                 if (empty($scoutIds)) {
                     $query->whereRaw('1 = 0');
                 } else {
-                    $query->whereIn('id', $scoutIds)
-                        ->orderByRaw('FIELD(id, '.implode(',', $scoutIds).')');
+                    // Qualified column names because the trending_data
+                    // join below adds another `id` to scope.
+                    $query->whereIn('businesses.id', $scoutIds)
+                        ->orderByRaw('FIELD(businesses.id, '.implode(',', $scoutIds).')');
                 }
             } else {
                 $query->where(function ($q) use ($searchTerm) {
@@ -467,8 +469,8 @@ class SearchController extends Controller
                 if (empty($scoutIds)) {
                     $query->whereRaw('1 = 0');
                 } else {
-                    $query->whereIn('id', $scoutIds)
-                        ->orderByRaw('FIELD(id, '.implode(',', $scoutIds).')');
+                    $query->whereIn('business_offerings.id', $scoutIds)
+                        ->orderByRaw('FIELD(business_offerings.id, '.implode(',', $scoutIds).')');
                 }
             } else {
                 $query->where(function ($q) use ($searchTerm) {
