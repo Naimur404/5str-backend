@@ -39,6 +39,10 @@ class RecommendationPostProcessor
      * the layer that turns "I just searched pizza" into "pizza
      * places now appear higher in my home feed".
      *
+     * Negative signals (recommendation_dismiss, fast back-out) are
+     * tracked the same way and SUBTRACT from the boost so an
+     * actively-disinterested user stops seeing the same thing.
+     *
      * Boost amounts are intentionally additive on top of the base
      * score so they affect ranking without overwhelming long-term
      * personalisation when the session signal is weak.
@@ -57,12 +61,24 @@ class RecommendationPostProcessor
         $categoryWeight = (float) ($cfg['category_match'] ?? 0.20);
         $brandWeight = (float) ($cfg['brand_match'] ?? 0.30);
         $maxBoost = (float) ($cfg['max_boost'] ?? 0.40);
+        $negativePenalty = (float) ($cfg['dismiss_penalty'] ?? 0.50);
 
         $topCategories = $sessionContext['top_categories'] ?? [];
         $topBrands = $sessionContext['top_brands'] ?? [];
 
+        // Negative signals: brands the user actively dismissed in
+        // this session. Walk the events list once and collect the
+        // dismissed business ids.
+        $dismissedBrands = [];
+        foreach (($sessionContext['events'] ?? []) as $e) {
+            if (($e['event'] ?? null) !== 'recommendation_dismiss') continue;
+            if (($e['target_type'] ?? null) !== 'business') continue;
+            if (! isset($e['target_id'])) continue;
+            $dismissedBrands[(int) $e['target_id']] = true;
+        }
+
         return $candidates
-            ->map(function (Business $b) use ($categoryWeight, $brandWeight, $maxBoost, $topCategories, $topBrands) {
+            ->map(function (Business $b) use ($categoryWeight, $brandWeight, $maxBoost, $negativePenalty, $topCategories, $topBrands, $dismissedBrands) {
                 $boost = 0.0;
 
                 if ($b->category_id && isset($topCategories[$b->category_id])) {
@@ -75,6 +91,15 @@ class RecommendationPostProcessor
                 }
 
                 $boost = min($boost, $maxBoost);
+
+                // Negative signal — strong demote for dismissed
+                // brand or any of its branches.
+                if ($brandKey && isset($dismissedBrands[$brandKey])) {
+                    $boost -= $negativePenalty;
+                }
+                if ($b->id && isset($dismissedBrands[$b->id])) {
+                    $boost -= $negativePenalty;
+                }
 
                 $b->session_boost = round($boost, 4);
                 $b->final_score = round((float) ($b->final_score ?? 0.0) + $boost, 4);

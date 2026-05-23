@@ -76,6 +76,11 @@ return [
         'category_match' => env('REC_SESSION_CATEGORY_BOOST', 0.20),
         'brand_match' => env('REC_SESSION_BRAND_BOOST', 0.30),
         'max_boost' => env('REC_SESSION_MAX_BOOST', 0.40),
+        // Subtracted from the boost when the user dismissed this
+        // brand earlier in the session. 0.50 is large enough to
+        // push the brand out of the top slots even when its base
+        // relevance is high.
+        'dismiss_penalty' => env('REC_SESSION_DISMISS_PENALTY', 0.50),
     ],
 
     /*
