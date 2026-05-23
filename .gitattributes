@@ -6,6 +6,11 @@
 *.md diff=markdown
 *.php diff=php
 
+# PHPStan config + baseline are tooling files — always tracked (do NOT add to
+# .gitignore) but marked as generated so GitHub collapses them in PR diffs.
+phpstan.neon          linguist-generated=true
+phpstan-baseline.neon linguist-generated=true
+
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
