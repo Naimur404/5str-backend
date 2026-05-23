@@ -303,6 +303,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         
         // Interaction tracking
         Route::post('/track', [RecommendationController::class, 'trackInteraction']);
+        // Server-trusted click logging (joins back to the impression
+        // row so position / score can't be faked by clients).
+        Route::post('/click', [RecommendationController::class, 'clickRecommendation']);
     });
 
     // User Interaction Tracking and Personalization

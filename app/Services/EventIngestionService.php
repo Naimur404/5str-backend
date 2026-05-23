@@ -64,7 +64,9 @@ class EventIngestionService
         'favorite_removed',
         'collection_added',
         'review_submitted',
+        'recommendation_impression',
         'recommendation_click',
+        'recommendation_dismiss',
         'banner_click',
         'share',
     ];

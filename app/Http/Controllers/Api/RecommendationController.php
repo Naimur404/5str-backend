@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\RecommendationLoggingService;
 use App\Services\RecommendationService;
 use App\Models\Business;
 use App\Models\User;
@@ -14,7 +15,8 @@ use Illuminate\Support\Facades\Log;
 class RecommendationController extends Controller
 {
     public function __construct(
-        private RecommendationService $recommendationService
+        private RecommendationService $recommendationService,
+        private RecommendationLoggingService $logger,
     ) {}
 
     /**
@@ -49,6 +51,33 @@ class RecommendationController extends Controller
                 $categories,
                 $count
             );
+
+            // Tag this rendering with a stable id so impression and
+            // click logs can join back to the same call. Mobile sends
+            // this id back via /recommendations/click — that's how we
+            // measure CTR per slot, per model, per request.
+            $recRequestId = (string) \Illuminate\Support\Str::uuid();
+            $modelVersion = 'rec_' . $personalizationLevel . '_v1';
+
+            // Best-effort impression log. A failure here can never
+            // break the user-facing response.
+            try {
+                $this->logger->logImpressions(
+                    businesses: $recommendations,
+                    recRequestId: $recRequestId,
+                    modelVersion: $modelVersion,
+                    bucket: null,
+                    anonId: $request->header('X-Anon-Id'),
+                    userId: $user?->id,
+                    latApprox: $latitude !== null ? round((float) $latitude, 2) : null,
+                    lngApprox: $longitude !== null ? round((float) $longitude, 2) : null,
+                    userArea: $request->input('area'),
+                    platform: $request->header('X-Platform'),
+                    appVersion: $request->header('X-App-Version'),
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Impression logging failed', ['error' => $e->getMessage()]);
+            }
 
             $responseTime = round((microtime(true) - $startTime) * 1000, 2);
 
@@ -135,6 +164,13 @@ class RecommendationController extends Controller
                     'personalization_level' => $personalizationLevel,
                     'personalized_results' => $personalizedCount,
                     'response_time_ms' => $responseTime,
+                    // Echo these back on click. The mobile client just
+                    // needs to send `rec_request_id` + `business_id`
+                    // to /recommendations/click — every other piece of
+                    // metadata (slot, model, score) is looked up
+                    // server-side from the impression row.
+                    'rec_request_id' => $recRequestId,
+                    'rec_model' => $modelVersion,
                 ]
             ]);
 
@@ -487,6 +523,45 @@ class RecommendationController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
+    }
+
+    /**
+     * Record that a previously-impressed recommendation was clicked.
+     *
+     * The mobile client sends just `rec_request_id` + `business_id`;
+     * everything else (slot, model, score) is reconstructed from the
+     * matching impression row so the client can't fabricate metadata.
+     *
+     * No-ops with a 404 if no matching impression exists, which lets
+     * the client retry harmlessly when network ordering races the
+     * impression log.
+     */
+    public function clickRecommendation(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'rec_request_id' => 'required|uuid',
+            'business_id' => 'required|integer|exists:businesses,id',
+        ]);
+
+        $user = Auth::user();
+
+        $logged = $this->logger->logClick(
+            recRequestId: $data['rec_request_id'],
+            businessId: (int) $data['business_id'],
+            anonId: $request->header('X-Anon-Id'),
+            userId: $user?->id,
+            platform: $request->header('X-Platform'),
+            appVersion: $request->header('X-App-Version'),
+        );
+
+        if (! $logged) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No matching impression for this rec_request_id.',
+            ], 404);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     /**
