@@ -51,6 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Append per-request analytics middleware to the API group.
         $middleware->api(append: [
+            \App\Http\Middleware\HardenJsonResponse::class,
             AutoTrackViews::class,
             AutoTrackSearches::class,
             TrackEndpointAnalytics::class,

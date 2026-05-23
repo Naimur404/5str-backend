@@ -271,6 +271,7 @@ class CategoryController extends Controller
             $limit = $request->input('limit', 20);
 
             $query = Business::active()
+                ->reachable()
                 ->inCategory($categoryId)
                 ->with(['category', 'logoImage']);
 

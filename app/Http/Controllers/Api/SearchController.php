@@ -265,6 +265,7 @@ class SearchController extends Controller
     protected function searchBusinesses(Request $request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy, $userArea)
     {
         $query = Business::active()
+            ->reachable()
             ->with(['category:id,name,slug', 'logoImage']);
 
         // Text search - include category name in search

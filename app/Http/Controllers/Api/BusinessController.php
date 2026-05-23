@@ -155,6 +155,7 @@ class BusinessController extends Controller
             $limit = $request->input('limit', 20);
 
             $query = Business::active()
+                ->reachable()
                 ->with(['category', 'logoImage']);
 
             // Include national businesses or location-based filtering
@@ -306,6 +307,7 @@ class BusinessController extends Controller
             $limit = $request->input('limit', 20);
 
             $query = Business::active()
+                ->reachable()
                 ->with(['category', 'logoImage']);
 
             // Text search — when Scout is configured we route the actual

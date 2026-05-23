@@ -61,6 +61,11 @@ final class ApiExceptionRenderer
             ];
         }
 
-        return response()->json($payload, $status);
+        return response()->json(
+            $payload,
+            $status,
+            [],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE,
+        );
     }
 }

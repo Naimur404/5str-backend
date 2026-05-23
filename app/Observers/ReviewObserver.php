@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Jobs\RecomputeBrandAggregatesJob;
 use App\Models\Review;
 use App\Models\User;
 use App\Notifications\DatabaseNotification;
@@ -31,6 +32,7 @@ class ReviewObserver
             }
         }
 
+        $this->dispatchBrandRecompute($review);
         CacheInvalidationService::onReviewChange();
     }
 
@@ -56,6 +58,7 @@ class ReviewObserver
             }
         }
 
+        $this->dispatchBrandRecompute($review);
         CacheInvalidationService::onReviewChange();
     }
 
@@ -71,14 +74,35 @@ class ReviewObserver
             ));
         }
 
+        $this->dispatchBrandRecompute($review);
         CacheInvalidationService::onReviewChange();
     }
 
     public function restored(Review $review): void
     {
+        $this->dispatchBrandRecompute($review);
     }
 
     public function forceDeleted(Review $review): void
     {
+        $this->dispatchBrandRecompute($review);
+    }
+
+    /**
+     * If the review's target is a business that belongs to a parent
+     * brand row, queue the brand-aggregate recompute. WithoutOverlapping
+     * inside the job collapses bursts of reviews (e.g. seeders, mass
+     * imports) into a single rollup pass per brand.
+     */
+    private function dispatchBrandRecompute(Review $review): void
+    {
+        $reviewable = $review->reviewable;
+        if (! $reviewable instanceof \App\Models\Business) {
+            return;
+        }
+
+        if ($reviewable->parent_id !== null) {
+            RecomputeBrandAggregatesJob::dispatch($reviewable->parent_id);
+        }
     }
 }

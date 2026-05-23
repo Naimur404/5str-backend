@@ -97,12 +97,27 @@ class BusinessObserver
             $this->updateCategoryBusinessCount($business->category_id);
         }
 
+        // If a branch's rolled-up fields changed, ask the parent
+        // brand row to recompute its own aggregates. Skipped when
+        // the row IS the brand itself (parent_id null) — the job
+        // will be dispatched by ReviewObserver from the branches
+        // instead.
+        $rollupFields = ['overall_rating', 'total_reviews', 'discovery_score', 'is_active'];
+        if ($business->parent_id !== null && $business->isDirty($rollupFields)) {
+            \App\Jobs\RecomputeBrandAggregatesJob::dispatch($business->parent_id);
+        }
+
         CacheInvalidationService::onBusinessChange();
     }
 
     public function deleted(Business $business): void
     {
         $this->updateCategoryBusinessCount($business->category_id);
+
+        if ($business->parent_id !== null) {
+            \App\Jobs\RecomputeBrandAggregatesJob::dispatch($business->parent_id);
+        }
+
         CacheInvalidationService::onBusinessChange();
     }
 
