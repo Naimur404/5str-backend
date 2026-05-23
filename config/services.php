@@ -42,4 +42,23 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URL'),
     ],
 
+    /*
+    | OpenAI — used by the menu-OCR pipeline to parse a photographed
+    | menu into structured offering rows. We use GPT-4o vision because
+    | it handles mixed Bangla / English text, multi-column menus, and
+    | hand-written prices in one call (Vision + LLM chained gives us
+    | worse results on Bangla-heavy menus).
+    |
+    | Required envs in production:
+    |   OPENAI_API_KEY      sk-... (rotate via Coolify when needed)
+    |   OPENAI_VISION_MODEL gpt-4o (default; can be set to gpt-4o-mini
+    |                       for cost-sensitive deployments)
+    */
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+        'vision_model' => env('OPENAI_VISION_MODEL', 'gpt-4o'),
+        'request_timeout' => (int) env('OPENAI_REQUEST_TIMEOUT', 60),
+    ],
+
 ];

@@ -87,6 +87,8 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('business-images/bulk-destroy', [BusinessImageAdminController::class, 'bulkDestroy'])->name('admin.business-images.bulk-destroy');
 
     // Offerings (cascade to branches on create when business is a main brand)
+    Route::post('offerings/menu-ocr', [\App\Http\Controllers\Api\Admin\MenuOcrAdminController::class, 'extract'])
+        ->name('admin.offerings.menu-ocr');
     Route::apiResource('offerings', BusinessOfferingAdminController::class);
     Route::post('offerings/bulk-destroy', [BusinessOfferingAdminController::class, 'bulkDestroy'])->name('admin.offerings.bulk-destroy');
 
