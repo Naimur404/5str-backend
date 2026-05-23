@@ -85,6 +85,17 @@ Schedule::command('analytics:prune --days=90')
     ->withoutOverlapping()
     ->runInBackground();
 
+// ── Recommendation metrics rollup ────────────────────────────────────
+// Pre-computes daily CTR by (model, bucket, slot) from user_events so
+// the admin dashboard can render trend lines without scanning the
+// (potentially millions of rows of) raw event store on every page
+// load. Runs hourly so today's row stays fresh; the daily run at
+// 06:00 finalises yesterday.
+Schedule::command('recommendations:rollup-metrics')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // ── Horizon ──────────────────────────────────────────────────────────
 Schedule::command('horizon:snapshot')->everyFiveMinutes();
 Schedule::command('horizon:trim')->daily();
