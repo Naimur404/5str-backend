@@ -24,6 +24,9 @@ return new class extends Migration
     {
         Schema::table('offering_submissions', function (Blueprint $table) {
             $table->dropForeign(['business_id']);
+            // up() adds an explicit index; SQLite cannot drop an indexed
+            // column (MySQL drops the index implicitly), so drop it first.
+            $table->dropIndex(['business_id']);
             $table->dropColumn('business_id');
         });
     }

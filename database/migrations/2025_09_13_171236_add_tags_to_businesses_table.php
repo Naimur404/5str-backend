@@ -25,7 +25,15 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('businesses', function (Blueprint $table) {
+        // Drop the index up() added; left behind, it blocks the earlier
+        // migration from dropping is_national on SQLite. Guarded because
+        // some existing databases never got this index.
+        $hasIsNationalIndex = Schema::hasIndex('businesses', ['is_national']);
+
+        Schema::table('businesses', function (Blueprint $table) use ($hasIsNationalIndex) {
+            if ($hasIsNationalIndex) {
+                $table->dropIndex(['is_national']);
+            }
             $table->dropColumn(['product_tags', 'business_tags']);
         });
     }

@@ -22,6 +22,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('user_collections', function (Blueprint $table) {
+            // SQLite cannot drop an indexed column (MySQL drops the index
+            // implicitly), so drop the unique index from up() first.
+            $table->dropUnique(['slug']);
             $table->dropColumn('slug');
         });
     }
