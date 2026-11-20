@@ -123,19 +123,19 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Attraction\:\:\$user_has_bookmarked\.$#'
 			identifier: property.notFound
-			count: 4
+			count: 1
 			path: app/Http/Controllers/Api/AttractionController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Attraction\:\:\$user_has_liked\.$#'
 			identifier: property.notFound
-			count: 4
+			count: 1
 			path: app/Http/Controllers/Api/AttractionController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Attraction\:\:\$user_interactions\.$#'
 			identifier: property.notFound
-			count: 4
+			count: 1
 			path: app/Http/Controllers/Api/AttractionController.php
 
 		-

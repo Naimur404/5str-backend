@@ -42,6 +42,13 @@ Schedule::command('business:calculate-similarities')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Stored discovery_score (used for sorting) is location-independent and
+// is no longer rewritten by GET requests; keep it fresh here instead.
+Schedule::command('discovery:refresh-scores')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Roll fresh user_events into per-identity affinity signals so the
 // recommender always reads from a compact, indexed table instead of
 // scanning weeks of raw events on every request.

@@ -839,9 +839,14 @@ class BusinessController extends Controller
                 Log::error("Failed to track business view: " . $e->getMessage());
             }
 
-            // Update discovery score if user location is provided
+            // Location-aware discovery score for this response only. Nothing is
+            // written: the stored score stays location-independent and is
+            // refreshed by discovery:refresh-scores.
             if ($request->has('latitude') && $request->has('longitude')) {
-                $business->updateDiscoveryScore($request->latitude, $request->longitude);
+                $business->discovery_score = round(
+                    $business->calculateDiscoveryScore($request->latitude, $request->longitude),
+                    2
+                );
             }
 
             // Check if business is in user's favorites
