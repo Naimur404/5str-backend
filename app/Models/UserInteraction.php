@@ -61,12 +61,12 @@ class UserInteraction extends Model
         int $userId,
         int $businessId,
         string $interactionType,
-        string $source = null,
-        array $contextData = null,
-        float $customWeight = null,
-        float $userLatitude = null,
-        float $userLongitude = null,
-        string $sessionId = null
+        ?string $source = null,
+        ?array $contextData = null,
+        ?float $customWeight = null,
+        ?float $userLatitude = null,
+        ?float $userLongitude = null,
+        ?string $sessionId = null
     ): self {
         $weight = $customWeight ?? self::$interactionWeights[$interactionType] ?? 1.0;
 
