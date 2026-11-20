@@ -34,6 +34,16 @@ class AttractionSubmission extends Model
         'reviewed_by',
     ];
 
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        // Generated binary POINT column (MySQL/MariaDB spatial index); not JSON-serializable.
+        'location',
+    ];
+
     protected $casts = [
         'visiting_hours' => 'array',
         'facilities' => 'array',

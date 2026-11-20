@@ -23,6 +23,16 @@ class View extends Model
         'session_id'
     ];
 
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        // Generated binary POINT column (MySQL/MariaDB spatial index); not JSON-serializable.
+        'user_location',
+    ];
+
     protected $casts = [
         'user_latitude' => 'decimal:8',
         'user_longitude' => 'decimal:8',

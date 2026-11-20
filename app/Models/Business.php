@@ -64,6 +64,8 @@ class Business extends Model
     ];
 
     protected $hidden = [
+        // Generated binary POINT column (MySQL/MariaDB spatial index); not JSON-serializable.
+        'location',
         'created_at',
         'updated_at',
         'embedding',
