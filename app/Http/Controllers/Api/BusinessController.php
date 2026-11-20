@@ -154,8 +154,16 @@ class BusinessController extends Controller
             $page = $request->input('page', 1);
             $limit = $request->input('limit', 20);
 
+            // reachable() hides brand-profile parent rows from general lists.
+            // An explicit top-level filter (only_parents=true or
+            // parent_id=null) asks for exactly those parent rows, so skip it
+            // there; branch filters (parent_id=<id>) are unaffected because
+            // branches are always reachable.
+            $wantsTopLevel = $request->boolean('only_parents')
+                || ($request->has('parent_id') && ($request->parent_id === 'null' || is_null($request->parent_id)));
+
             $query = Business::active()
-                ->reachable()
+                ->unless($wantsTopLevel, fn ($q) => $q->reachable())
                 ->with(['category', 'logoImage']);
 
             // Include national businesses or location-based filtering

@@ -199,6 +199,40 @@ class BusinessBranchTest extends TestCase
         $this->assertFalse($businessIds->contains($this->branchBusiness->id));
     }
 
+    public function test_general_listing_still_hides_brand_rows_that_have_branches()
+    {
+        // A standalone national business (no branches) stays listed.
+        $standalone = Business::create([
+            'business_name' => 'Aarong',
+            'slug' => 'aarong',
+            'description' => 'Standalone national business',
+            'category_id' => $this->category->id,
+            'full_address' => 'Tejgaon, Dhaka',
+            'latitude' => 23.7806,
+            'longitude' => 90.4070,
+            'city' => 'Dhaka',
+            'area' => 'Tejgaon',
+            'is_active' => true,
+            'is_national' => true,
+        ]);
+
+        // Without an explicit top-level filter, reachable() hides the brand
+        // row that has branches.
+        $response = $this->getJson('/api/v1/businesses');
+        $response->assertStatus(200);
+        $businessIds = collect($response->json('data.businesses'))->pluck('id');
+        $this->assertFalse($businessIds->contains($this->parentBusiness->id));
+        $this->assertTrue($businessIds->contains($standalone->id));
+
+        // parent_id=null is an explicit top-level filter, like only_parents=true.
+        $response = $this->getJson('/api/v1/businesses?parent_id=null');
+        $response->assertStatus(200);
+        $businessIds = collect($response->json('data.businesses'))->pluck('id');
+        $this->assertTrue($businessIds->contains($this->parentBusiness->id));
+        $this->assertTrue($businessIds->contains($standalone->id));
+        $this->assertFalse($businessIds->contains($this->branchBusiness->id));
+    }
+
     public function test_parent_business_api_returns_branches_sorted_by_distance_with_closest_branch()
     {
         // 1. Create a second branch in Gulshan (closer to Gulshan coordinates)
