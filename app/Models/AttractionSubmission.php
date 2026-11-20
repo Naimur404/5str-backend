@@ -37,7 +37,7 @@ class AttractionSubmission extends Model
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = [
         // Generated binary POINT column (MySQL/MariaDB spatial index); not JSON-serializable.
