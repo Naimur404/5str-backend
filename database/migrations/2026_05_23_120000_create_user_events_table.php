@@ -76,6 +76,17 @@ return new class extends Migration {
             // Source screen (search_results, home_featured, brand_page, …).
             $table->string('source', 32)->nullable();
 
+            // Recommendation impression logging. These were first added by
+            // 2026_05_23_090837_add_impression_logging_to_user_events, which
+            // sorts before this migration and so cannot run on a fresh
+            // database; it now skips when they already exist. Keep the two
+            // in sync (same columns, order and index names).
+            $table->uuid('rec_request_id')->nullable();
+            $table->unsignedSmallInteger('rec_position')->nullable();
+            $table->string('rec_model', 32)->nullable();
+            $table->string('rec_bucket', 16)->nullable();
+            $table->decimal('rec_score', 6, 4)->nullable();
+
             // Free-form extras.
             $table->json('payload')->nullable();
 
@@ -96,6 +107,8 @@ return new class extends Migration {
             $table->index(['event', 'created_at']);
             $table->index(['target_type', 'target_id']);
             $table->index('user_area');
+            $table->index(['rec_request_id', 'rec_position'], 'user_events_rec_request_pos_idx');
+            $table->index(['rec_model', 'event', 'created_at'], 'user_events_rec_model_event_idx');
         });
     }
 

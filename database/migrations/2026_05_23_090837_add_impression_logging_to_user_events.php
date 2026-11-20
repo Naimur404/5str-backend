@@ -32,6 +32,14 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        // This migration sorts before 2026_05_23_120000_create_user_events_table,
+        // so on a fresh database the table does not exist yet. The create
+        // migration includes these columns, so skip here in that case (and
+        // whenever the columns are already present).
+        if (! Schema::hasTable('user_events') || Schema::hasColumn('user_events', 'rec_request_id')) {
+            return;
+        }
+
         Schema::table('user_events', function (Blueprint $table) {
             $table->uuid('rec_request_id')->nullable()->after('source');
             $table->unsignedSmallInteger('rec_position')->nullable()->after('rec_request_id');
@@ -51,6 +59,12 @@ return new class extends Migration {
 
     public function down(): void
     {
+        // On a fresh database the create migration's down() has already
+        // dropped the whole table by the time this runs.
+        if (! Schema::hasTable('user_events') || ! Schema::hasColumn('user_events', 'rec_request_id')) {
+            return;
+        }
+
         Schema::table('user_events', function (Blueprint $table) {
             $table->dropIndex('user_events_rec_model_event_idx');
             $table->dropIndex('user_events_rec_request_pos_idx');
