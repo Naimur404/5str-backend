@@ -40,5 +40,19 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+
+        <!-- Keep tests off real external services, whatever .env says.
+             force="true" also overrides variables exported in the shell/CI. -->
+        <!-- Scout queues sync jobs on its own connection (default: redis). -->
+        <env name="SCOUT_QUEUE_CONNECTION" value="sync" force="true"/>
+        <env name="SCOUT_DRIVER" value="null" force="true"/>
+        <!-- Redis is used directly (e.g. TrendingCounterService); local only.
+             An empty REDIS_URL is ignored, so REDIS_HOST/PORT apply. -->
+        <env name="REDIS_URL" value="" force="true"/>
+        <env name="REDIS_HOST" value="127.0.0.1" force="true"/>
+        <env name="REDIS_PORT" value="6379" force="true"/>
+        <!-- Never report test exceptions to Sentry. -->
+        <env name="SENTRY_LARAVEL_DSN" value="" force="true"/>
+        <env name="SENTRY_DSN" value="" force="true"/>
     </php>
 </phpunit>

@@ -108,4 +108,19 @@ return [
 
     'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_cache_'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Serializable Classes
+    |--------------------------------------------------------------------------
+    |
+    | Laravel 13 lets you restrict which classes may be unserialized from the
+    | cache (the new skeleton default is `false`). This application caches
+    | Eloquent models and collections (e.g. `categories:main`), so objects
+    | must remain allowed. To harden this, cache plain arrays instead and
+    | then switch this to `false` or an explicit allow-list of classes.
+    |
+    */
+
+    'serializable_classes' => true,
+
 ];

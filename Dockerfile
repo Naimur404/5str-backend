@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ============================================================
-# 5SRT Backend — Laravel 13 / PHP 8.4 (Coolify-ready)
+# 5SRT Backend — Laravel 13 / PHP 8.5 (Coolify-ready)
 #
 # Build stages:
 #   1. vendor — composer dependencies + optimized autoloader
@@ -36,10 +36,10 @@ RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
 # ============================================================
 # Stage 2 — Final runtime image
 # ============================================================
-FROM php:8.4-fpm-alpine AS app
+FROM php:8.5-fpm-alpine AS app
 
 LABEL org.opencontainers.image.source="https://github.com/your-org/5str-backend"
-LABEL org.opencontainers.image.description="5SRT API — Laravel 13 / PHP 8.4 / phpredis / Meilisearch (Scout)"
+LABEL org.opencontainers.image.description="5SRT API — Laravel 13 / PHP 8.5 / phpredis / Meilisearch (Scout)"
 
 WORKDIR /var/www/html
 
@@ -49,8 +49,10 @@ ENV PHP_OPCACHE_VALIDATE_TIMESTAMPS=0 \
     COMPOSER_ALLOW_SUPERUSER=1
 
 # --- System packages & PHP extensions -----------------------
-# pdo_mysql / mbstring / bcmath / gd / zip / exif / pcntl / intl / opcache
-# come from PHP itself; phpredis is built via PECL.
+# pdo_mysql / mbstring / bcmath / gd / zip / exif / pcntl / intl come from
+# PHP itself; phpredis is built via PECL. OPcache is built into PHP 8.5+ and
+# always loaded, so it is not installed below; its settings still come from
+# docker/php.ini.
 RUN apk add --no-cache \
         nginx \
         supervisor \
@@ -83,7 +85,6 @@ RUN apk add --no-cache \
         exif \
         pcntl \
         intl \
-        opcache \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .build-deps \
