@@ -186,14 +186,38 @@ class Attraction extends Model
         return "https://www.google.com/maps/search/" . urlencode($this->name) . "/@" . $this->latitude . "," . $this->longitude . ",15z";
     }
 
+    // cover_image_url and gallery_count are in $appends, so they run for
+    // every serialized attraction. Use the eager-loaded gallery when it is
+    // there (the list endpoints load it) instead of one query per row.
+
     public function getCoverImageUrlAttribute()
     {
-        return $this->coverImage?->full_image_url ?? $this->galleries()->first()?->full_image_url;
+        $gallery = $this->loadedGallery();
+
+        return $this->coverImage?->full_image_url
+            ?? ($gallery !== null ? $gallery->first() : $this->galleries()->first())?->full_image_url;
     }
 
     public function getGalleryCountAttribute()
     {
-        return $this->galleries()->count();
+        return $this->loadedGallery()?->count() ?? $this->galleries()->count();
+    }
+
+    /**
+     * The gallery collection if it was eager loaded under either name
+     * ("gallery" is an alias of "galleries"), otherwise null.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, AttractionGallery>|null
+     */
+    private function loadedGallery(): ?\Illuminate\Database\Eloquent\Collection
+    {
+        foreach (['gallery', 'galleries'] as $relation) {
+            if ($this->relationLoaded($relation)) {
+                return $this->getRelation($relation);
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -66,7 +66,9 @@ class AttractionReviewImage extends Model
 
         $thumbnailPath = str_replace('.', '_thumb.', $sourcePath);
 
-        if (R2Storage::storage()->exists($thumbnailPath)) {
+        // Cached: thumbnail_url is appended to every review image, and an
+        // uncached exists() is a storage round trip per image per request.
+        if (R2Storage::existsCached($thumbnailPath)) {
             return R2Storage::storage()->url($thumbnailPath);
         }
 
