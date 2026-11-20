@@ -70,7 +70,9 @@ class AttractionGallery extends Model
             $pathInfo = pathinfo($sourcePath);
             $thumbnailPath = $pathInfo['dirname'] . '/thumbs/' . $pathInfo['filename'] . '_thumb.' . $pathInfo['extension'];
 
-            if (R2Storage::storage()->exists($thumbnailPath)) {
+            // Cached: thumbnail_url is appended to every gallery image, and an
+            // uncached exists() is a storage round trip per image per request.
+            if (R2Storage::existsCached($thumbnailPath)) {
                 return R2Storage::storage()->url($thumbnailPath);
             }
         }

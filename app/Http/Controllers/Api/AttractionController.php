@@ -7,6 +7,7 @@ use App\Models\Attraction;
 use App\Models\UserAttractionInteraction;
 use App\Services\CacheInvalidationService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
@@ -29,11 +30,6 @@ class AttractionController extends Controller
                 $radius = $request->radius ?? 10; // Default 10km radius
                 
                 $query->nearbyWithDistance($latitude, $longitude, $radius);
-                
-                // Update discovery scores based on user location
-                $query->get()->each(function ($attraction) use ($latitude, $longitude) {
-                    $attraction->updateDiscoveryScore($latitude, $longitude);
-                });
             }
             
             // Filter by type
@@ -135,17 +131,22 @@ class AttractionController extends Controller
             
             // Pagination
             $perPage = min($request->per_page ?? 15, 50); // Max 50 items per page
-            $attractions = $query->paginate($perPage);
-            
+
+            // With a location and the default sort, rank by the caller's
+            // location-aware discovery score. This used to happen by writing
+            // that score to every candidate before sorting; it is now done in
+            // memory so GET requests never write.
+            $rankByLocation = $request->has('latitude') && $request->has('longitude')
+                && ! $request->has('search')
+                && ! in_array($sortBy, ['distance', 'rating', 'reviews', 'likes', 'newest', 'name'], true);
+
+            $attractions = $rankByLocation
+                ? $this->paginateByLocationScore($query, $request->latitude, $request->longitude, (int) $perPage)
+                : $query->paginate($perPage);
+
             // Add user interaction data if authenticated
             if (Auth::check()) {
-                $userId = Auth::id();
-                $attractions->getCollection()->transform(function ($attraction) use ($userId) {
-                    $attraction->user_interactions = UserAttractionInteraction::getUserInteractionTypes($userId, $attraction->id);
-                    $attraction->user_has_liked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'like');
-                    $attraction->user_has_bookmarked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'bookmark');
-                    return $attraction;
-                });
+                $this->applyUserInteractions($attractions->getCollection(), Auth::id());
             }
             
             return response()->json([
@@ -200,20 +201,11 @@ class AttractionController extends Controller
                 ->take($limit)
                 ->get();
 
-            // Update discovery scores and add user interaction data
+            // Location-aware discovery score for this response only (no write)
+            $this->applyLocationDiscoveryScores($attractions, $latitude, $longitude);
+
             if (Auth::check()) {
-                $userId = Auth::id();
-                $attractions->transform(function ($attraction) use ($latitude, $longitude, $userId) {
-                    $attraction->updateDiscoveryScore($latitude, $longitude);
-                    $attraction->user_interactions = UserAttractionInteraction::getUserInteractionTypes($userId, $attraction->id);
-                    $attraction->user_has_liked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'like');
-                    $attraction->user_has_bookmarked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'bookmark');
-                    return $attraction;
-                });
-            } else {
-                $attractions->each(function ($attraction) use ($latitude, $longitude) {
-                    $attraction->updateDiscoveryScore($latitude, $longitude);
-                });
+                $this->applyUserInteractions($attractions, Auth::id());
             }
 
             return response()->json([
@@ -582,22 +574,14 @@ class AttractionController extends Controller
             
             $attractions = $query->take($limit)->get();
             
-            // Update discovery scores if location provided
+            // Location-aware discovery score for this response only (no write)
             if ($request->has('latitude') && $request->has('longitude')) {
-                $attractions->each(function ($attraction) use ($request) {
-                    $attraction->updateDiscoveryScore($request->latitude, $request->longitude);
-                });
+                $this->applyLocationDiscoveryScores($attractions, $request->latitude, $request->longitude);
             }
 
             // Add user interaction data if authenticated
             if (Auth::check()) {
-                $userId = Auth::id();
-                $attractions->transform(function ($attraction) use ($userId) {
-                    $attraction->user_interactions = UserAttractionInteraction::getUserInteractionTypes($userId, $attraction->id);
-                    $attraction->user_has_liked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'like');
-                    $attraction->user_has_bookmarked = UserAttractionInteraction::hasUserInteraction($userId, $attraction->id, 'bookmark');
-                    return $attraction;
-                });
+                $this->applyUserInteractions($attractions, Auth::id());
             }
 
             $meta = [
@@ -838,6 +822,74 @@ class AttractionController extends Controller
             ]);
 
             return null;
+        }
+    }
+
+    /**
+     * Set a location-aware discovery_score on each attraction for this
+     * response only. Nothing is written: the stored score stays
+     * location-independent and is refreshed by discovery:refresh-scores.
+     * Uses one grouped query for the activity counts instead of two per
+     * attraction.
+     *
+     * @param  iterable<Attraction>  $attractions
+     */
+    private function applyLocationDiscoveryScores(iterable $attractions, $latitude, $longitude): void
+    {
+        $attractions = collect($attractions);
+        $activity = Attraction::discoveryActivity($attractions->pluck('id'));
+
+        foreach ($attractions as $attraction) {
+            $attraction->discovery_score = round(
+                $attraction->calculateDiscoveryScore($latitude, $longitude, $activity[$attraction->id] ?? null),
+                2
+            );
+        }
+    }
+
+    /**
+     * Rank all candidates (already limited to the search radius) by their
+     * location-aware discovery score and paginate the result, with the
+     * same paginator shape as Builder::paginate().
+     */
+    private function paginateByLocationScore($query, $latitude, $longitude, int $perPage): LengthAwarePaginator
+    {
+        $candidates = $query->get();
+        $this->applyLocationDiscoveryScores($candidates, $latitude, $longitude);
+
+        // sortByDesc is stable, so ties keep the stored-score order.
+        $ranked = $candidates->sortByDesc(fn ($a) => (float) $a->discovery_score)->values();
+        $page = LengthAwarePaginator::resolveCurrentPage();
+
+        return new LengthAwarePaginator(
+            $ranked->forPage($page, $perPage)->values(),
+            $ranked->count(),
+            $perPage,
+            $page,
+            ['path' => LengthAwarePaginator::resolveCurrentPath(), 'pageName' => 'page'],
+        );
+    }
+
+    /**
+     * Attach the signed-in user's interaction data to each attraction
+     * with one query (previously three queries per attraction).
+     *
+     * @param  iterable<Attraction>  $attractions
+     */
+    private function applyUserInteractions(iterable $attractions, $userId): void
+    {
+        $attractions = collect($attractions);
+
+        $types = UserAttractionInteraction::where('user_id', $userId)
+            ->whereIn('attraction_id', $attractions->pluck('id'))
+            ->get(['attraction_id', 'interaction_type'])
+            ->groupBy('attraction_id');
+
+        foreach ($attractions as $attraction) {
+            $list = $types->get($attraction->id, collect())->pluck('interaction_type')->all();
+            $attraction->setAttribute('user_interactions', $list);
+            $attraction->setAttribute('user_has_liked', in_array('like', $list, true));
+            $attraction->setAttribute('user_has_bookmarked', in_array('bookmark', $list, true));
         }
     }
 }

@@ -59,7 +59,7 @@ class Attraction extends Model
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = [
         // Generated binary POINT column (MySQL/MariaDB spatial index); not JSON-serializable.
@@ -186,14 +186,38 @@ class Attraction extends Model
         return "https://www.google.com/maps/search/" . urlencode($this->name) . "/@" . $this->latitude . "," . $this->longitude . ",15z";
     }
 
+    // cover_image_url and gallery_count are in $appends, so they run for
+    // every serialized attraction. Use the eager-loaded gallery when it is
+    // there (the list endpoints load it) instead of one query per row.
+
     public function getCoverImageUrlAttribute()
     {
-        return $this->coverImage?->full_image_url ?? $this->galleries()->first()?->full_image_url;
+        $gallery = $this->loadedGallery();
+
+        return $this->coverImage?->full_image_url
+            ?? ($gallery !== null ? $gallery->first() : $this->galleries()->first())?->full_image_url;
     }
 
     public function getGalleryCountAttribute()
     {
-        return $this->galleries()->count();
+        return $this->loadedGallery()?->count() ?? $this->galleries()->count();
+    }
+
+    /**
+     * The gallery collection if it was eager loaded under either name
+     * ("gallery" is an alias of "galleries"), otherwise null.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, AttractionGallery>|null
+     */
+    private function loadedGallery(): ?\Illuminate\Database\Eloquent\Collection
+    {
+        foreach (['gallery', 'galleries'] as $relation) {
+            if ($this->relationLoaded($relation)) {
+                return $this->getRelation($relation);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -360,7 +384,22 @@ class Attraction extends Model
         return $this;
     }
 
-    public function updateDiscoveryScore($userLatitude = null, $userLongitude = null)
+    /**
+     * Columns calculateDiscoveryScore() reads without a user location
+     * (besides id). Bulk refreshes select only these; keep in sync.
+     */
+    public const DISCOVERY_COLUMNS = ['overall_rating', 'is_verified', 'is_featured', 'is_free'];
+
+    /**
+     * Discovery score (0-100). Read-only: this never writes.
+     *
+     * The distance term only applies when a user location is given, so a
+     * location-aware score belongs in a response, not in the database.
+     * Pass $activity (from discoveryActivity()) to avoid per-row queries.
+     *
+     * @param  array{reviews: int, likes: int}|null  $activity
+     */
+    public function calculateDiscoveryScore($userLatitude = null, $userLongitude = null, ?array $activity = null): float
     {
         $score = 0;
 
@@ -376,9 +415,8 @@ class Attraction extends Model
         $score += $ratingScore * 0.30;
 
         // Recent activity (25%)
-        $recentReviews = $this->reviews()->where('created_at', '>=', now()->subDays(30))->count();
-        $recentLikes = $this->likes()->where('created_at', '>=', now()->subDays(30))->count();
-        $recentActivity = ($recentReviews * 10) + ($recentLikes * 5);
+        $activity ??= static::discoveryActivity([$this->id])[$this->id] ?? ['reviews' => 0, 'likes' => 0];
+        $recentActivity = ($activity['reviews'] * 10) + ($activity['likes'] * 5);
         $activityScore = min(100, $recentActivity);
         $score += $activityScore * 0.25;
 
@@ -389,7 +427,49 @@ class Attraction extends Model
         if ($this->is_free) $verificationScore += 20;
         $score += min(100, $verificationScore) * 0.20;
 
+        return $score;
+    }
+
+    /**
+     * Recent (30-day) review and like counts for many attractions in one
+     * query, keyed by attraction id.
+     *
+     * @param  iterable<int>  $ids
+     * @return array<int, array{reviews: int, likes: int}>
+     */
+    public static function discoveryActivity(iterable $ids): array
+    {
+        $ids = collect($ids)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $since = now()->subDays(30);
+
+        return static::query()
+            ->whereKey($ids->all())
+            ->withCount([
+                'reviews as discovery_recent_reviews' => fn ($q) => $q->where('created_at', '>=', $since),
+                'likes as discovery_recent_likes' => fn ($q) => $q->where('created_at', '>=', $since),
+            ])
+            ->get(['id'])
+            ->mapWithKeys(fn ($a) => [$a->id => [
+                'reviews' => (int) $a->getAttribute('discovery_recent_reviews'),
+                'likes' => (int) $a->getAttribute('discovery_recent_likes'),
+            ]])
+            ->all();
+    }
+
+    /**
+     * Persist the location-independent discovery score (no distance term),
+     * so the stored value is the same for every caller. Kept fresh by the
+     * discovery:refresh-scores command; GET requests must not call this.
+     */
+    public function updateDiscoveryScore(): float
+    {
+        $score = $this->calculateDiscoveryScore();
         $this->update(['discovery_score' => round($score, 2)]);
+
         return $score;
     }
 

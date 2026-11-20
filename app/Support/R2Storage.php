@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Illuminate\Contracts\Filesystem\Cloud;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class R2Storage
@@ -24,6 +25,25 @@ class R2Storage
         $disk = Storage::disk(self::active());
 
         return $disk;
+    }
+
+    /**
+     * exists() with the result cached. On a remote disk every exists() is a
+     * network round trip, and model accessors (thumbnail_url) call it for
+     * each image of every serialized record. Both outcomes are cached; if
+     * the cache is unavailable this falls back to a direct check.
+     */
+    public static function existsCached(string $path, int $ttlSeconds = 86400): bool
+    {
+        $key = 'storage-exists:'.self::active().':'.sha1($path);
+
+        try {
+            return (bool) Cache::remember($key, $ttlSeconds, fn () => self::storage()->exists($path));
+        } catch (\Throwable $e) {
+            report($e);
+
+            return self::storage()->exists($path);
+        }
     }
 
     public static function storeUrl(UploadedFile $file, string $directory, ?string $filename = null): string

@@ -668,9 +668,21 @@ class Business extends Model
     }
 
     /**
-     * Calculate and update discovery score
+     * Columns calculateDiscoveryScore() reads without a user location
+     * (besides id). Bulk refreshes select only these; keep in sync.
      */
-    public function updateDiscoveryScore($userLatitude = null, $userLongitude = null)
+    public const DISCOVERY_COLUMNS = ['overall_rating'];
+
+    /**
+     * Discovery score (0-100). Read-only: this never writes.
+     *
+     * The distance term only applies when a user location is given, so a
+     * location-aware score belongs in a response, not in the database.
+     * Pass $activity (from discoveryActivity()) to avoid per-row queries.
+     *
+     * @param  array{reviews: int, offers: int}|null  $activity
+     */
+    public function calculateDiscoveryScore($userLatitude = null, $userLongitude = null, ?array $activity = null): float
     {
         $score = 0;
 
@@ -685,23 +697,63 @@ class Business extends Model
         $ratingScore = ($this->overall_rating / 5) * 100;
         $score += $ratingScore * 0.25;
 
+        $activity ??= static::discoveryActivity([$this->id])[$this->id] ?? ['reviews' => 0, 'offers' => 0];
+
         // Recent review activity (20%)
-        $recentReviews = $this->reviews()
-            ->where('created_at', '>=', now()->subDays(30))
-            ->count();
-        $recentActivityScore = min(100, $recentReviews * 10);
+        $recentActivityScore = min(100, $activity['reviews'] * 10);
         $score += $recentActivityScore * 0.20;
 
         // Active offers (15%)
-        $activeOffersCount = $this->activeOffers()->count();
-        $offersScore = min(100, $activeOffersCount * 25);
+        $offersScore = min(100, $activity['offers'] * 25);
         $score += $offersScore * 0.15;
 
         // User preference match (10%) - can be enhanced based on user behavior
         $preferenceScore = 50; // Base score
         $score += $preferenceScore * 0.10;
 
+        return $score;
+    }
+
+    /**
+     * Recent (30-day) review counts and active offer counts for many
+     * businesses in one query, keyed by business id.
+     *
+     * @param  iterable<int>  $ids
+     * @return array<int, array{reviews: int, offers: int}>
+     */
+    public static function discoveryActivity(iterable $ids): array
+    {
+        $ids = collect($ids)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $since = now()->subDays(30);
+
+        return static::query()
+            ->whereKey($ids->all())
+            ->withCount([
+                'reviews as discovery_recent_reviews' => fn ($q) => $q->where('created_at', '>=', $since),
+                'activeOffers as discovery_active_offers',
+            ])
+            ->get(['id'])
+            ->mapWithKeys(fn ($b) => [$b->id => [
+                'reviews' => (int) $b->getAttribute('discovery_recent_reviews'),
+                'offers' => (int) $b->getAttribute('discovery_active_offers'),
+            ]])
+            ->all();
+    }
+
+    /**
+     * Persist the location-independent discovery score (no distance term),
+     * so the stored value is the same for every caller. Kept fresh by the
+     * discovery:refresh-scores command; GET requests must not call this.
+     */
+    public function updateDiscoveryScore(): float
+    {
+        $score = $this->calculateDiscoveryScore();
         $this->update(['discovery_score' => round($score, 2)]);
+
         return $score;
     }
 
