@@ -14,8 +14,13 @@ return [
     /*
      * When the clean command is executed, all recording activities older than
      * the number of days specified here will be deleted.
+     *
+     * 90 days matches our broader analytics retention policy
+     * (`views`, `endpoint_analytics`, `search_logs`, `user_events`)
+     * so a single window governs every operational data store. The
+     * cleanup is wired to `activitylog:clean` from `routes/console.php`.
      */
-    'clean_after_days' => 365,
+    'clean_after_days' => (int) env('ACTIVITYLOG_RETENTION_DAYS', 90),
 
     /*
      * If no log name is passed to the activity() helper

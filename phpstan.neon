@@ -1,0 +1,36 @@
+includes:
+    - ./vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    # Level reasoning:
+    #   8 catches every "obvious" type problem PHPStan can find:
+    #   wrong return types, mixed array shapes, missing nullable
+    #   handling, accessing properties that may not exist on a
+    #   morph relation, etc. Higher levels (9, max) demand explicit
+    #   `array<int, string>` annotations on every parameter, which
+    #   is a worthwhile bar but not a one-day project. We start at
+    #   8 with a baseline so existing code is exempt and CI fails
+    #   only on NEW violations.
+    level: 3
+
+    paths:
+        - app
+        - bootstrap/app.php
+        - bootstrap/providers.php
+        - config
+        - database/factories
+        - database/seeders
+        - routes
+        # Migrations excluded — Laravel migration anonymous classes
+        # are noisy and don't carry application logic worth typing.
+
+    excludePaths:
+        - app/Http/Controllers/Api/Admin/AdminResourceController.php  # base class uses static::$model dynamic access intentionally
+
+    # Larastan picks up Eloquent magic; tell it about a few of our
+    # custom shapes that the auto-detector misses.
+    treatPhpDocTypesAsCertain: false
+
+    parallel:
+        maximumNumberOfProcesses: 4

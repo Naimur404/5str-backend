@@ -6,6 +6,7 @@ use App\Concerns\AuditableByAdmin;
 use App\Concerns\HasGeoLocation;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Laravel\Scout\Searchable;
 
 class Business extends Model
@@ -57,11 +58,16 @@ class Business extends Model
         'pending_changes',
         'has_pending_changes',
         'parent_id',
+        'embedding',
+        'embedding_hash',
+        'embedding_updated_at',
     ];
 
     protected $hidden = [
         'created_at',
-        'updated_at'
+        'updated_at',
+        'embedding',
+        'embedding_hash',
     ];
 
     protected $appends = [
@@ -94,6 +100,8 @@ class Business extends Model
         'has_pending_changes' => 'boolean',
         'approved_at' => 'datetime',
         'parent_id' => 'integer',
+        'embedding' => 'array',
+        'embedding_updated_at' => 'datetime',
     ];
 
     // Accessors
@@ -467,7 +475,36 @@ class Business extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('businesses.is_active', true);
+    }
+
+    /**
+     * "Reachable" = an actual physical location a user can visit.
+     *
+     * Excludes brand-level parent rows (no `parent_id`) that have one
+     * or more branches — those rows are virtual brand profiles and
+     * showing them in nearby/featured/popular lists is confusing
+     * ("KFC Bangladesh" appearing alongside "KFC Dhanmondi").
+     *
+     * Single-location businesses (no branches, no parent) and the
+     * branches themselves both stay visible.
+     *
+     * Columns are fully qualified (`businesses.parent_id`,
+     * `businesses.id`) so the scope can be combined with JOINs (e.g.
+     * `trending_data` join used by SearchController) without throwing
+     * "Column 'id' in WHERE is ambiguous".
+     */
+    public function scopeReachable($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNotNull('businesses.parent_id') // branches always reachable
+                ->orWhereNotExists(function ($sub) {
+                    /** @var \Illuminate\Database\Query\Builder $sub */
+                    $sub->select(DB::raw(1))
+                        ->from('businesses as child_branches')
+                        ->whereColumn('child_branches.parent_id', 'businesses.id');
+                });
+        });
     }
 
     /*
@@ -530,11 +567,19 @@ class Business extends Model
 
     public function scopeFeatured($query)
     {
+        // Featured discovery should also hide brand parent rows so
+        // featured carousels list the actual locations users can
+        // visit, not the brand container.
+        $this->scopeReachable($query);
+
         return $query->where('is_featured', true);
     }
 
     public function scopeNational($query)
     {
+        // National brand listing legitimately wants the brand row,
+        // not the branches — that's the whole point of `is_national`.
+        // No reachable() filter here.
         return $query->where('is_national', true);
     }
 
@@ -579,6 +624,10 @@ class Business extends Model
         $latitude = (float) $latitude;
         $longitude = (float) $longitude;
 
+        // Hide brand parent rows (a brand's "near me" never makes
+        // sense — only its branches should appear in nearby lists).
+        $this->scopeReachable($query);
+
         $query->whereNotNull('latitude')->whereNotNull('longitude');
         self::applyNearbyFilter($query, 'location', $latitude, $longitude, (float) $radiusKm);
         self::applyDistanceOrder($query, 'location', $latitude, $longitude);
@@ -594,6 +643,7 @@ class Business extends Model
         $latitude = (float) $latitude;
         $longitude = (float) $longitude;
 
+        $this->scopeReachable($query);
         $query->whereNotNull('latitude')->whereNotNull('longitude');
         self::applyDistanceSelect($query, 'businesses', 'location', $latitude, $longitude, 'distance');
         self::applyNearbyFilter($query, 'location', $latitude, $longitude, (float) $radiusKm);

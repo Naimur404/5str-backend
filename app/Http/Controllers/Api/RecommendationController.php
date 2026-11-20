@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ColdStartLadder;
+use App\Services\RecommendationLoggingService;
 use App\Services\RecommendationService;
+use App\Services\SessionContextService;
 use App\Models\Business;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -14,7 +17,10 @@ use Illuminate\Support\Facades\Log;
 class RecommendationController extends Controller
 {
     public function __construct(
-        private RecommendationService $recommendationService
+        private RecommendationService $recommendationService,
+        private RecommendationLoggingService $logger,
+        private ColdStartLadder $coldStart,
+        private SessionContextService $sessionContext,
     ) {}
 
     /**
@@ -41,14 +47,83 @@ class RecommendationController extends Controller
         try {
             // Get personalization level from config (no more A/B testing!)
             $personalizationLevel = config('recommendations.personalization_level', 'light');
-            
-            $recommendations = $this->recommendationService->getRecommendations(
-                $user,
-                $latitude,
-                $longitude,
-                $categories,
-                $count
+
+            // Cold-start gate: if we don't have enough signal yet,
+            // route to a documented fallback rung instead of trying
+            // to personalise from noise.
+            $rung = $this->coldStart->pickRung(
+                anonId: $request->header('X-Anon-Id'),
+                userId: $user?->id,
+                area: $request->input('area'),
             );
+
+            if ($rung !== ColdStartLadder::RUNG_PERSONALIZED) {
+                $candidates = $this->coldStart->fallbackCandidates(
+                    rung: $rung,
+                    area: $request->input('area'),
+                    count: $count * 3,
+                );
+
+                // Even cold-start users get the freshness +
+                // diversification pass so they don't see five
+                // KFC branches in a row. Plus session-context
+                // boost if the user has been actively browsing
+                // categories/brands in the last 30 minutes.
+                $postProcessor = app(\App\Services\RecommendationPostProcessor::class);
+                $sessionCtx = $this->sessionContext->readContext($request->header('X-Anon-Id'));
+                $candidates = $postProcessor->applySessionBoost($candidates, $sessionCtx);
+                $candidates = $postProcessor->applyFreshness($candidates);
+                $recommendations = $postProcessor->diversify($candidates, $count);
+
+                $algorithm = $rung;
+            } else {
+                // Personalised path: fetch a wider pool, blend
+                // session signal in, then re-run freshness + MMR
+                // (the inner call already applied them but they
+                // are idempotent so re-running picks up the
+                // session boost too).
+                $candidates = $this->recommendationService->getRecommendations(
+                    $user,
+                    $latitude,
+                    $longitude,
+                    $categories,
+                    $count * 3
+                );
+                $postProcessor = app(\App\Services\RecommendationPostProcessor::class);
+                $sessionCtx = $this->sessionContext->readContext($request->header('X-Anon-Id'));
+                $candidates = $postProcessor->applySessionBoost($candidates, $sessionCtx);
+                $candidates = $postProcessor->applyFreshness($candidates);
+                $recommendations = $postProcessor->diversify($candidates, $count);
+
+                $algorithm = 'fast_personalized';
+            }
+
+            // Tag this rendering with a stable id so impression and
+            // click logs can join back to the same call. Mobile sends
+            // this id back via /recommendations/click — that's how we
+            // measure CTR per slot, per model, per request.
+            $recRequestId = (string) \Illuminate\Support\Str::uuid();
+            $modelVersion = 'rec_' . $algorithm . '_v1';
+
+            // Best-effort impression log. A failure here can never
+            // break the user-facing response.
+            try {
+                $this->logger->logImpressions(
+                    businesses: $recommendations,
+                    recRequestId: $recRequestId,
+                    modelVersion: $modelVersion,
+                    bucket: null,
+                    anonId: $request->header('X-Anon-Id'),
+                    userId: $user?->id,
+                    latApprox: $latitude !== null ? round((float) $latitude, 2) : null,
+                    lngApprox: $longitude !== null ? round((float) $longitude, 2) : null,
+                    userArea: $request->input('area'),
+                    platform: $request->header('X-Platform'),
+                    appVersion: $request->header('X-App-Version'),
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Impression logging failed', ['error' => $e->getMessage()]);
+            }
 
             $responseTime = round((microtime(true) - $startTime) * 1000, 2);
 
@@ -131,10 +206,17 @@ class RecommendationController extends Controller
                     'total_count' => $recommendations->count(),
                     'location_used' => $latitude && $longitude,
                     'categories_filtered' => !empty($categories),
-                    'algorithm' => 'fast_personalized',
+                    'algorithm' => $algorithm,
                     'personalization_level' => $personalizationLevel,
                     'personalized_results' => $personalizedCount,
                     'response_time_ms' => $responseTime,
+                    // Echo these back on click. The mobile client just
+                    // needs to send `rec_request_id` + `business_id`
+                    // to /recommendations/click — every other piece of
+                    // metadata (slot, model, score) is looked up
+                    // server-side from the impression row.
+                    'rec_request_id' => $recRequestId,
+                    'rec_model' => $modelVersion,
                 ]
             ]);
 
@@ -487,6 +569,45 @@ class RecommendationController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
+    }
+
+    /**
+     * Record that a previously-impressed recommendation was clicked.
+     *
+     * The mobile client sends just `rec_request_id` + `business_id`;
+     * everything else (slot, model, score) is reconstructed from the
+     * matching impression row so the client can't fabricate metadata.
+     *
+     * No-ops with a 404 if no matching impression exists, which lets
+     * the client retry harmlessly when network ordering races the
+     * impression log.
+     */
+    public function clickRecommendation(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'rec_request_id' => 'required|uuid',
+            'business_id' => 'required|integer|exists:businesses,id',
+        ]);
+
+        $user = Auth::user();
+
+        $logged = $this->logger->logClick(
+            recRequestId: $data['rec_request_id'],
+            businessId: (int) $data['business_id'],
+            anonId: $request->header('X-Anon-Id'),
+            userId: $user?->id,
+            platform: $request->header('X-Platform'),
+            appVersion: $request->header('X-App-Version'),
+        );
+
+        if (! $logged) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No matching impression for this rec_request_id.',
+            ], 404);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     /**

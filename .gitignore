@@ -20,3 +20,5 @@ yarn-error.log
 /.kiro
 /.claude
 /tests
+.phpstan-baseline.neon
+.phpstan.neon

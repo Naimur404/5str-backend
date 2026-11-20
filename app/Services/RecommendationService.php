@@ -9,6 +9,7 @@ use App\Models\UserInteraction;
 use App\Models\BusinessSimilarity;
 use App\Models\Category;
 use App\Services\AI\NeuralRecommendationEngine;
+use App\Services\RecommendationPostProcessor;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -24,7 +25,8 @@ class RecommendationService
         private ContentBasedFilter $contentBasedFilter,
         private CollaborativeFilter $collaborativeFilter,
         private LocationBasedFilter $locationBasedFilter,
-        private NeuralRecommendationEngine $neuralEngine
+        private NeuralRecommendationEngine $neuralEngine,
+        private ?RecommendationPostProcessor $postProcessor = null,
     ) {}
 
     public function getRecommendations(
@@ -66,21 +68,35 @@ class RecommendationService
         //     }
         // }
 
-        // Get recommendations based on personalization level
+        // Get recommendations based on personalization level. Pull
+        // a wider candidate pool than $count so the post-processor
+        // has room to diversify without falling short of slots.
+        $candidatePoolSize = max($count * 3, $count + 10);
         $recommendations = match($personalizationLevel) {
-            'none' => $this->getFastRecommendations($user, $latitude, $longitude, $categories, $count),
-            'light' => $this->getLightPersonalizedRecommendations($user, $latitude, $longitude, $categories, $count),
-            'full' => $this->getFullPersonalizedRecommendations($user, $latitude, $longitude, $categories, $count),
-            default => $this->getFastRecommendations($user, $latitude, $longitude, $categories, $count)
+            'none' => $this->getFastRecommendations($user, $latitude, $longitude, $categories, $candidatePoolSize),
+            'light' => $this->getLightPersonalizedRecommendations($user, $latitude, $longitude, $categories, $candidatePoolSize),
+            'full' => $this->getFullPersonalizedRecommendations($user, $latitude, $longitude, $categories, $candidatePoolSize),
+            default => $this->getFastRecommendations($user, $latitude, $longitude, $categories, $candidatePoolSize)
         };
-        
+
+        // Post-process: freshness adjustment then MMR diversification.
+        // Both are no-ops if config disables them. The post-processor
+        // is constructor-injected as nullable so existing tests that
+        // build the service manually keep working unchanged.
+        if ($this->postProcessor !== null && $recommendations->isNotEmpty()) {
+            $recommendations = $this->postProcessor->applyFreshness($recommendations);
+            $recommendations = $this->postProcessor->diversify($recommendations, $count);
+        } else {
+            $recommendations = $recommendations->take($count)->values();
+        }
+
         // Cache only the business IDs for better performance (temporarily disabled)
         // Cache::put($cacheKey, $recommendations->pluck('id')->toArray(), self::CACHE_TTL);
-        
+
         // Track A/B testing metrics
         $responseTime = round((microtime(true) - $startTime) * 1000, 2);
         $this->trackPersonalizationMetrics($user->id, $personalizationLevel, $responseTime, count($recommendations));
-        
+
         return $recommendations;
     }
 

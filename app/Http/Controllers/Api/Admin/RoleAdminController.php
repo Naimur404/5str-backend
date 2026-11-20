@@ -20,9 +20,10 @@ class RoleAdminController extends AdminResourceController
     protected function validationRules(Request $request, ?Model $record = null): array
     {
         $id = $record?->getKey();
+        $isCreate = $record === null;
 
         return [
-            'name' => ['required', 'string', 'max:125', Rule::unique('roles', 'name')->ignore($id)],
+            'name' => [$isCreate ? 'required' : 'sometimes', 'string', 'max:125', Rule::unique('roles', 'name')->ignore($id)],
             'guard_name' => ['nullable', 'string', 'max:125'],
         ];
     }

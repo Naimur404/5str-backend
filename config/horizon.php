@@ -83,7 +83,26 @@ return [
     |
     */
 
-    'middleware' => ['web'],
+    'middleware' => ['web', \App\Http\Middleware\HorizonBasicAuth::class],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Horizon IP Allowlist
+    |--------------------------------------------------------------------------
+    |
+    | Comma-separated list of IPs or CIDR ranges that are allowed to
+    | reach the Horizon dashboard. Anything else gets 404'd by
+    | `HorizonBasicAuth` so scanners can't even confirm the
+    | dashboard exists.
+    |
+    | Leave HORIZON_IP_ALLOWLIST empty to skip IP filtering and
+    | rely solely on basic-auth + the viewHorizon Gate (admin role).
+    |
+    | Example: HORIZON_IP_ALLOWLIST="76.13.208.236,10.0.0.0/8"
+    |
+    */
+
+    'ip_allowlist' => env('HORIZON_IP_ALLOWLIST', ''),
 
     /*
     |--------------------------------------------------------------------------

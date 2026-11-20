@@ -463,7 +463,7 @@ class OfferingController extends Controller
             $locationInsights = $this->locationService->getAreaInsights($latitude, $longitude);
             
             // Build query for offerings in the area
-            $query = BusinessOffering::active()
+            $query = BusinessOffering::available()
                 ->whereHas('business', function ($q) use ($latitude, $longitude, $radiusKm) {
                     $q->active()
                       ->nearbyWithDistance($latitude, $longitude, $radiusKm);
@@ -579,7 +579,7 @@ class OfferingController extends Controller
             $locationInsights = $this->locationService->getAreaInsights($latitude, $longitude);
 
             // Build query for offerings
-            $query = BusinessOffering::active()
+            $query = BusinessOffering::available()
                 ->whereHas('business', function ($q) use ($latitude, $longitude, $radiusKm) {
                     $q->active()
                       ->nearbyWithDistance($latitude, $longitude, $radiusKm);
@@ -794,7 +794,7 @@ class OfferingController extends Controller
             };
 
             // Get offerings with view counts from analytics
-            $offerings = BusinessOffering::active()
+            $offerings = BusinessOffering::available()
                 ->whereHas('business', function ($q) use ($latitude, $longitude, $radiusKm) {
                     $q->active()
                       ->nearbyWithDistance($latitude, $longitude, $radiusKm);

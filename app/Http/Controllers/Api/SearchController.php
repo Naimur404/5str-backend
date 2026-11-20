@@ -265,6 +265,7 @@ class SearchController extends Controller
     protected function searchBusinesses(Request $request, $searchTerm, $latitude, $longitude, $categoryId, $radiusKm, $page, $limit, $sortBy, $userArea)
     {
         $query = Business::active()
+            ->reachable()
             ->with(['category:id,name,slug', 'logoImage']);
 
         // Text search - include category name in search
@@ -274,8 +275,10 @@ class SearchController extends Controller
                 if (empty($scoutIds)) {
                     $query->whereRaw('1 = 0');
                 } else {
-                    $query->whereIn('id', $scoutIds)
-                        ->orderByRaw('FIELD(id, '.implode(',', $scoutIds).')');
+                    // Qualified column names because the trending_data
+                    // join below adds another `id` to scope.
+                    $query->whereIn('businesses.id', $scoutIds)
+                        ->orderByRaw('FIELD(businesses.id, '.implode(',', $scoutIds).')');
                 }
             } else {
                 $query->where(function ($q) use ($searchTerm) {
@@ -466,8 +469,8 @@ class SearchController extends Controller
                 if (empty($scoutIds)) {
                     $query->whereRaw('1 = 0');
                 } else {
-                    $query->whereIn('id', $scoutIds)
-                        ->orderByRaw('FIELD(id, '.implode(',', $scoutIds).')');
+                    $query->whereIn('business_offerings.id', $scoutIds)
+                        ->orderByRaw('FIELD(business_offerings.id, '.implode(',', $scoutIds).')');
                 }
             } else {
                 $query->where(function ($q) use ($searchTerm) {
@@ -910,7 +913,7 @@ class SearchController extends Controller
             }
 
             // Search offerings
-            $offeringQuery = BusinessOffering::active();
+            $offeringQuery = BusinessOffering::available();
 
             if ($searchTerm) {
                 $offeringQuery->where(function ($q) use ($searchTerm) {

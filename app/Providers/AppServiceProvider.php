@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Http\SafeResponseFactory;
 use App\Models\Attraction;
 use App\Models\Business;
 use App\Models\Offer;
@@ -11,7 +11,10 @@ use App\Observers\AttractionObserver;
 use App\Observers\BusinessObserver;
 use App\Observers\OfferObserver;
 use App\Observers\ReviewObserver;
+use Illuminate\Contracts\Routing\ResponseFactory as ResponseFactoryContract;
+use Illuminate\Routing\ResponseFactory as BaseResponseFactory;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +30,21 @@ class AppServiceProvider extends ServiceProvider
             || str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
+
+        // Replace the default response factory with one that bakes
+        // UTF-8-tolerant flags into every `response()->json(...)`
+        // call. JsonResponse encodes during construction, so a
+        // payload with one bad byte would otherwise throw before any
+        // middleware could rescue it. With this binding, controllers
+        // get the safe flags automatically.
+        $this->app->singleton(BaseResponseFactory::class, function ($app) {
+            return new SafeResponseFactory(
+                $app['Illuminate\Contracts\View\Factory'],
+                $app['redirect'],
+            );
+        });
+        $this->app->alias(BaseResponseFactory::class, ResponseFactoryContract::class);
+        $this->app->alias(BaseResponseFactory::class, 'response');
     }
 
     /**

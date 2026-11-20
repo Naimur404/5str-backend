@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\AttractionInteractionController;
 use App\Http\Controllers\Api\AttractionReviewController;
 use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\BusinessSubmissionController;
+use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\SettingsController;
 
 /*
@@ -64,6 +65,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/verify', [EmailVerificationController::class, 'verify']);
         Route::post('/resend', [EmailVerificationController::class, 'resend']);
         Route::get('/status', [EmailVerificationController::class, 'status']);
+    });
+
+    // Behavioural event ingestion (Play-policy compliant: anon_id
+    // based, optional auth, rounded location, server-side enrichment).
+    // Throttled to stop a runaway client from flooding the bus.
+    Route::middleware(['throttle:60,1'])->group(function () {
+        Route::post('/events', [EventController::class, 'store']);
+        Route::post('/me/data/clear', [EventController::class, 'clearMyData']);
     });
 
     // Home screen data (public access)
@@ -294,6 +303,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         
         // Interaction tracking
         Route::post('/track', [RecommendationController::class, 'trackInteraction']);
+        // Server-trusted click logging (joins back to the impression
+        // row so position / score can't be faked by clients).
+        Route::post('/click', [RecommendationController::class, 'clickRecommendation']);
     });
 
     // User Interaction Tracking and Personalization

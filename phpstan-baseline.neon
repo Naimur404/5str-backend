@@ -1,0 +1,4045 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$district\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Console/Commands/CalculateBusinessSimilaritiesCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$offerings\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Console/Commands/CalculateBusinessSimilaritiesCommand.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Console/Commands/CalculateBusinessSimilaritiesCommand.php
+
+		-
+			message: '#^Relation ''offerings'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Console/Commands/CalculateBusinessSimilaritiesCommand.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$category_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Console/Commands/CleanWrongSimilaritiesCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$average_rating\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Console/Commands/InitializeRecommendationSystem.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$categories\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Console/Commands/InitializeRecommendationSystem.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserInteraction\:\:\$count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Console/Commands/InitializeRecommendationSystem.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Category\:\:\$businesses_count\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Console/Commands/SyncCategoryBusinessCounts.php
+
+		-
+			message: '#^Access to an undefined property Spatie\\Activitylog\\Models\\Activity\:\:\$activity_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Admin/AuditLogAdminController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$branches_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Admin/BusinessAdminController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$parentBusiness\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Admin/BusinessAdminController.php
+
+		-
+			message: '#^Anonymous function has an unused use \$request\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: app/Http/Controllers/Api/Admin/BusinessAdminController.php
+
+		-
+			message: '#^Relation ''parentBusiness'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/BusinessAdminController.php
+
+		-
+			message: '#^Anonymous function should return Illuminate\\Support\\Collection\<\(int\|string\), array\{id\: mixed, name\: mixed, slug\: mixed, level\: mixed, parent_id\: mixed, icon_image\: string\|null, color_code\: mixed, sort_order\: mixed, \.\.\.\}\> but returns Illuminate\\Support\\Collection\<\(int\|string\), array\{id\: mixed, name\: mixed, slug\: mixed, level\: mixed, parent_id\: mixed, icon_image\: string\|null, color_code\: mixed, sort_order\: mixed, \.\.\.\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Api/Admin/CategoryAdminController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SearchLog\:\:\$search_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Admin/DashboardAdminController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\View\:\:\$view_count\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/Admin/DashboardAdminController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Admin/ViewAdminController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Api\\Admin\\ViewAdminController\:\:attachTargetLabels\(\) should return Illuminate\\Support\\Collection\<int, array\<string, mixed\>\> but returns Illuminate\\Support\\Collection\<int, array\{viewable_type\: mixed, viewable_id\: mixed, view_count\: int, target\: array\{type\: string, name\: mixed, parent\: mixed\}\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Api/Admin/ViewAdminController.php
+
+		-
+			message: '#^Relation ''business'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/ViewAdminController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Attraction\:\:\$user_has_bookmarked\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Http/Controllers/Api/AttractionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Attraction\:\:\$user_has_liked\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Http/Controllers/Api/AttractionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Attraction\:\:\$user_interactions\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Http/Controllers/Api/AttractionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Attraction\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Attraction\>\:\:\$gallery\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/AttractionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Attraction\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Attraction\>\:\:\$reviews\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/AttractionController.php
+
+		-
+			message: '#^Relation ''coverImage'' is not found in App\\Models\\Attraction model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Http/Controllers/Api/AttractionController.php
+
+		-
+			message: '#^Relation ''gallery'' is not found in App\\Models\\Attraction model\.$#'
+			identifier: larastan.relationExistence
+			count: 5
+			path: app/Http/Controllers/Api/AttractionController.php
+
+		-
+			message: '#^Relation ''attraction'' is not found in App\\Models\\UserAttractionInteraction model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Http/Controllers/Api/AttractionInteractionController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\UserAttractionInteraction model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/AttractionInteractionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\AttractionReview\:\:\$user_vote_status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/AttractionReviewController.php
+
+		-
+			message: '#^Called ''pluck'' on Laravel collection, but could have been retrieved as a query\.$#'
+			identifier: larastan.noUnnecessaryCollectionCall
+			count: 1
+			path: app/Http/Controllers/Api/AttractionReviewController.php
+
+		-
+			message: '#^Relation ''attraction'' is not found in App\\Models\\AttractionReview model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/AttractionReviewController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\AttractionReview model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Api/AttractionReviewController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/AuthController.php
+
+		-
+			message: '#^Binary operation "/" between float\|int and \-110\|\-80\|\-70\|\-40\|\-30\|0\|30\|40\|60\|70\|80\|100\|110\|120\|140\|150\|180 results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: app/Http/Controllers/Api/AuthController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$distance_km\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$relevance_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Business\>\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Business\>\:\:\$parentBusiness\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$images\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 6
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Anonymous function has an unused use \$request\.$#'
+			identifier: closure.unusedUse
+			count: 2
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Anonymous function should return array\{businesses\: Illuminate\\Support\\Collection\<int, non\-empty\-array\<mixed\>\>, pagination\: array\{current_page\: int, last_page\: int, per_page\: int, total\: int, has_more\: bool\}, available_filters\: array\{item_types\: array\{ice_cream\: ''Ice Cream & Dairy'', biscuits_snacks\: ''Biscuits & Snacks'', beverages\: ''Beverages'', food_processing\: ''Food Processing''\}, business_models\: array\{''manufacturing'', ''brand'', ''delivery_only'', ''online_service''\}, sort_options\: array\{''rating'', ''popular'', ''name'', ''featured''\}\}\} but returns array\{businesses\: Illuminate\\Support\\Collection\<int, non\-empty\-array\<mixed\>\>, pagination\: array\{current_page\: int, last_page\: int, per_page\: int, total\: int, has_more\: bool\}, available_filters\: array\{item_types\: array\{ice_cream\: ''Ice Cream & Dairy'', biscuits_snacks\: ''Biscuits & Snacks'', beverages\: ''Beverages'', food_processing\: ''Food Processing''\}, business_models\: array\{''manufacturing'', ''brand'', ''delivery_only'', ''online_service''\}, sort_options\: array\{''rating'', ''popular'', ''name'', ''featured''\}\}\}\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''bannerImages'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 10
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''coverImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''galleryImages'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''images'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''images'' is not found in App\\Models\\Review model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''logoImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 7
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''owner'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''subcategory'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\Review model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Relation ''variants'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/BusinessController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Category\:\:\$actual_businesses_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/CategoryController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Category\:\:\$businesses_count\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/CategoryController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Category\:\:\$stored_total_businesses\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/CategoryController.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/CategoryController.php
+
+		-
+			message: '#^Relation ''children'' is not found in App\\Models\\Category model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/Api/CategoryController.php
+
+		-
+			message: '#^Relation ''logoImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/CategoryController.php
+
+		-
+			message: '#^Relation ''parent'' is not found in App\\Models\\Category model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/CategoryController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/EmailVerificationController.php
+
+		-
+			message: '#^Access to an undefined property Laravel\\Socialite\\Contracts\\User\:\:\$avatar\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/GoogleAuthController.php
+
+		-
+			message: '#^Access to an undefined property Laravel\\Socialite\\Contracts\\User\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/GoogleAuthController.php
+
+		-
+			message: '#^Access to an undefined property Laravel\\Socialite\\Contracts\\User\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/GoogleAuthController.php
+
+		-
+			message: '#^Access to an undefined property Laravel\\Socialite\\Contracts\\User\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/GoogleAuthController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Attraction\:\:\$distance\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Attraction\:\:\$galleries\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Attraction\:\:\$reviews\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$distance_km\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$subcategory\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Category\:\:\$businesses_count\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Category\:\:\$trendingData\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Offer\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\TrendingData\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\TrendingData\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Anonymous function has an unused use \$latitude\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Anonymous function has an unused use \$longitude\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Anonymous function should return Illuminate\\Support\\Collection\<int, array\{category\: \(int\|string\), type\: mixed, count\: mixed, avg_rating\: 0\|float, free_count\: mixed, paid_count\: \(float\|int\), min_entry_fee\: mixed, max_entry_fee\: mixed\}\> but returns Illuminate\\Support\\Collection\<int, array\{category\: \(int\|string\), type\: \(int\|string\), count\: int\<0, max\>, avg_rating\: 0\|float, free_count\: int\<0, max\>, paid_count\: int, min_entry_fee\: mixed, max_entry_fee\: mixed\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:active\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<TRelatedModel of Illuminate\\Database\\Eloquent\\Model\>\:\:active\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<TRelatedModel of Illuminate\\Database\\Eloquent\\Model\>\:\:nearby\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''business'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''business'' is not found in App\\Models\\Offer model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''business'' is not found in App\\Models\\TrendingData model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''businesses'' is not found in App\\Models\\Category model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 14
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\TrendingData model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''coverImage'' is not found in App\\Models\\Attraction model\.$#'
+			identifier: larastan.relationExistence
+			count: 5
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''coverImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''galleries'' is not found in App\\Models\\Attraction model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''logoImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 10
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''reviews'' is not found in App\\Models\\Attraction model\.$#'
+			identifier: larastan.relationExistence
+			count: 5
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''subcategory'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 9
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Relation ''trendingData'' is not found in App\\Models\\Category model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/HomeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Offer\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/OfferController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Offer\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Offer\>\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/OfferController.php
+
+		-
+			message: '#^Relation ''business'' is not found in App\\Models\\Offer model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Api/OfferController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 7
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$business_area\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$distance_km\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$popularity_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$relevance_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$images\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:active\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Relation ''business'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 7
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 5
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Relation ''images'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Relation ''images'' is not found in App\\Models\\Review model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\Review model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Relation ''variants'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Http/Controllers/Api/OfferingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$activeOffers\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$coverImage\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$galleryImages\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$logoImage\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$reviews\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$subcategory\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Support\\Collection\:\:load\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Relation ''coverImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Relation ''logoImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Relation ''subcategory'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/RecommendationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$images\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/ReviewController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$reviewable\.$#'
+			identifier: property.notFound
+			count: 6
+			path: app/Http/Controllers/Api/ReviewController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Review\>\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Api/ReviewController.php
+
+		-
+			message: '#^Relation ''images'' is not found in App\\Models\\Review model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Api/ReviewController.php
+
+		-
+			message: '#^Relation ''reviewable'' is not found in App\\Models\\Review model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/Api/ReviewController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\Review model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/ReviewController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$business_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$distance_km\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$logoImage\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$suggestion\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$website\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 11
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$distance_km\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$suggestion\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Category\:\:\$suggestion\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:active\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:nearby\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Relation ''bannerImages'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Relation ''business'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 6
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Relation ''logoImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Relation ''subcategory'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/SearchController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserCollection\:\:\$is_followed_by_user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/UserCollectionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Favorite\:\:\$favoritable\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/UserController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$reviewable\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/UserController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserAttractionInteraction\:\:\$attraction\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/UserController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPoint\:\:\$total_activities\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/UserController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPoint\:\:\$total_points\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/UserController.php
+
+		-
+			message: '#^Relation ''attraction'' is not found in App\\Models\\UserAttractionInteraction model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/UserController.php
+
+		-
+			message: '#^Relation ''favoritable'' is not found in App\\Models\\Favorite model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/UserController.php
+
+		-
+			message: '#^Relation ''reviewable'' is not found in App\\Models\\Review model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/UserController.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$alt_text\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$attraction_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$image_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$image_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$image_url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$is_cover\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$meta_data\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$sort_order\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionGalleryResource\:\:\$uploaded_by\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionGalleryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$accessibility_info\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$address\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$area\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$best_time_to_visit\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$city\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$contact_info\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$country\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$cover_image_url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$difficulty_level\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$discovery_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$district\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$entry_fee\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$estimated_duration_minutes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$facilities\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$gallery_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$is_featured\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$is_free\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$is_verified\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$latitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$longitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$opening_hours\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$overall_rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$rejection_reason\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$subcategory\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$total_dislikes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$total_likes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$total_reviews\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$total_shares\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$total_views\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$admin_notes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$attraction\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$attraction_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$comment\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$experience_tags\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$helpful_votes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$is_anonymous\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$is_featured\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$is_verified\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$meta_data\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$total_votes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$visit_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionReviewResource\:\:\$visit_info\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$additional_info\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$address\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$admin_notes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$approved_attraction_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$best_time_to_visit\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$city\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$entry_fee\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$facilities\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$images\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$latitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$longitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$reviewed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$reviewer\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\AttractionSubmissionResource\:\:\$visiting_hours\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/AttractionSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$click_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$end_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$image_url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$link_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$link_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$link_url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$position\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$sort_order\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$start_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$subtitle\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$target_location\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BannerResource\:\:\$view_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BannerResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessImageResource\:\:\$business_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessImageResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessImageResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessImageResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessImageResource\:\:\$image_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessImageResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessImageResource\:\:\$image_url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessImageResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessImageResource\:\:\$is_primary\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessImageResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessImageResource\:\:\$sort_order\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessImageResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$approval_status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$average_rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$business_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$category_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$image_url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$is_available\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$is_featured\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$is_popular\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$offering_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$price\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$price_max\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$sort_order\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$total_reviews\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessOfferingResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessOfferingResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$approval_status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$approved_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$approver\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$area\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$branches\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$business_email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$business_model\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$business_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$business_phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$business_tags\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$category_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$city\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$coverImage\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$discovery_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$full_address\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$has_delivery\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$has_parking\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$has_pending_changes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$has_pickup\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$is_featured\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$is_national\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$is_verified\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$landmark\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$latitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$logoImage\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$longitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$opening_hours\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$overall_rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$owner\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$owner_user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$parentBusiness\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$parent_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$pending_changes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$price_range\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$product_tags\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$rejection_reason\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$service_areas\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$service_coverage\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$subcategory\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$subcategory_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$total_reviews\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessResource\:\:\$website_url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$additional_info\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$address\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$admin_notes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$approved_business_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$city\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$images\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$latitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$longitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$opening_hours\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$reviewed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$reviewer\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\BusinessSubmissionResource\:\:\$website\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/BusinessSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$banner_image\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$color_code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$icon_image\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$is_featured\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$is_popular\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$level\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$parent\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$parent_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$rating_criteria\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$sort_order\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$total_businesses\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\CategoryResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/CategoryResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$additional_data\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$endpoint\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$ip_address\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$latitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$longitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$user_agent\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$user_area\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\EndpointAnalyticsResource\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/EndpointAnalyticsResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$applicable_days\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$banner_image\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$business_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$current_usage\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$discount_amount\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$discount_percentage\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$is_featured\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$minimum_spend\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$offer_code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$offer_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$usage_limit\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$valid_from\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferResource\:\:\$valid_to\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$additional_info\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$admin_notes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$availability\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$business_address\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$business_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$business_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$contact_info\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$images\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$offering_category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$offering_description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$offering_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$price\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$price_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$reviewed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$reviewer\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingSubmissionResource\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Resources/Admin/OfferingSubmissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingVariantResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingVariantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingVariantResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingVariantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingVariantResource\:\:\$is_available\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingVariantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingVariantResource\:\:\$offering\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Resources/Admin/OfferingVariantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingVariantResource\:\:\$offering_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingVariantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingVariantResource\:\:\$price_adjustment\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingVariantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingVariantResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingVariantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingVariantResource\:\:\$variant_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingVariantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\OfferingVariantResource\:\:\$variant_value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/OfferingVariantResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\PermissionResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/PermissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\PermissionResource\:\:\$guard_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/PermissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\PermissionResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/PermissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\PermissionResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/PermissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\PermissionResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/PermissionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$approved_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$helpful_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$is_recommended\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$not_helpful_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$overall_rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$ratings\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$reviewable\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$reviewable_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$reviewable_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ReviewResource\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ReviewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\RoleResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/RoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\RoleResource\:\:\$guard_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/RoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\RoleResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/RoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\RoleResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/RoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\RoleResource\:\:\$permissions\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/RoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\RoleResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/RoleResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$category_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$clicked_business_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$filters_applied\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$results_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$search_term\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$user_area\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$user_latitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\SearchLogResource\:\:\$user_longitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/SearchLogResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$date_period\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$hybrid_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$item_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$item_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$item_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$location_area\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$search_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$time_period\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$trend_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\TrendingDataResource\:\:\$view_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/TrendingDataResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$attraction\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$attraction_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$interaction_data\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$interaction_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$interaction_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$is_public\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$notes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$user_rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserAttractionInteractionResource\:\:\$visit_info\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserAttractionInteractionResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$avatar\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$city\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$current_latitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$current_longitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$email_verified_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$permissions\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$profile_image\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$roles\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$total_points\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$total_reviews_written\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$trust_level\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\UserResource\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/UserResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$ip_address\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$session_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$user_agent\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$user_area\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$user_latitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$user_longitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$viewable\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$viewable_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\Admin\\ViewResource\:\:\$viewable_type\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/Admin/ViewResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$categories\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Jobs/CalculateBusinessSimilarityJob.php
+
+		-
+			message: '#^Relation ''categories'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Jobs/CalculateBusinessSimilarityJob.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$parentBusiness\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Jobs/RecomputeBrandAggregatesJob.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\AttractionReview\:\:\$attraction\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/AttractionReview.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$logoImage\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Business.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$offerings\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Business.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$parentBusiness\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Models/Business.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$products\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Business.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$services\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Business.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Category\:\:\$parent\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Category.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Review.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$reviewable\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/Review.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/Review.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ReviewHelpfulVote\:\:\$review\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/ReviewHelpfulVote.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\TrendingData\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/TrendingData.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\TrendingData\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/TrendingData.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\TrendingData\:\:\$offering\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/TrendingData.php
+
+		-
+			message: '#^PHPDoc type array\<int, string\> of property App\\Models\\User\:\:\$fillable is not covariant with PHPDoc type list\<string\> of overridden property Illuminate\\Database\\Eloquent\\Model\:\:\$fillable\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^PHPDoc type array\<int, string\> of property App\\Models\\User\:\:\$hidden is not covariant with PHPDoc type list\<string\> of overridden property Illuminate\\Database\\Eloquent\\Model\:\:\$hidden\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserAttractionInteraction\:\:\$attraction\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/UserAttractionInteraction.php
+
+		-
+			message: '#^Method App\\Models\\UserCollection\:\:addBusiness\(\) should return App\\Models\\CollectionItem but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/UserCollection.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Offer\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Observers/OfferObserver.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$reviewable\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Observers/ReviewObserver.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Review\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Observers/ReviewObserver.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$ai_confidence\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/AI/NeuralRecommendationEngine.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$ai_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/AI/NeuralRecommendationEngine.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$average_rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/AI/NeuralRecommendationEngine.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$categories\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/AI/NeuralRecommendationEngine.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$preferences\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/AI/NeuralRecommendationEngine.php
+
+		-
+			message: '#^Relation ''categories'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/AI/NeuralRecommendationEngine.php
+
+		-
+			message: '#^Relation ''reviews'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/AI/NeuralRecommendationEngine.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\BusinessOffering\:\:\$business\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/AnalyticsService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SearchLog\:\:\$search_count\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/AnalyticsService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\View\:\:\$view_count\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/AnalyticsService.php
+
+		-
+			message: '#^Relation ''business'' is not found in App\\Models\\BusinessOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/AnalyticsService.php
+
+		-
+			message: '#^Relation ''business'' is not found in App\\Models\\TrendingData model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/AnalyticsService.php
+
+		-
+			message: '#^Relation ''offering'' is not found in App\\Models\\TrendingData model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/AnalyticsService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/BusinessEmbeddingService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$offerings\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/BusinessEmbeddingService.php
+
+		-
+			message: '#^Method App\\Services\\CandidateGenerator\:\:areaTrending\(\) should return Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Business\> but returns Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Method App\\Services\\CandidateGenerator\:\:byCategory\(\) should return Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Business\> but returns Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Method App\\Services\\CandidateGenerator\:\:nearby\(\) should return Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Business\> but returns Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Method App\\Services\\CandidateGenerator\:\:popular\(\) should return Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Business\> but returns Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Relation ''activeOffers'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Relation ''coverImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Relation ''galleryImages'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Relation ''logoImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Relation ''reviews'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Relation ''subcategory'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/CandidateGenerator.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$contributing_algorithms\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$final_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$personalization_applied\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Method App\\Services\\ColdStartLadder\:\:areaTrending\(\) should return Illuminate\\Support\\Collection\<int, App\\Models\\Business\> but returns Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Relation ''activeOffers'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Relation ''coverImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Relation ''galleryImages'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Relation ''logoImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Relation ''reviews'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Relation ''subcategory'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/ColdStartLadder.php
+
+		-
+			message: '#^Relation ''categories'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/CollaborativeFilter.php
+
+		-
+			message: '#^Relation ''images'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/CollaborativeFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$categories\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ContentBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$minimum_rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ContentBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$price_range_max\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/ContentBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$price_range_min\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/ContentBasedFilter.php
+
+		-
+			message: '#^Relation ''categories'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Services/ContentBasedFilter.php
+
+		-
+			message: '#^Relation ''images'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/ContentBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$categories\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$distance\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$distance_km\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserInteraction\:\:\$latitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserInteraction\:\:\$longitude\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$minimum_rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$preferred_location_lat\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$preferred_location_lng\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$preferred_radius_km\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$price_range_max\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$price_range_min\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Relation ''categories'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Relation ''images'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Services/LocationBasedFilter.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$activeOffers\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationPostProcessor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$base_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationPostProcessor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$final_score\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/RecommendationPostProcessor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$fresh_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationPostProcessor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$mmr_relevance\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/RecommendationPostProcessor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$mmr_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationPostProcessor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$reviews\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/RecommendationPostProcessor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$session_boost\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationPostProcessor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$categories\.$#'
+			identifier: property.notFound
+			count: 6
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$contributing_algorithms\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$final_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$personalization_applied\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$recommendation_reasons\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$recommendation_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$similarity_reasons\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$similarity_score\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\:\:\$similarity_type\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Business\>\:\:\$similarity_reasons\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Business\>\:\:\$similarity_score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Business\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Business\>\:\:\$similarity_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$minimum_rating\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$price_range_max\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\UserPreference\:\:\$price_range_min\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$category_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$price_range\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Relation ''activeOffers'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Relation ''categories'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Relation ''category'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 7
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Relation ''coverImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 7
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Relation ''galleryImages'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Relation ''images'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Relation ''logoImage'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 7
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Relation ''reviews'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Services/RecommendationService.php
+
+		-
+			message: '#^Relation ''subcategory'' is not found in App\\Models\\Business model\.$#'
+			identifier: larastan.relationExistence
+			count: 7
+			path: app/Services/RecommendationService.php

@@ -21,10 +21,14 @@ class UserAdminController extends AdminResourceController
     protected function validationRules(Request $request, ?Model $record = null): array
     {
         $id = $record?->getKey();
+        $isCreate = $record === null;
 
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($id)],
+            // PATCH-friendly: list-page toggles only send the changed
+            // field (e.g. `{is_active: false}`); name/email are
+            // required only when creating a new user.
+            'name' => [$isCreate ? 'required' : 'sometimes', 'string', 'max:255'],
+            'email' => [$isCreate ? 'required' : 'sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($id)],
             'password' => [$id ? 'nullable' : 'required', 'string', 'min:8'],
             'phone' => ['nullable', 'string', 'max:30'],
             'profile_image' => ['nullable', 'string', 'max:500'],

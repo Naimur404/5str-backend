@@ -22,10 +22,16 @@ class BannerAdminController extends AdminResourceController
 
     protected function validationRules(Request $request, ?Model $record = null): array
     {
+        $isCreate = $record === null;
+
         return [
-            'title' => ['required', 'string', 'max:255'],
+            // PATCH-friendly: required only on create. Toggling
+            // `is_active` from the list switches sends just
+            // `{is_active: false}` and used to fail with
+            // "title required / image_url required".
+            'title' => [$isCreate ? 'required' : 'sometimes', 'string', 'max:255'],
             'subtitle' => ['nullable', 'string', 'max:500'],
-            'image_url' => ['required', 'string', 'max:500'],
+            'image_url' => [$isCreate ? 'required' : 'sometimes', 'string', 'max:500'],
             'link_type' => ['nullable', 'string', 'in:business,category,offer,attraction,url'],
             'link_id' => ['nullable', 'integer'],
             'link_url' => ['nullable', 'url', 'max:500'],
