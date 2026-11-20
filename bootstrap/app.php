@@ -16,6 +16,57 @@ use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
+/*
+ * Shared API JSON error builder. Kept inline (not autoloaded) so the
+ * exception render path doesn't depend on container resolution.
+ *
+ * Guarded with function_exists() because this file can be required more
+ * than once per process (config:cache / route:cache build a fresh app, and
+ * so does every test). It must stay above the `return` below: a conditional
+ * declaration is not hoisted, so it only exists once execution reaches it.
+ */
+if (! function_exists('apiJsonError')) {
+    function apiJsonError(\Throwable $e): \Symfony\Component\HttpFoundation\Response
+    {
+        $status = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
+
+        $payload = [
+            'success' => false,
+            'message' => $e->getMessage() ?: 'Server error',
+        ];
+
+        if ($e instanceof ValidationException) {
+            $status = $e->status;
+            $payload['message'] = 'Validation failed';
+            $payload['errors'] = $e->errors();
+        } elseif ($e instanceof AuthenticationException) {
+            $status = 401;
+            $payload['message'] = 'Unauthenticated';
+        } elseif ($e instanceof ModelNotFoundException || $e instanceof NotFoundHttpException) {
+            $status = 404;
+            $payload['message'] = 'Resource not found';
+        }
+
+        if (config('app.debug') && $status >= 500) {
+            $payload['debug'] = [
+                'exception' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => collect($e->getTrace())
+                    ->take(10)
+                    ->map(static fn ($f) => [
+                        'file' => $f['file'] ?? null,
+                        'line' => $f['line'] ?? null,
+                        'function' => ($f['class'] ?? '').($f['type'] ?? '').($f['function'] ?? ''),
+                    ])
+                    ->all(),
+            ];
+        }
+
+        return response()->json($payload, $status);
+    }
+}
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
@@ -90,47 +141,3 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->create();
-
-/**
- * Shared API JSON error builder. Kept inline (not autoloaded) so the
- * exception render path doesn't depend on container resolution.
- */
-function apiJsonError(\Throwable $e): \Symfony\Component\HttpFoundation\Response
-{
-    $status = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
-
-    $payload = [
-        'success' => false,
-        'message' => $e->getMessage() ?: 'Server error',
-    ];
-
-    if ($e instanceof ValidationException) {
-        $status = $e->status;
-        $payload['message'] = 'Validation failed';
-        $payload['errors'] = $e->errors();
-    } elseif ($e instanceof AuthenticationException) {
-        $status = 401;
-        $payload['message'] = 'Unauthenticated';
-    } elseif ($e instanceof ModelNotFoundException || $e instanceof NotFoundHttpException) {
-        $status = 404;
-        $payload['message'] = 'Resource not found';
-    }
-
-    if (config('app.debug') && $status >= 500) {
-        $payload['debug'] = [
-            'exception' => get_class($e),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => collect($e->getTrace())
-                ->take(10)
-                ->map(static fn ($f) => [
-                    'file' => $f['file'] ?? null,
-                    'line' => $f['line'] ?? null,
-                    'function' => ($f['class'] ?? '').($f['type'] ?? '').($f['function'] ?? ''),
-                ])
-                ->all(),
-        ];
-    }
-
-    return response()->json($payload, $status);
-}
