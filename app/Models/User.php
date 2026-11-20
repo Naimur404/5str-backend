@@ -41,6 +41,8 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $hidden = [
+        // Generated binary POINT column (MySQL/MariaDB spatial index); not JSON-serializable.
+        'current_location',
         'password',
         'remember_token',
         'created_at',

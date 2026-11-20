@@ -21,6 +21,16 @@ class EndpointAnalytics extends Model
         'additional_data',
     ];
 
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        // Generated binary POINT column (MySQL/MariaDB spatial index); not JSON-serializable.
+        'location',
+    ];
+
     protected $casts = [
         'additional_data' => 'array',
         'latitude' => 'decimal:8',
